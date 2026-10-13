@@ -1,4 +1,4 @@
-<img alt="Boundary" src="boundary.png" alt="Image" width="500px"/>
+<img alt="Boundary Unlimited" src="boundary-unlimited.png" width="500px"/>
 
 # Boundary Unlimited
 
