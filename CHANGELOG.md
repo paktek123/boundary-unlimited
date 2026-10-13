@@ -2,6 +2,23 @@
 
 Canonical reference for changes, improvements, and bugfixes for Boundary.
 
+## Unreleased (Boundary Unlimited)
+
+This section covers changes made in the community-maintained Boundary Unlimited
+fork, which is independent of HashiCorp.
+
+### New and Improved
+
+* Added `ssh` and `rdp` target types to the community edition. Both support
+  host sources, aliases, and brokered credentials. Default ports are 22 for
+  `ssh` and 3389 for `rdp` when not specified.
+  * Credential injection is not supported; only the brokered credential
+    purpose is accepted.
+  * Session recording is not supported; setting `enable_session_recording` or
+    `storage_bucket_id` on these targets returns an error.
+* Added Boundary Unlimited logo and updated `README.md` to describe the
+  community-maintained fork and how to contribute.
+
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
