@@ -1,10 +1,17 @@
 <img alt="Boundary" src="boundary.png" alt="Image" width="500px"/>
 
-Boundary Community Edition (CE) is no longer under active development, and this repository has been archived as of October 8, 2026. Future Boundary development will focus on HCP Boundary and Boundary Enterprise, where we can provide enterprise grade human and agentic access capabilities.
+# Boundary Unlimited
 
-This repository is now read-only and no longer accepts new issues, pull requests, or community contributions. Existing source code and previously released binaries remain available for reference and existing self-managed use.
+This is a community-maintained fork of Boundary Community Edition (CE). HashiCorp is no longer updating Boundary CE, and the upstream repository has been archived. For now, this fork is maintained by [@paktek123](https://github.com/paktek123) with the help of Claude.
 
-No new Boundary CE releases, maintenance updates, bug fixes, or security patches are currently planned.
+The community is free to contribute. Issues and pull requests are welcome.
 
-Teams continuing to use Boundary CE should evaluate whether it meets their operational, security, and compliance requirements.
-For supported Boundary capabilities, including production-scale governance, compliance, session recording, enterprise support, and future Boundary development, please evaluate HCP Boundary or Boundary Enterprise.
+## Status
+
+- This fork is independent and is not affiliated with or supported by HashiCorp.
+- There are no guarantees about release cadence, maintenance, or security patches.
+- If you run this in production, evaluate whether it meets your operational, security, and compliance requirements.
+
+## Looking for supported Boundary?
+
+For production-scale governance, compliance, session recording, enterprise support, and HashiCorp's ongoing Boundary development, see HCP Boundary or Boundary Enterprise.
