@@ -61,7 +61,9 @@ inventing a new format:
 ## Retention
 
 Retention of stored objects is delegated to the bucket's own lifecycle policy.
-Boundary will not silently delete recordings. An explicit per-bucket retention
+Boundary will not silently delete recordings. If a bucket policy removes an object the controller still references, reads
+report the recording as missing/unavailable (never as valid) and the record is kept
+for audit. An explicit per-bucket retention
 setting is a possible follow-up, out of scope here.
 
 ## API surface
