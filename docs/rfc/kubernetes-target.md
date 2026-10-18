@@ -62,6 +62,11 @@ all others, exactly as for ssh/rdp today. Supported brokered credential shapes:
 | `json` with `client-certificate-data` / `client-key-data` | client cert auth |
 | `json` containing a complete kubeconfig | used as is, with the `server` rewritten to the local listener and `tls-server-name` set |
 
+A brokered kubeconfig must not weaken TLS: `connect kube` validates it and
+rejects (or strips) `insecure-skip-tls-verify`, and only honours a
+`certificate-authority(-data)` entry for the target cluster, never for other
+clusters/contexts in the file. Exec-plugin `user.exec` entries are refused.
+
 Vault generic libraries (for example Vault's Kubernetes secrets engine) can
 produce short-lived tokens via `json` credentials. No new credential types are
 needed for v1. Credentials are exposed to the client when brokered; the docs
