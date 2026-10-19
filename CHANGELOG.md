@@ -17,6 +17,7 @@ fork, which is independent of HashiCorp.
   * Session recording is not supported; setting `enable_session_recording` or
     `storage_bucket_id` on these targets returns an error.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
+* Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
