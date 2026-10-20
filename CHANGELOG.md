@@ -21,6 +21,9 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
+* Added an internal, not-yet-wired SSH channel recorder library that writes
+  channel data and requests into BSR containers (`internal/bsr/ssh/recorder`).
+  `enable_session_recording` is still rejected on `ssh` targets.
 
 ## 0.21.3 (2026/04/28)
 
