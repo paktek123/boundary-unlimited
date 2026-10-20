@@ -21,6 +21,9 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
+* Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
+  worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
+  this change.
 
 ## 0.21.3 (2026/04/28)
 
