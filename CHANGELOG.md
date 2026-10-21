@@ -19,6 +19,10 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added internal, not yet wired, kubeconfig builder helpers for the planned
+  `boundary connect kube` command (builds a TLS-verifying kubeconfig, writes it
+  to a private 0600 temp file, and rejects exec-plugin kubeconfigs). No new
+  target type or flag is enabled by this change.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
