@@ -24,6 +24,9 @@ fork, which is independent of HashiCorp.
 * Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
   worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
   this change.
+  * The server denies by default: only `session` channels, an allowlist of
+    channel requests (no agent or X11 forwarding), no global requests (for
+    example `tcpip-forward`), and a per-connection cap on concurrent channels.
 
 ## 0.21.3 (2026/04/28)
 

@@ -11,6 +11,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -36,10 +38,28 @@ type fakeTarget struct {
 	dials    atomic.Int32
 	closed   chan struct{}
 	failDial bool
+
+	mu         sync.Mutex
+	chanTypes  []string
+	reqTypes   []string
+	globalReqs []string
+	srvConns   chan ssh.Conn
+}
+
+func (f *fakeTarget) record(dst *[]string, v string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	*dst = append(*dst, v)
+}
+
+func (f *fakeTarget) seen(src *[]string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(*src)
 }
 
 func newFakeTarget(t *testing.T) *fakeTarget {
-	return &fakeTarget{hostKey: newSigner(t), closed: make(chan struct{}, 8)}
+	return &fakeTarget{hostKey: newSigner(t), closed: make(chan struct{}, 8), srvConns: make(chan ssh.Conn, 8)}
 }
 
 func (f *fakeTarget) Dial(ctx context.Context) (UpstreamConn, error) {
@@ -82,18 +102,28 @@ func (c *closeNotify) Close() error {
 func (f *fakeTarget) serve(c net.Conn) {
 	cfg := &ssh.ServerConfig{NoClientAuth: true}
 	cfg.AddHostKey(f.hostKey)
-	_, chans, reqs, err := ssh.NewServerConn(c, cfg)
+	sconn, chans, reqs, err := ssh.NewServerConn(c, cfg)
 	if err != nil {
 		return
 	}
-	go ssh.DiscardRequests(reqs)
+	f.srvConns <- sconn
+	go func() {
+		for r := range reqs {
+			f.record(&f.globalReqs, r.Type)
+			if r.WantReply {
+				_ = r.Reply(r.Type == "keepalive@openssh.com", nil)
+			}
+		}
+	}()
 	for nc := range chans {
+		f.record(&f.chanTypes, nc.ChannelType())
 		ch, creqs, err := nc.Accept()
 		if err != nil {
 			continue
 		}
 		go func() {
 			for r := range creqs {
+				f.record(&f.reqTypes, r.Type)
 				if r.WantReply {
 					_ = r.Reply(r.Type == "exec", nil)
 				}
