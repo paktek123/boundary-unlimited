@@ -19,6 +19,8 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
+  missing `HostKeyCallback` in the worker SSH proxy packages.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
