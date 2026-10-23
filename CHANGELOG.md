@@ -19,6 +19,10 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added pure-Go helpers for the SSH client-facing host key: a per-session
+  ephemeral Ed25519 key generator with a redacting private key type
+  (`internal/daemon/worker/proxy/ssh/hostkey`) and a CLI temporary `known_hosts`
+  writer (`internal/cmd/commands/connect`). Neither is wired to sessions yet.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
