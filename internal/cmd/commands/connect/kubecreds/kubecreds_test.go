@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,7 +144,13 @@ func TestParseRejects(t *testing.T) {
 		{"client-certificate file", mut(func(cl, u m) { u["client-certificate"] = "/c" }), false},
 		{"client-key file", mut(func(cl, u m) { u["client-key"] = "/k" }), false},
 		{"basic auth user", mut(func(cl, u m) { u["username"] = "a"; u["password"] = "b" }), false},
-		{"impersonation", mut(func(cl, u m) { u["as"] = "x"; u["act-as"] = "x" }), false},
+		{"impersonation as", mut(func(cl, u m) { u["as"] = "system:masters" }), false},
+		{"impersonation as-uid", mut(func(cl, u m) { u["as-uid"] = "1" }), false},
+		{"impersonation as-groups", mut(func(cl, u m) { u["as-groups"] = []any{"system:masters"} }), false},
+		{"impersonation as-user-extra", mut(func(cl, u m) { u["as-user-extra"] = m{"a": []any{"b"}} }), false},
+		{"unknown user field", mut(func(cl, u m) { u["future-field"] = "x" }), false},
+		{"unknown cluster field", mut(func(cl, u m) { cl["future-field"] = "x" }), false},
+		{"oversized wrapped kubeconfig", m{"kubeconfig": strings.Repeat("a", maxKubeconfigSize+1)}, false},
 		{"user with no creds", mut(func(cl, u m) { delete(u, "token") }), false},
 		{"user mixes token and cert", mut(func(cl, u m) { u["client-certificate-data"] = c; u["client-key-data"] = k }), false},
 		{"CA data not base64", mut(func(cl, u m) { cl["certificate-authority-data"] = "!!" }), false},

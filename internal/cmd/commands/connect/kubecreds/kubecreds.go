@@ -7,6 +7,8 @@
 // normalises; it enables nothing by itself and is not yet wired into the
 // command. Every rule fails closed: unknown shapes, parse errors and empty
 // values are errors, and error messages never contain token or key material.
+// As a leaf validator it uses the standard library errors package with the
+// ErrUnsupportedShape sentinel rather than internal/errors.
 package kubecreds
 
 import (
@@ -111,6 +113,35 @@ func Parse(cred map[string]any) (*Result, error) {
 	return nil, ErrUnsupportedShape
 }
 
+// maxKubeconfigSize bounds the kubeconfig string parsed from a credential.
+const maxKubeconfigSize = 1 << 20
+
+// allowedClusterKeys and allowedUserKeys are the only kubeconfig fields that
+// are accepted. A cluster without certificate-authority-data validates against
+// the system roots, which the RFC permits for publicly signed API servers.
+var (
+	allowedClusterKeys = map[string]bool{
+		"server":                     true,
+		"certificate-authority-data": true,
+		"tls-server-name":            true,
+		"insecure-skip-tls-verify":   true, // only when false
+		"disable-compression":        true,
+		"extensions":                 true,
+	}
+	allowedUserKeys = map[string]bool{
+		"token":                   true,
+		"client-certificate-data": true,
+		"client-key-data":         true,
+		"extensions":              true,
+	}
+)
+
+// isTrueOrUnknown reports whether v is anything other than the boolean false.
+func isTrueOrUnknown(v any) bool {
+	b, ok := v.(bool)
+	return !ok || b
+}
+
 func parseToken(v any) (string, error) {
 	s, ok := v.(string)
 	if !ok || s == "" {
@@ -166,26 +197,23 @@ func parseKubeconfig(cred map[string]any, wrapped bool) (*Result, error) {
 	}
 
 	// Whole-file rules: apply to every cluster and user, selected or not.
+	// Keys are checked against allowlists so unknown or future fields (for
+	// example the impersonation keys as, as-uid, as-groups and as-user-extra)
+	// fail closed.
 	for _, c := range cfg.Clusters {
-		if v, ok := c.Cluster["insecure-skip-tls-verify"]; ok && v != false {
-			return nil, fmt.Errorf("cluster %q: insecure-skip-tls-verify is not allowed", c.Name)
-		}
-		if _, ok := c.Cluster["certificate-authority"]; ok {
-			return nil, fmt.Errorf("cluster %q: file path references are not allowed; use certificate-authority-data", c.Name)
-		}
-		if _, ok := c.Cluster["proxy-url"]; ok {
-			return nil, fmt.Errorf("cluster %q: proxy-url is not allowed", c.Name)
+		for k, v := range c.Cluster {
+			if !allowedClusterKeys[k] {
+				return nil, fmt.Errorf("cluster %q: field %q is not allowed", c.Name, k)
+			}
+			if k == "insecure-skip-tls-verify" && isTrueOrUnknown(v) {
+				return nil, fmt.Errorf("cluster %q: insecure-skip-tls-verify is not allowed", c.Name)
+			}
 		}
 	}
 	for _, u := range cfg.Users {
-		for _, f := range []string{"exec", "auth-provider"} {
-			if _, ok := u.User[f]; ok {
-				return nil, fmt.Errorf("user %q: %s is not allowed", u.Name, f)
-			}
-		}
-		for _, f := range []string{"tokenFile", "client-certificate", "client-key", "username", "password", "act-as", "act-as-groups", "act-as-uid"} {
-			if _, ok := u.User[f]; ok {
-				return nil, fmt.Errorf("user %q: %s is not allowed", u.Name, f)
+		for k := range u.User {
+			if !allowedUserKeys[k] {
+				return nil, fmt.Errorf("user %q: field %q is not allowed", u.Name, k)
 			}
 		}
 	}
