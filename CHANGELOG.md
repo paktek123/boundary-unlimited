@@ -19,6 +19,9 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a standalone, not-yet-wired bounded scratch store for SSH session
+  recordings with a fail-closed quota and orphan recovery
+  (`internal/daemon/worker/recording/scratch`). No behaviour change.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
