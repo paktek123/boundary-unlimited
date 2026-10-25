@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"strings"
@@ -150,7 +151,6 @@ func TestParseRejects(t *testing.T) {
 		{"impersonation as-user-extra", mut(func(cl, u m) { u["as-user-extra"] = m{"a": []any{"b"}} }), false},
 		{"unknown user field", mut(func(cl, u m) { u["future-field"] = "x" }), false},
 		{"unknown cluster field", mut(func(cl, u m) { cl["future-field"] = "x" }), false},
-		{"oversized wrapped kubeconfig", m{"kubeconfig": strings.Repeat("a", maxKubeconfigSize+1)}, false},
 		{"user with no creds", mut(func(cl, u m) { delete(u, "token") }), false},
 		{"user mixes token and cert", mut(func(cl, u m) { u["client-certificate-data"] = c; u["client-key-data"] = k }), false},
 		{"CA data not base64", mut(func(cl, u m) { cl["certificate-authority-data"] = "!!" }), false},
@@ -214,4 +214,23 @@ func TestOnlySelectedClusterCAIsHonoured(t *testing.T) {
 	got, err := Parse(cfg(nil))
 	require.NoError(t, err)
 	assert.Equal(t, "Q0E=", got.CertificateAuthorityData, "CA of the selected cluster, not of 'other'")
+}
+
+func TestKubeconfigSizeCap(t *testing.T) {
+	doc, err := json.Marshal(cfg(nil))
+	require.NoError(t, err)
+
+	// The unpadded document is valid, so only the size can make the padded one fail.
+	_, err = Parse(m{"kubeconfig": string(doc)})
+	require.NoError(t, err)
+
+	atCap := string(doc) + "\n# " + strings.Repeat("a", maxKubeconfigSize-len(doc)-3)
+	require.Len(t, atCap, maxKubeconfigSize)
+	_, err = Parse(m{"kubeconfig": atCap})
+	require.NoError(t, err)
+
+	got, err := Parse(m{"kubeconfig": atCap + "a"})
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.ErrorContains(t, err, "too large")
 }

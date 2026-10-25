@@ -183,6 +183,9 @@ func parseKubeconfig(cred map[string]any, wrapped bool) (*Result, error) {
 		if !ok || strings.TrimSpace(s) == "" {
 			return nil, errors.New("kubeconfig must be a non-empty string")
 		}
+		if len(s) > maxKubeconfigSize {
+			return nil, errors.New("kubeconfig is too large")
+		}
 		if err := yaml.Unmarshal([]byte(s), &cfg); err != nil {
 			return nil, errors.New("kubeconfig could not be parsed")
 		}
