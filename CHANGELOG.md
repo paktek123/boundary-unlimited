@@ -22,6 +22,9 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a standalone, not-yet-wired upload retry/backoff manager for SSH
+  session recordings (`internal/daemon/worker/recording/upload`). No behaviour
+  change.
 * Added a standalone, not-yet-wired bounded scratch store for SSH session
   recordings with a fail-closed quota and orphan recovery
   (`internal/daemon/worker/recording/scratch`). No behaviour change.
