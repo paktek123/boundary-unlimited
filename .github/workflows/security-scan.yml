@@ -1,13 +1,10 @@
 name: Security Scan
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches:
-      - 'main'
-    paths-ignore:
-      - 'website/**'
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
+  workflow_dispatch:
 
 jobs:
   scan:

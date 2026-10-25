@@ -1,19 +1,11 @@
 name: build
 
 on:
-  push:
-    branches:
-      - 'main'
-      - 'release/**'
-    tags-ignore:
-      - '**'
-    paths-ignore:
-      - 'website/**'
-  pull_request:
-    paths-ignore:
-      - 'website/**'
-  workflow_call:
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
   workflow_dispatch:
+  workflow_call:
 
 env:
   PKG_NAME: "boundary"
