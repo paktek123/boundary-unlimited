@@ -25,8 +25,39 @@ fork, which is independent of HashiCorp.
 * Added `internal/bsr/playback`, a validate-then-convert export pipeline for
   session recordings that writes nothing unless validation passes (library
   only, not wired to the CLI yet, not user-visible).
+* Added `internal/daemon/worker/proxy/ssh/recguard`, a fail-closed guard for SSH
+  session recording that terminates the session and marks the recording
+  incomplete on any write or quota failure (library only, not wired to the
+  worker yet, not user-visible).
+* Added a standalone, not-yet-wired brokered credential shape validator for
+  `boundary connect kube` (`internal/cmd/commands/connect/kubecreds`). No
+  behaviour change.
+* Added a standalone, not-yet-wired upload retry/backoff manager for SSH
+  session recordings (`internal/daemon/worker/recording/upload`). No behaviour
+  change.
+* Added a standalone, not-yet-wired bounded scratch store for SSH session
+  recordings with a fail-closed quota and orphan recovery
+  (`internal/daemon/worker/recording/scratch`). No behaviour change.
+* Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
+  missing `HostKeyCallback` in the worker SSH proxy packages.
+* Added pure-Go helpers for the SSH client-facing host key: a per-session
+  ephemeral Ed25519 key generator with a redacting private key type
+  (`internal/daemon/worker/proxy/ssh/hostkey`) and a CLI temporary `known_hosts`
+  writer (`internal/cmd/commands/connect`). Neither is wired to sessions yet.
+* Added `internal/target/ssh/hostkeypolicy`, a pure-Go validator for SSH host key
+  pinning (`host_keys`) and host CA values. It is not yet wired to the API.
+* Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
+  a connection to a Kubernetes API server over mandatory verified TLS. It is not
+  registered in the worker and enables no user-visible feature yet.
+* Added internal, not yet wired, kubeconfig builder helpers for the planned
+  `boundary connect kube` command (builds a TLS-verifying kubeconfig, writes it
+  to a private 0600 temp file, and rejects exec-plugin kubeconfigs). No new
+  target type or flag is enabled by this change.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
+* Added an internal, not-yet-wired SSH channel recorder library that writes
+  channel data and requests into BSR containers (`internal/bsr/ssh/recorder`).
+  `enable_session_recording` is still rejected on `ssh` targets.
 * Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
   worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
   this change.
