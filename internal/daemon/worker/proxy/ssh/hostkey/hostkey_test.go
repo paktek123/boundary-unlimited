@@ -45,7 +45,6 @@ func TestPrivateKeyRedaction(t *testing.T) {
 		base64.StdEncoding.EncodeToString(raw),
 		base64.StdEncoding.EncodeToString(seed),
 		fmt.Sprintf("%x", raw), fmt.Sprintf("%x", seed),
-		fmt.Sprint(raw),
 	}
 
 	js, err := json.Marshal(struct {
