@@ -18,12 +18,18 @@ fork, which is independent of HashiCorp.
     `storage_bucket_id` on these targets returns an error.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
+* Added an internal, not-yet-wired fail-closed SSH host key policy package
+  (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
+  no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
 * Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
   a connection to a Kubernetes API server over mandatory verified TLS. It is not
   registered in the worker and enables no user-visible feature yet.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
+* Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
+  worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
+  this change.
 
 ## 0.21.3 (2026/04/28)
 
