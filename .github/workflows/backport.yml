@@ -2,10 +2,10 @@
 name: Backport Assistant Runner
 
 on:
-  pull_request_target:
-    types:
-      - closed
-      - labeled
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
+  workflow_dispatch:
 
 permissions:
   contents: read

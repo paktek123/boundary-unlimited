@@ -1,11 +1,11 @@
 name: test
 
 on:
-  push:
-    paths-ignore:
-      - 'website/**'
-  workflow_call:
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
