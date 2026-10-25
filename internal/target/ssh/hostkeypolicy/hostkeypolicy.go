@@ -26,15 +26,17 @@ const (
 	MinRSABits = 3072
 )
 
-// HostKeyAlgorithms is the list of host key algorithms the upstream SSH
-// client must pin. It never contains the SHA-1 based ssh-rsa.
-var HostKeyAlgorithms = []string{
-	ssh.KeyAlgoED25519,
-	ssh.KeyAlgoECDSA256,
-	ssh.KeyAlgoECDSA384,
-	ssh.KeyAlgoECDSA521,
-	ssh.KeyAlgoRSASHA512,
-	ssh.KeyAlgoRSASHA256,
+// HostKeyAlgorithms returns a copy of the list of host key algorithms the
+// upstream SSH client must pin. It never contains the SHA-1 based ssh-rsa.
+func HostKeyAlgorithms() []string {
+	return []string{
+		ssh.KeyAlgoED25519,
+		ssh.KeyAlgoECDSA256,
+		ssh.KeyAlgoECDSA384,
+		ssh.KeyAlgoECDSA521,
+		ssh.KeyAlgoRSASHA512,
+		ssh.KeyAlgoRSASHA256,
+	}
 }
 
 // ValidateHostKeys vets a list of pinned host keys in authorized_keys format.

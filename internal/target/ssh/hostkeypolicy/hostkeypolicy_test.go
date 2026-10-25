@@ -138,6 +138,11 @@ func TestErrorsNeverEchoKeyMaterial(t *testing.T) {
 
 func TestHostKeyAlgorithms(t *testing.T) {
 	t.Parallel()
-	assert.NotContains(t, HostKeyAlgorithms, ssh.KeyAlgoRSA)
-	assert.NotEmpty(t, HostKeyAlgorithms)
+	assert.NotContains(t, HostKeyAlgorithms(), ssh.KeyAlgoRSA)
+	assert.NotEmpty(t, HostKeyAlgorithms())
+
+	// Mutating a returned slice must not affect later callers.
+	a := HostKeyAlgorithms()
+	a[0] = "tampered"
+	assert.NotEqual(t, "tampered", HostKeyAlgorithms()[0])
 }
