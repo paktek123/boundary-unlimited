@@ -22,6 +22,9 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a standalone, not-yet-wired brokered credential shape validator for
+  `boundary connect kube` (`internal/cmd/commands/connect/kubecreds`). No
+  behaviour change.
 * Added a standalone, not-yet-wired upload retry/backoff manager for SSH
   session recordings (`internal/daemon/worker/recording/upload`). No behaviour
   change.
