@@ -1,9 +1,9 @@
 name: test-ci-cleanup-oss
 on:
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
   workflow_dispatch:
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '05 02 * * *'
 
 permissions:
   contents: read
