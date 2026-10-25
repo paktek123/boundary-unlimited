@@ -19,6 +19,9 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added `internal/bsr/playback`, a validate-then-convert export pipeline for
+  session recordings that writes nothing unless validation passes (library
+  only, not wired to the CLI yet, not user-visible).
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
