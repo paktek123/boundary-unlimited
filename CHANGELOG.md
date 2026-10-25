@@ -19,6 +19,7 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for SSH session recording (`docs/rfc/ssh-session-recording.md`).
 * Added a design RFC for SSH credential injection (`docs/rfc/ssh-credential-injection.md`).
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added the `injectauth` library (`internal/daemon/worker/proxy/ssh/injectauth`) that converts injected ssh credentials (password, private key with optional passphrase) into `x/crypto/ssh` auth methods with fail-closed parsing. Library only; not wired into the worker yet.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
 
