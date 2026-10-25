@@ -26,6 +26,8 @@ fork, which is independent of HashiCorp.
   ephemeral Ed25519 key generator with a redacting private key type
   (`internal/daemon/worker/proxy/ssh/hostkey`) and a CLI temporary `known_hosts`
   writer (`internal/cmd/commands/connect`). Neither is wired to sessions yet.
+* Added `internal/target/ssh/hostkeypolicy`, a pure-Go validator for SSH host key
+  pinning (`host_keys`) and host CA values. It is not yet wired to the API.
 * Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
   a connection to a Kubernetes API server over mandatory verified TLS. It is not
   registered in the worker and enables no user-visible feature yet.
