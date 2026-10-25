@@ -22,6 +22,8 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added `internal/target/ssh/hostkeypolicy`, a pure-Go validator for SSH host key
+  pinning (`host_keys`) and host CA values. It is not yet wired to the API.
 * Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
   a connection to a Kubernetes API server over mandatory verified TLS. It is not
   registered in the worker and enables no user-visible feature yet.
