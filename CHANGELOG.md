@@ -25,6 +25,20 @@ fork, which is independent of HashiCorp.
 * Added a standalone, not-yet-wired brokered credential shape validator for
   `boundary connect kube` (`internal/cmd/commands/connect/kubecreds`). No
   behaviour change.
+* Added a standalone, not-yet-wired upload retry/backoff manager for SSH
+  session recordings (`internal/daemon/worker/recording/upload`). No behaviour
+  change.
+* Added a standalone, not-yet-wired bounded scratch store for SSH session
+  recordings with a fail-closed quota and orphan recovery
+  (`internal/daemon/worker/recording/scratch`). No behaviour change.
+* Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
+  missing `HostKeyCallback` in the worker SSH proxy packages.
+* Added pure-Go helpers for the SSH client-facing host key: a per-session
+  ephemeral Ed25519 key generator with a redacting private key type
+  (`internal/daemon/worker/proxy/ssh/hostkey`) and a CLI temporary `known_hosts`
+  writer (`internal/cmd/commands/connect`). Neither is wired to sessions yet.
+* Added `internal/target/ssh/hostkeypolicy`, a pure-Go validator for SSH host key
+  pinning (`host_keys`) and host CA values. It is not yet wired to the API.
 * Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
   a connection to a Kubernetes API server over mandatory verified TLS. It is not
   registered in the worker and enables no user-visible feature yet.
