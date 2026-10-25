@@ -24,6 +24,9 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
 * Added `internal/target/ssh/hostkeypolicy`, a pure-Go validator for SSH host key
   pinning (`host_keys`) and host CA values. It is not yet wired to the API.
+* Added an internal worker library (`internal/daemon/worker/proxy/kube`) that relays
+  a connection to a Kubernetes API server over mandatory verified TLS. It is not
+  registered in the worker and enables no user-visible feature yet.
 * Added internal, not yet wired, kubeconfig builder helpers for the planned
   `boundary connect kube` command (builds a TLS-verifying kubeconfig, writes it
   to a private 0600 temp file, and rejects exec-plugin kubeconfigs). No new
