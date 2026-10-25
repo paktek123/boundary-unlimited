@@ -4,13 +4,10 @@
 name: Check Milestone
 
 on:
-  pull_request:
-    # milestoned and demilestoned are supported even if IDE is complaining
-    types: [opened, synchronize, labeled, unlabeled, milestoned, demilestoned ]
-    # Runs on PRs to main and release branches
-    branches:
-      - main
-      - release/**
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
+  workflow_dispatch:
 
 permissions:
   contents: read
