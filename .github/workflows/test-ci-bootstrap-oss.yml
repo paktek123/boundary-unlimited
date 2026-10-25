@@ -4,18 +4,10 @@ permissions:
   contents: read
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - enos/ci/**
-      - .github/workflows/test-ci-bootstrap-oss.yml
-  push:
-    branches:
-      - main
-    paths:
-      - enos/ci/**
-      - .github/workflows/test-ci-bootstrap-oss.yml
+  # Disabled in the Boundary Unlimited fork: this workflow needs HashiCorp or cloud
+  # infrastructure (secrets, private actions or runners) or is too heavy for hosted
+  # runners. It can still be started by hand. Upstream triggers are kept in git history.
+  workflow_dispatch:
 
 jobs:
   bootstrap-ci-oss:

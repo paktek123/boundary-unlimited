@@ -1,8 +1,9 @@
 name: "make-gen-delta"
 on:
-  - workflow_dispatch
-  - push
-  - workflow_call
+  # Disabled in the Boundary Unlimited fork: it regenerates code with the pinned tool versions and
+  # fails on any drift, which blocks unrelated PRs. It can still be started by hand.
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
