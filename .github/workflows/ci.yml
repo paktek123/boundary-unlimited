@@ -1,0 +1,163 @@
+name: ci
+
+# Lightweight CI for the Boundary Unlimited fork. It builds the whole module and
+# runs vet, gofmt and the Go tests for the packages a pull request changes, using
+# a Postgres service with the repository's migrations applied as the test
+# template database. It needs no secrets, no self-hosted runners and no
+# HashiCorp-internal mirrors.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Space-separated Go package patterns to test (default ./internal/target/...)"
+        required: false
+        default: "./internal/target/..."
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build, vet and gofmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: .go-version
+          cache: true
+      - name: Find changed Go files and packages
+        id: changed
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="origin/$BASE_REF"
+            git diff --name-only --diff-filter=AM "$base"...HEAD -- '*.go' > changed_files.txt
+          else
+            : > changed_files.txt
+          fi
+          # Unique package directories that contain a changed, existing Go file and belong to the root
+          # module (api/ and sdk/ are separate Go modules; go list filters them out).
+          while read -r f; do [ -n "$f" ] && dirname "$f"; done < changed_files.txt | sort -u | sed 's#^#./#' | while read -r d; do go list "$d" > /dev/null 2>&1 && echo "$d"; done > changed_pkgs.txt || true
+          echo "Changed Go files: $(wc -l < changed_files.txt)"
+          echo "Changed packages: $(wc -l < changed_pkgs.txt)"
+      - name: Build
+        run: go build ./...
+      - name: gofmt (changed files)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Generated files are produced by tooling; check only hand-written ones.
+          files=$(grep -vE '\.(pb|gen|pb\.gw)\.go$' changed_files.txt || true)
+          if [ -z "$files" ]; then echo "No changed Go files"; exit 0; fi
+          unformatted=$(echo "$files" | xargs gofmt -l)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go vet (changed packages)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s changed_pkgs.txt ]; then echo "No changed packages"; exit 0; fi
+          xargs go vet < changed_pkgs.txt
+
+  test:
+    name: go test (changed packages)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: boundary
+          POSTGRES_PASSWORD: boundary
+          POSTGRES_DB: boundary
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U boundary"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGPASSWORD: boundary
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: .go-version
+          cache: true
+      - name: Choose packages to test
+        id: pkgs
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          INPUT_PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only --diff-filter=AM "origin/$BASE_REF"...HEAD -- '*.go' \
+              | while read -r f; do [ -n "$f" ] && dirname "$f"; done | sort -u | sed 's#^#./#' | while read -r d; do go list "$d" > /dev/null 2>&1 && echo "$d"; done > pkgs.txt || true
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            printf '%s\n' "$INPUT_PACKAGES" | tr ' ' '\n' | grep -E '^\./[A-Za-z0-9_./-]*(\.\.\.)?$' > pkgs.txt || true
+          else
+            : > pkgs.txt
+          fi
+          echo "Packages to test:"; cat pkgs.txt
+          if [ -s pkgs.txt ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Prepare the test template database
+        if: steps.pkgs.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql_() { psql -v ON_ERROR_STOP=1 -q -h 127.0.0.1 -p 5432 -U boundary "$@"; }
+          psql_ -d postgres -c "create user postgres superuser login" -c "create database boundary_template owner boundary"
+          # Base migrations first, then the oss migrations in numeric order.
+          for f in $(ls internal/db/schema/migrations/base/postgres/*.up.sql | sort); do
+            psql_ -d boundary_template -f "$f" > /dev/null
+          done
+          cd internal/db/schema/migrations/oss/postgres
+          last=""
+          for f in $(python3 -c "import glob; print('\n'.join(sorted(glob.glob('*/*.up.sql'), key=lambda p: (int(p.split('/')[0]), p.split('/')[1]))))"); do
+            psql_ -d boundary_template -f "$f" > /dev/null
+            last="$f"
+          done
+          major=$((10#${last%%/*}))
+          minor=$((10#$(basename "$last" | cut -d_ -f1)))
+          psql_ -d boundary_template -c "insert into boundary_schema_version (edition, version) values ('oss', $((major*1000+minor)))"
+          psql_ -d postgres -c "update pg_database set datistemplate = true, datallowconn = false where datname = 'boundary_template'"
+          echo "Template database ready at schema version $((major*1000+minor))"
+      - name: go test
+        if: steps.pkgs.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # -count=1 disables result caching; the timeout keeps a hung test from burning the whole job.
+          xargs go test -count=1 -timeout 30m < pkgs.txt
