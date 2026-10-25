@@ -22,6 +22,9 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a standalone, not-yet-wired bounded scratch store for SSH session
+  recordings with a fail-closed quota and orphan recovery
+  (`internal/daemon/worker/recording/scratch`). No behaviour change.
 * Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
   missing `HostKeyCallback` in the worker SSH proxy packages.
 * Added pure-Go helpers for the SSH client-facing host key: a per-session
