@@ -49,6 +49,13 @@ func getOpts(opt ...Option) options {
 }
 
 // Recorder records the channels of a single SSH connection.
+//
+// Fail-closed contract: a write error on a ChannelRecorder is returned by that
+// call and by every later call on the same channel, but it is only folded into
+// the Recorder (and its connection summary) at Close. Callers must therefore
+// check the error of every Write* call and terminate the session on the first
+// one; Recorder.Channel does not itself refuse new channels after a channel
+// has failed.
 type Recorder struct {
 	ctx    context.Context
 	now    func() time.Time
@@ -60,6 +67,7 @@ type Recorder struct {
 	mu       sync.Mutex
 	err      error
 	closed   bool
+	done     chan struct{} // closed when the first Close has finished
 	channels []*ChannelRecorder
 }
 
@@ -79,7 +87,7 @@ func NewRecorder(ctx context.Context, session *bsr.Session, connectionId string,
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	return &Recorder{ctx: ctx, now: o.now, sessID: session.Meta.Id, connID: connectionId, conn: conn, start: o.now()}, nil
+	return &Recorder{ctx: ctx, now: o.now, sessID: session.Meta.Id, connID: connectionId, conn: conn, start: o.now(), done: make(chan struct{})}, nil
 }
 
 // Channel starts recording a channel with the given SSH channel type and BSR
@@ -113,10 +121,14 @@ func (r *Recorder) Close() error {
 	const op = "recorder.(Recorder).Close"
 	r.mu.Lock()
 	if r.closed {
+		r.mu.Unlock()
+		<-r.done // a concurrent Close must not return before the first finishes
+		r.mu.Lock()
 		defer r.mu.Unlock()
 		return r.err
 	}
 	r.closed = true
+	defer close(r.done)
 	chans := append([]*ChannelRecorder(nil), r.channels...)
 	r.mu.Unlock()
 
@@ -351,7 +363,7 @@ func (c *ChannelRecorder) Close() error {
 				_, err = dw.enc.Encode(c.ctx, end) // closes the writer
 			}
 			if err != nil {
-				c.fail(fmt.Errorf("%s: %w", op, err))
+				_ = c.fail(fmt.Errorf("%s: %w", op, err))
 			}
 		}
 	}
@@ -374,10 +386,10 @@ func (c *ChannelRecorder) Close() error {
 		sum.ExecProgram = bssh.Unknown
 	}
 	if err := c.ch.EncodeSummary(c.ctx, sum); err != nil {
-		c.fail(fmt.Errorf("%s: %w", op, err))
+		_ = c.fail(fmt.Errorf("%s: %w", op, err))
 	}
 	if err := c.ch.Close(c.ctx); err != nil {
-		c.fail(fmt.Errorf("%s: %w", op, err))
+		_ = c.fail(fmt.Errorf("%s: %w", op, err))
 	}
 	return c.err
 }

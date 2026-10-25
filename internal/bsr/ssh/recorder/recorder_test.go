@@ -6,7 +6,6 @@ package recorder
 import (
 	"context"
 	"io"
-	"strings"
 	"testing"
 	"time"
 
@@ -180,5 +179,7 @@ func TestRecorder_StorageFailureIsSticky(t *testing.T) {
 	_, cerr := rec.Channel("session", "next")
 	assert.NoError(t, cerr, "recorder-level state is unaffected by a channel-level error")
 	assert.Error(t, ch.Close(), "Close reports the first error")
-	assert.True(t, strings.Contains(rec.Close().Error(), "recorder"), "connection close surfaces channel error")
+	cerr = rec.Close()
+	require.Error(t, cerr, "connection close surfaces channel error")
+	assert.Contains(t, cerr.Error(), "recorder.(ChannelRecorder)")
 }
