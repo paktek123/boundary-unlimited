@@ -134,6 +134,6 @@ func TestWriteKubeconfigTemp(t *testing.T) {
 	// Each call gets a fresh directory.
 	p2, c2, err := writeKubeconfigTemp(content)
 	require.NoError(t, err)
-	defer c2()
+	t.Cleanup(func() { _ = c2() })
 	assert.NotEqual(t, filepath.Dir(path), filepath.Dir(p2))
 }
