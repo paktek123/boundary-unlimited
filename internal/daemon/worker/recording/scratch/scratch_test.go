@@ -213,3 +213,17 @@ func TestRecover(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, again, 0, "already registered recordings are not re-reported")
 }
+
+func TestFinishFailsWhenDataFileMissing(t *testing.T) {
+	root := t.TempDir()
+	s, err := New(root, 1<<20)
+	require.NoError(t, err)
+	require.NoError(t, s.Reserve("s_sync", 10))
+	d, err := s.dir("s_sync")
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(filepath.Join(d, dataFile)))
+	// Finish must not mark a recording finished when its data cannot be synced.
+	require.Error(t, s.Finish("s_sync"))
+	_, statErr := os.Lstat(filepath.Join(d, finishedFile))
+	require.True(t, os.IsNotExist(statErr))
+}

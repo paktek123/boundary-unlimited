@@ -211,6 +211,20 @@ func writeMarker(path string) error {
 	return f.Close()
 }
 
+// syncPath fsyncs the file or directory at path.
+func syncPath(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("scratch: open for sync: %w", err)
+	}
+	serr := f.Sync()
+	cerr := f.Close()
+	if err := errors.Join(serr, cerr); err != nil {
+		return fmt.Errorf("scratch: sync: %w", err)
+	}
+	return nil
+}
+
 // Finish marks the recording as finished and releases unused reservation.
 // An incomplete recording cannot be finished.
 func (s *Store) Finish(sessionID string) error {
@@ -227,7 +241,19 @@ func (s *Store) Finish(sessionID string) error {
 	if r.state == stateIncomplete {
 		return ErrIncomplete
 	}
+	// Make the data durable before the marker, and the marker durable before
+	// reporting success, so that after a crash Recover never sees Finished for
+	// truncated data.
+	if err := syncPath(filepath.Join(d, dataFile)); err != nil {
+		return err
+	}
 	if err := writeMarker(filepath.Join(d, finishedFile)); err != nil {
+		return err
+	}
+	if err := syncPath(filepath.Join(d, finishedFile)); err != nil {
+		return err
+	}
+	if err := syncPath(d); err != nil {
 		return err
 	}
 	s.used -= r.reserved
