@@ -26,8 +26,15 @@ fork, which is independent of HashiCorp.
   ephemeral Ed25519 key generator with a redacting private key type
   (`internal/daemon/worker/proxy/ssh/hostkey`) and a CLI temporary `known_hosts`
   writer (`internal/cmd/commands/connect`). Neither is wired to sessions yet.
+* Added internal, not yet wired, kubeconfig builder helpers for the planned
+  `boundary connect kube` command (builds a TLS-verifying kubeconfig, writes it
+  to a private 0600 temp file, and rejects exec-plugin kubeconfigs). No new
+  target type or flag is enabled by this change.
 * Added Boundary Unlimited logo and updated `README.md` to describe the
   community-maintained fork and how to contribute.
+* Added an internal, not-yet-wired SSH channel recorder library that writes
+  channel data and requests into BSR containers (`internal/bsr/ssh/recorder`).
+  `enable_session_recording` is still rejected on `ssh` targets.
 * Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
   worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
   this change.
