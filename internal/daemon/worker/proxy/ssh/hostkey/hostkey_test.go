@@ -59,6 +59,7 @@ func TestPrivateKeyRedaction(t *testing.T) {
 		fmt.Sprintf("%x", k.Private), fmt.Sprintf("%d", k.Private),
 		fmt.Sprintf("%v", &k.Private), fmt.Sprintf("%+v", k), fmt.Sprintf("%#v", *k),
 		string(js),
+		fmt.Sprintf("%v", k.Signer), fmt.Sprintf("%+v", k.Signer), fmt.Sprintf("%#v", k.Signer),
 		fmt.Errorf("failed: %w", fmt.Errorf("%v", k.Private)).Error(),
 	}
 	for _, out := range outputs {

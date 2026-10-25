@@ -4,7 +4,9 @@
 package connect
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"os"
 	"strings"
@@ -24,13 +26,23 @@ func testAuthorizedKey(t *testing.T) string {
 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(k)))
 }
 
+func testECDSAKey(t *testing.T) string {
+	t.Helper()
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pub, err := ssh.NewPublicKey(&k.PublicKey)
+	require.NoError(t, err)
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(pub)))
+}
+
 func TestWriteKnownHosts(t *testing.T) {
 	key := testAuthorizedKey(t)
 	opts, cleanup, err := writeKnownHosts("boundary-session-1", key)
 	require.NoError(t, err)
 	require.NotNil(t, cleanup)
 
-	require.Len(t, opts, 2)
+	require.Len(t, opts, 3)
+	assert.Contains(t, opts, "HostKeyAlias=boundary-session-1")
 	file := strings.TrimPrefix(opts[0], "UserKnownHostsFile=")
 	assert.NotEqual(t, opts[0], file)
 	assert.Contains(t, opts, "StrictHostKeyChecking=yes")
@@ -59,6 +71,7 @@ func TestWriteKnownHosts_Invalid(t *testing.T) {
 		"alias wildcard": {"*", key},
 		"bad key":        {"alias", "nope"},
 		"two keys":       {"alias", key + "\n" + key},
+		"non ed25519":    {"alias", testECDSAKey(t)},
 	} {
 		t.Run(name, func(t *testing.T) {
 			opts, cleanup, err := writeKnownHosts(tc[0], tc[1])
