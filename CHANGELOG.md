@@ -62,6 +62,10 @@ fork, which is independent of HashiCorp.
 * Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
   worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
   this change.
+* Added an internal, not-yet-wired upstream SSH client for the worker SSH proxy
+  (`internal/daemon/worker/proxy/ssh`): dials the target with injected
+  credentials and a mandatory host key callback. Nothing is enabled by this
+  change.
 
 ## 0.21.3 (2026/04/28)
 
