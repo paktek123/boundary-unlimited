@@ -66,6 +66,10 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh`): deny-by-default channel type, channel
   request and global request allowlists, and a per-connection channel cap.
   Nothing is enabled by this change.
+* Added an internal, not-yet-wired function in `internal/cmd/commands/connect`
+  that turns a brokered Kubernetes credential into a private local kubeconfig
+  (library only; composes `kubecreds.Parse` and the kubeconfig builder). No
+  `connect kube` flag or target type is enabled by this change.
 
 ## 0.21.3 (2026/04/28)
 
