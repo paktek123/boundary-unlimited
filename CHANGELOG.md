@@ -62,6 +62,10 @@ fork, which is independent of HashiCorp.
 * Added an internal, not-yet-wired, fail-closed client-facing SSH server for the
   worker SSH proxy (`internal/daemon/worker/proxy/ssh`). Nothing is enabled by
   this change.
+* Hardened the internal, not-yet-wired worker SSH proxy server
+  (`internal/daemon/worker/proxy/ssh`): deny-by-default channel type, channel
+  request and global request allowlists, and a per-connection channel cap.
+  Nothing is enabled by this change.
 
 ## 0.21.3 (2026/04/28)
 
