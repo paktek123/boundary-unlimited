@@ -71,10 +71,19 @@ func (u *ClientUpstream) Dial(ctx context.Context) (UpstreamConn, error) {
 	stop := context.AfterFunc(ctx, func() { nc.Close() })
 	defer stop()
 
+	// ClientConfig.Timeout does not apply to NewClientConn, so bound the
+	// handshake with a connection deadline.
+	_ = nc.SetDeadline(time.Now().Add(upstreamDialTimeout))
 	sc, chans, reqs, err := ssh.NewClientConn(nc, u.addr, u.config)
 	if err != nil {
 		nc.Close()
 		return nil, errors.Wrap(ctx, err, op, errors.WithMsg("ssh handshake"))
+	}
+	_ = nc.SetDeadline(time.Time{})
+	if !stop() {
+		// ctx ended after the handshake: the connection is being closed.
+		sc.Close()
+		return nil, errors.Wrap(ctx, ctx.Err(), op)
 	}
 	go func() {
 		for c := range chans {

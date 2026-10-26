@@ -267,3 +267,26 @@ func newPEMKey(t *testing.T) (ssh.Signer, []byte) {
 	require.NoError(t, err)
 	return signer, pem.EncodeToMemory(blk)
 }
+
+func TestClientUpstream_DialStalledHandshakeIsBounded(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l.Close()
+	go func() {
+		c, err := l.Accept()
+		if err == nil {
+			defer c.Close()
+			_, _ = io.Copy(io.Discard, c) // accept and never answer
+		}
+	}()
+	up, err := NewClientUpstream(context.Background(), l.Addr().String(),
+		injectauth.Input{Username: "u", Password: "p"}, ssh.FixedHostKey(newSigner(t).PublicKey()))
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = up.Dial(ctx)
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
