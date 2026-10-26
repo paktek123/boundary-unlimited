@@ -48,6 +48,8 @@ func (a Authorization) validate(ctx context.Context, now time.Time) error {
 }
 
 // UpstreamConn is the worker-to-target SSH connection, a subset of ssh.Conn.
+// Implementations must reject every channel the target tries to open towards
+// the worker (for example agent forwarding); Serve never relays them.
 type UpstreamConn interface {
 	OpenChannel(name string, data []byte) (ssh.Channel, <-chan *ssh.Request, error)
 	SendRequest(name string, wantReply bool, payload []byte) (bool, []byte, error)
@@ -63,10 +65,16 @@ type Upstream interface {
 // channels and requests to the upstream until the client disconnects, ctx is
 // cancelled, or auth expires. Serve always closes conn and any upstream
 // connection before returning. Server-initiated channels from the upstream
-// are not forwarded.
-func Serve(ctx context.Context, conn net.Conn, hostKey ssh.Signer, auth Authorization, up Upstream) error {
+// are not forwarded. Channel types, channel requests and global requests not
+// allowed by the Policy (default: DefaultPolicy) are rejected, and the number
+// of concurrently open channels is capped.
+func Serve(ctx context.Context, conn net.Conn, hostKey ssh.Signer, auth Authorization, up Upstream, opt ...Option) error {
 	const op = "ssh.Serve"
 	defer conn.Close()
+	opts := getOpts(opt...)
+	if err := opts.policy.validate(ctx); err != nil {
+		return errors.Wrap(ctx, err, op)
+	}
 	if hostKey == nil {
 		return errors.New(ctx, errors.InvalidParameter, op, "missing host key")
 	}
@@ -109,17 +117,29 @@ func Serve(ctx context.Context, conn net.Conn, hostKey ssh.Signer, auth Authoriz
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		forwardGlobal(reqs, upConn)
+		forwardGlobal(reqs, upConn, opts.policy)
 	}()
+	slots := make(chan struct{}, opts.policy.MaxChannels)
 	for nc := range chans {
 		if ctx.Err() != nil {
 			_ = nc.Reject(ssh.ConnectionFailed, "session no longer authorized")
 			continue
 		}
+		if !opts.policy.allowChannelType(nc.ChannelType()) {
+			_ = nc.Reject(ssh.Prohibited, "channel type not allowed")
+			continue
+		}
+		select {
+		case slots <- struct{}{}:
+		default:
+			_ = nc.Reject(ssh.ResourceShortage, "too many open channels")
+			continue
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			bridgeChannel(nc, upConn)
+			defer func() { <-slots }()
+			bridgeChannel(nc, upConn, opts.policy)
 		}()
 	}
 	// chans is closed once the client connection is gone.
@@ -132,8 +152,14 @@ func Serve(ctx context.Context, conn net.Conn, hostKey ssh.Signer, auth Authoriz
 	return nil
 }
 
-func forwardGlobal(reqs <-chan *ssh.Request, up UpstreamConn) {
+func forwardGlobal(reqs <-chan *ssh.Request, up UpstreamConn, p Policy) {
 	for r := range reqs {
+		if !p.allowGlobalRequest(r.Type) {
+			if r.WantReply {
+				_ = r.Reply(false, nil)
+			}
+			continue
+		}
 		ok, payload, err := up.SendRequest(r.Type, r.WantReply, r.Payload)
 		if r.WantReply {
 			_ = r.Reply(ok && err == nil, payload)
@@ -141,7 +167,7 @@ func forwardGlobal(reqs <-chan *ssh.Request, up UpstreamConn) {
 	}
 }
 
-func bridgeChannel(nc ssh.NewChannel, up UpstreamConn) {
+func bridgeChannel(nc ssh.NewChannel, up UpstreamConn, p Policy) {
 	upCh, upReqs, err := up.OpenChannel(nc.ChannelType(), nc.ExtraData())
 	if err != nil {
 		if oe, ok := err.(*ssh.OpenChannelError); ok {
@@ -159,8 +185,8 @@ func bridgeChannel(nc ssh.NewChannel, up UpstreamConn) {
 
 	var wg sync.WaitGroup
 	wg.Add(4)
-	go func() { defer wg.Done(); proxyRequests(reqs, upCh) }()
-	go func() { defer wg.Done(); proxyRequests(upReqs, ch) }()
+	go func() { defer wg.Done(); proxyRequests(reqs, upCh, p.allowChannelRequest) }()
+	go func() { defer wg.Done(); proxyRequests(upReqs, ch, p.allowUpstreamRequest) }()
 	go func() {
 		defer wg.Done()
 		_, _ = io.Copy(upCh, ch)
@@ -180,8 +206,14 @@ type requester interface {
 	SendRequest(name string, wantReply bool, payload []byte) (bool, error)
 }
 
-func proxyRequests(in <-chan *ssh.Request, out requester) {
+func proxyRequests(in <-chan *ssh.Request, out requester, allow func(string) bool) {
 	for r := range in {
+		if !allow(r.Type) {
+			if r.WantReply {
+				_ = r.Reply(false, nil)
+			}
+			continue
+		}
 		ok, err := out.SendRequest(r.Type, r.WantReply, r.Payload)
 		if r.WantReply {
 			_ = r.Reply(ok && err == nil, nil)
