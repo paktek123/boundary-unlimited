@@ -74,6 +74,11 @@ fork, which is independent of HashiCorp.
   that turns a brokered Kubernetes credential into a private local kubeconfig
   (library only; composes `kubecreds.Parse` and the kubeconfig builder). No
   `connect kube` flag or target type is enabled by this change.
+* Added an internal, not-yet-wired `ssh.HandleSession` in
+  `internal/daemon/worker/proxy/ssh` that composes the client-facing server,
+  an immutable host key policy snapshot, credential injection and the upstream
+  client, failing closed before any upstream dial. Nothing is enabled by this
+  change; the injected credential purpose stays rejected.
 
 ## 0.21.3 (2026/04/28)
 
