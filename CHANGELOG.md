@@ -74,6 +74,7 @@ fork, which is independent of HashiCorp.
   that turns a brokered Kubernetes credential into a private local kubeconfig
   (library only; composes `kubecreds.Parse` and the kubeconfig builder). No
   `connect kube` flag or target type is enabled by this change.
+* Added `RecordingUpstream` (`internal/daemon/worker/proxy/ssh/recording.go`), an `Upstream` wrapper that records every channel's data and requests through the BSR recorder before delivery, reserves scratch capacity before dialling and fails closed through `recguard`. Library only; not wired into the worker. ([Issue #119](https://github.com/paktek123/boundary-unlimited/issues/119))
 
 ## 0.21.3 (2026/04/28)
 
