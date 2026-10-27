@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -223,15 +224,16 @@ func TestHandleSession_ClientCannotChooseTarget(t *testing.T) {
 		Credential:    injectauth.Input{Username: testUpstreamUser, Password: testUpstreamPass},
 		HostKeys:      pinned(pt.hostKey),
 	})
-	host, port, err := net.SplitHostPort(other)
+	host, portStr, err := net.SplitHostPort(other)
+	require.NoError(t, err)
+	port, err := strconv.ParseUint(portStr, 10, 16)
 	require.NoError(t, err)
 	payload := ssh.Marshal(struct {
 		Host     string
 		Port     uint32
 		OrigHost string
 		OrigPort uint32
-	}{host, 1, "127.0.0.1", 1})
-	_ = port
+	}{host, uint32(port), "127.0.0.1", 1})
 	_, _, err = client.OpenChannel("direct-tcpip", payload)
 	require.Error(t, err)
 	var oe *ssh.OpenChannelError

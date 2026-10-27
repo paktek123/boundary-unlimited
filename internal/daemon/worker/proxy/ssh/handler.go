@@ -67,7 +67,7 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error 
 	}()
 
 	if err := cfg.Authorization.validate(ctx, time.Now()); err != nil {
-		return errors.Wrap(ctx, err, op)
+		return errors.Wrap(ctx, err, op, errors.WithCode(errors.InvalidParameter))
 	}
 	if cfg.ClientHostKey == nil {
 		return errors.New(ctx, errors.InvalidParameter, op, "missing client-facing host key")
@@ -79,7 +79,7 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error 
 		return errors.New(ctx, errors.InvalidParameter, op, "empty upstream host key policy")
 	}
 	if err := pol.validate(ctx); err != nil {
-		return errors.Wrap(ctx, err, op)
+		return errors.Wrap(ctx, err, op, errors.WithCode(errors.InvalidParameter))
 	}
 	cb, err := hostkey.New(hk)
 	if err != nil {
