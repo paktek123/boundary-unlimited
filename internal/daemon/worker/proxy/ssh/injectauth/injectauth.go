@@ -4,11 +4,13 @@
 package injectauth
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -25,6 +27,10 @@ var (
 	// ErrBadPrivateKey is returned when the private key cannot be used: it is
 	// unparsable, encrypted without a (correct) passphrase, or too weak.
 	ErrBadPrivateKey = errors.New("injectauth: unusable private key")
+	// ErrBadCertificate is returned when the ssh certificate cannot be used: it
+	// is unparsable, not a user certificate, outside its validity window,
+	// supplied without a private key, or does not match the private key.
+	ErrBadCertificate = errors.New("injectauth: unusable certificate")
 )
 
 // Input is the credential material for one upstream ssh connection.
@@ -33,7 +39,13 @@ type Input struct {
 	Password   string
 	PrivateKey []byte
 	Passphrase []byte
+	// Certificate is an optional signed ssh user certificate in authorized-key
+	// format. It requires PrivateKey and must certify that key.
+	Certificate []byte
 }
+
+// now is the clock used to check certificate validity; tests may replace it.
+var now = time.Now
 
 // AuthMethods returns the username and ssh auth methods for in. If both a
 // private key and a password are supplied, both methods are returned with the
@@ -41,6 +53,9 @@ type Input struct {
 func AuthMethods(in Input) (string, []ssh.AuthMethod, error) {
 	if in.Username == "" {
 		return "", nil, ErrUsernameRequired
+	}
+	if len(in.Certificate) > 0 && len(in.PrivateKey) == 0 {
+		return "", nil, fmt.Errorf("%w: certificate supplied without a private key", ErrBadCertificate)
 	}
 	if in.Password == "" && len(in.PrivateKey) == 0 {
 		return "", nil, ErrNoCredential
@@ -51,6 +66,12 @@ func AuthMethods(in Input) (string, []ssh.AuthMethod, error) {
 		signer, err := parseSigner(in.PrivateKey, in.Passphrase)
 		if err != nil {
 			return "", nil, err
+		}
+		if len(in.Certificate) > 0 {
+			signer, err = certSigner(signer, in.Certificate)
+			if err != nil {
+				return "", nil, err
+			}
 		}
 		methods = append(methods, ssh.PublicKeys(signer))
 	}
@@ -101,4 +122,35 @@ func checkStrength(pub ssh.PublicKey) error {
 		return fmt.Errorf("%w: unsupported key type", ErrBadPrivateKey)
 	}
 	return nil
+}
+
+// certSigner wraps signer with the certificate in cert. Errors from x/crypto
+// are deliberately not wrapped, since they can echo input.
+func certSigner(signer ssh.Signer, cert []byte) (ssh.Signer, error) {
+	pub, _, _, _, err := ssh.ParseAuthorizedKey(cert)
+	if err != nil {
+		return nil, fmt.Errorf("%w: certificate could not be parsed", ErrBadCertificate)
+	}
+	c, ok := pub.(*ssh.Certificate)
+	if !ok {
+		return nil, fmt.Errorf("%w: not a certificate", ErrBadCertificate)
+	}
+	if c.CertType != ssh.UserCert {
+		return nil, fmt.Errorf("%w: not a user certificate", ErrBadCertificate)
+	}
+	t := uint64(now().Unix())
+	if t < c.ValidAfter {
+		return nil, fmt.Errorf("%w: certificate is not yet valid", ErrBadCertificate)
+	}
+	if c.ValidBefore != ssh.CertTimeInfinity && t >= c.ValidBefore {
+		return nil, fmt.Errorf("%w: certificate has expired", ErrBadCertificate)
+	}
+	if !bytes.Equal(c.Key.Marshal(), signer.PublicKey().Marshal()) {
+		return nil, fmt.Errorf("%w: certificate does not match the private key", ErrBadCertificate)
+	}
+	cs, err := ssh.NewCertSigner(c, signer)
+	if err != nil {
+		return nil, fmt.Errorf("%w: certificate does not match the private key", ErrBadCertificate)
+	}
+	return cs, nil
 }
