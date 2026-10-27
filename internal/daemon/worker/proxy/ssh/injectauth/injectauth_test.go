@@ -223,7 +223,7 @@ func TestCertificateAuthAgainstServer(t *testing.T) {
 	cfg.AddHostKey(hostSigner)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	t.Cleanup(func() { ln.Close() })
+	t.Cleanup(func() { _ = ln.Close() })
 	go func() {
 		for {
 			c, err := ln.Accept()
@@ -239,10 +239,10 @@ func TestCertificateAuthAgainstServer(t *testing.T) {
 				go ssh.DiscardRequests(reqs)
 				go func() {
 					for ch := range chans {
-						ch.Reject(ssh.Prohibited, "no")
+						_ = ch.Reject(ssh.Prohibited, "no")
 					}
 				}()
-				sc.Wait()
+				_ = sc.Wait()
 			}()
 		}
 	}()
