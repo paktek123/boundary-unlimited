@@ -4,6 +4,7 @@
 package injectauth
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -209,7 +210,7 @@ func TestCertificateAuthAgainstServer(t *testing.T) {
 
 	checker := &ssh.CertChecker{
 		IsUserAuthority: func(auth ssh.PublicKey) bool {
-			return bytesEqual(auth.Marshal(), ca.PublicKey().Marshal())
+			return bytes.Equal(auth.Marshal(), ca.PublicKey().Marshal())
 		},
 	}
 	cfg := &ssh.ServerConfig{
@@ -272,5 +273,3 @@ func TestCertificateAuthAgainstServer(t *testing.T) {
 		require.Error(t, dial(t, certFor(t, ca, userSigner.PublicKey(), func(c *ssh.Certificate) { c.ValidPrincipals = []string{"someone-else"} })))
 	})
 }
-
-func bytesEqual(a, b []byte) bool { return string(a) == string(b) }
