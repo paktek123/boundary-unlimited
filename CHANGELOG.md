@@ -80,6 +80,14 @@ fork, which is independent of HashiCorp.
   an immutable host key policy snapshot, credential injection and the upstream
   client, failing closed before any upstream dial. Nothing is enabled by this
   change; the injected credential purpose stays rejected.
+* Added an internal, not-yet-wired `pinnedHostKeyArgs` in
+  `internal/cmd/commands/connect` that builds the strict, pinned ssh arguments
+  (`StrictHostKeyChecking=yes`, a private 0600 `UserKnownHostsFile` holding
+  only the pinned ed25519 key, no `NoHostAuthenticationForLocalhost`) and
+  returns an idempotent cleanup. The known_hosts writer now also rejects keys
+  with options or control characters and supports non-default ports. Nothing
+  supplies a pin yet; `boundary connect ssh` behaviour is unchanged.
+
 
 ## 0.21.3 (2026/04/28)
 
