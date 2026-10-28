@@ -4,6 +4,7 @@
 package injectauth
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -12,8 +13,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,4 +112,164 @@ func TestKeyBeforePassword(t *testing.T) {
 
 func typeName(m ssh.AuthMethod) string {
 	return fmt.Sprintf("%T", m)
+}
+
+func newCA(t *testing.T) ssh.Signer {
+	t.Helper()
+	_, k, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	s, err := ssh.NewSignerFromKey(k)
+	require.NoError(t, err)
+	return s
+}
+
+// certFor signs a certificate for pub using ca, applying mod first.
+func certFor(t *testing.T, ca ssh.Signer, pub ssh.PublicKey, mod func(*ssh.Certificate)) []byte {
+	t.Helper()
+	c := &ssh.Certificate{
+		Key:             pub,
+		CertType:        ssh.UserCert,
+		KeyId:           "test",
+		ValidPrincipals: []string{"u"},
+		ValidAfter:      uint64(time.Now().Add(-time.Hour).Unix()),
+		ValidBefore:     uint64(time.Now().Add(time.Hour).Unix()),
+	}
+	if mod != nil {
+		mod(c)
+	}
+	require.NoError(t, c.SignCert(rand.Reader, ca))
+	return ssh.MarshalAuthorizedKey(c)
+}
+
+func TestAuthMethodsCertificate(t *testing.T) {
+	_, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	edSigner, err := ssh.NewSignerFromKey(edKey)
+	require.NoError(t, err)
+	_, otherKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	otherSigner, err := ssh.NewSignerFromKey(otherKey)
+	require.NoError(t, err)
+	ca := newCA(t)
+	keyPEM := pemKey(t, edKey, "")
+
+	tests := []struct {
+		name    string
+		in      Input
+		wantErr error
+	}{
+		{"valid", Input{Username: "u", PrivateKey: keyPEM, Certificate: certFor(t, ca, edSigner.PublicKey(), nil)}, nil},
+		{"valid with password", Input{Username: "u", Password: secretPassword, PrivateKey: keyPEM, Certificate: certFor(t, ca, edSigner.PublicKey(), nil)}, nil},
+		{"host cert", Input{Username: "u", PrivateKey: keyPEM, Certificate: certFor(t, ca, edSigner.PublicKey(), func(c *ssh.Certificate) { c.CertType = ssh.HostCert })}, ErrBadCertificate},
+		{"expired", Input{Username: "u", PrivateKey: keyPEM, Certificate: certFor(t, ca, edSigner.PublicKey(), func(c *ssh.Certificate) {
+			c.ValidAfter = uint64(time.Now().Add(-2 * time.Hour).Unix())
+			c.ValidBefore = uint64(time.Now().Add(-time.Hour).Unix())
+		})}, ErrBadCertificate},
+		{"not yet valid", Input{Username: "u", PrivateKey: keyPEM, Certificate: certFor(t, ca, edSigner.PublicKey(), func(c *ssh.Certificate) {
+			c.ValidAfter = uint64(time.Now().Add(time.Hour).Unix())
+			c.ValidBefore = uint64(time.Now().Add(2 * time.Hour).Unix())
+		})}, ErrBadCertificate},
+		{"key mismatch", Input{Username: "u", PrivateKey: keyPEM, Certificate: certFor(t, ca, otherSigner.PublicKey(), nil)}, ErrBadCertificate},
+		{"unparsable", Input{Username: "u", PrivateKey: keyPEM, Certificate: []byte("garbage")}, ErrBadCertificate},
+		{"plain public key, not a cert", Input{Username: "u", PrivateKey: keyPEM, Certificate: ssh.MarshalAuthorizedKey(edSigner.PublicKey())}, ErrBadCertificate},
+		{"certificate without key", Input{Username: "u", Password: secretPassword, Certificate: certFor(t, ca, edSigner.PublicKey(), nil)}, ErrBadCertificate},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			user, methods, err := AuthMethods(tc.in)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.Empty(t, user)
+				assert.Nil(t, methods)
+				for _, s := range []string{secretPassword, "PRIVATE KEY", string(tc.in.PrivateKey), string(tc.in.Certificate)} {
+					if s != "" {
+						assert.False(t, strings.Contains(err.Error(), s), "error leaks material: %v", err)
+					}
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "u", user)
+			assert.NotEmpty(t, methods)
+		})
+	}
+}
+
+func TestCertificateAuthAgainstServer(t *testing.T) {
+	ca := newCA(t)
+	otherCA := newCA(t)
+	_, userKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	userSigner, err := ssh.NewSignerFromKey(userKey)
+	require.NoError(t, err)
+
+	_, hostKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	hostSigner, err := ssh.NewSignerFromKey(hostKey)
+	require.NoError(t, err)
+
+	checker := &ssh.CertChecker{
+		IsUserAuthority: func(auth ssh.PublicKey) bool {
+			return bytes.Equal(auth.Marshal(), ca.PublicKey().Marshal())
+		},
+	}
+	cfg := &ssh.ServerConfig{
+		PublicKeyCallback: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+			if _, ok := key.(*ssh.Certificate); !ok {
+				return nil, fmt.Errorf("certificate required")
+			}
+			return checker.Authenticate(conn, key)
+		},
+	}
+	cfg.AddHostKey(hostSigner)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				sc, chans, reqs, err := ssh.NewServerConn(c, cfg)
+				if err != nil {
+					c.Close()
+					return
+				}
+				go ssh.DiscardRequests(reqs)
+				go func() {
+					for ch := range chans {
+						_ = ch.Reject(ssh.Prohibited, "no")
+					}
+				}()
+				_ = sc.Wait()
+			}()
+		}
+	}()
+
+	dial := func(t *testing.T, cert []byte) error {
+		user, methods, err := AuthMethods(Input{Username: "u", PrivateKey: pemKey(t, userKey, ""), Certificate: cert})
+		require.NoError(t, err)
+		cc, err := ssh.Dial("tcp", ln.Addr().String(), &ssh.ClientConfig{
+			User:            user,
+			Auth:            methods,
+			HostKeyCallback: ssh.FixedHostKey(hostSigner.PublicKey()),
+			Timeout:         5 * time.Second,
+		})
+		if err == nil {
+			cc.Close()
+		}
+		return err
+	}
+
+	t.Run("trusted CA accepted", func(t *testing.T) {
+		require.NoError(t, dial(t, certFor(t, ca, userSigner.PublicKey(), nil)))
+	})
+	t.Run("untrusted CA rejected", func(t *testing.T) {
+		require.Error(t, dial(t, certFor(t, otherCA, userSigner.PublicKey(), nil)))
+	})
+	t.Run("principal not allowed rejected", func(t *testing.T) {
+		require.Error(t, dial(t, certFor(t, ca, userSigner.PublicKey(), func(c *ssh.Certificate) { c.ValidPrincipals = []string{"someone-else"} })))
+	})
 }
