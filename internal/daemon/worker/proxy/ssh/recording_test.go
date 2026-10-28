@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"net"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -207,16 +208,14 @@ type fakeMarker struct {
 func (f *fakeMarker) MarkIncomplete(context.Context, string) error { f.calls.Add(1); return nil }
 
 type recHarness struct {
-	fs       *memFS
-	store    *scratch.Store
-	sess     *bsr.Session
-	keyFn    kms.KeyUnwrapCallbackFunc
-	rec      *recorder.Recorder
-	term     *fakeTerminator
-	mark     *fakeMarker
-	deps     RecordingDeps
-	inner    Upstream
-	innerOut *atomic.Int32
+	fs    *memFS
+	store *scratch.Store
+	sess  *bsr.Session
+	keyFn kms.KeyUnwrapCallbackFunc
+	rec   *recorder.Recorder
+	term  *fakeTerminator
+	mark  *fakeMarker
+	deps  RecordingDeps
 }
 
 // countingUpstream counts Dial calls on an Upstream.
@@ -322,6 +321,68 @@ func TestRecordingUpstream_InnerDialFailureReleasesReservation(t *testing.T) {
 	assert.EqualValues(t, 0, h.store.Used())
 }
 
+// ptyTarget is an in-process SSH server that requires the test password,
+// accepts pty-req, exec and window-change, echoes session data and sends an
+// exit-status request once the client closes its input.
+type ptyTarget struct {
+	addr    string
+	hostKey ssh.Signer
+}
+
+func newPtyTarget(t *testing.T) *ptyTarget {
+	t.Helper()
+	pt := &ptyTarget{hostKey: newSigner(t)}
+	cfg := &ssh.ServerConfig{
+		PasswordCallback: func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
+			if c.User() == testUpstreamUser && string(pw) == testUpstreamPass {
+				return nil, nil
+			}
+			return nil, assert.AnError
+		},
+	}
+	cfg.AddHostKey(pt.hostKey)
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { l.Close() })
+	pt.addr = l.Addr().String()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				sc, chans, reqs, err := ssh.NewServerConn(c, cfg)
+				if err != nil {
+					c.Close()
+					return
+				}
+				go ssh.DiscardRequests(reqs)
+				for nc := range chans {
+					ch, creqs, err := nc.Accept()
+					if err != nil {
+						continue
+					}
+					go func() {
+						for r := range creqs {
+							if r.WantReply {
+								_ = r.Reply(r.Type == "pty-req" || r.Type == "exec" || r.Type == "window-change", nil)
+							}
+						}
+					}()
+					go func() {
+						_, _ = io.Copy(ch, ch)
+						_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{0}))
+						_ = ch.Close()
+						_ = sc.Close()
+					}()
+				}
+			}()
+		}
+	}()
+	return pt
+}
+
 type scanned struct {
 	reqTypes map[bsr.Direction][]string
 	data     map[bsr.Direction][]byte
@@ -380,7 +441,7 @@ func readBack(t *testing.T, h *recHarness) scanned {
 }
 
 func TestRecordingUpstream_RecordsSessionAndReadsBack(t *testing.T) {
-	pt := newPasswordTarget(t)
+	pt := newPtyTarget(t)
 	inner, err := NewClientUpstream(context.Background(), pt.addr,
 		injectauth.Input{Username: testUpstreamUser, Password: testUpstreamPass},
 		ssh.FixedHostKey(pt.hostKey.PublicKey()))
@@ -397,6 +458,7 @@ func TestRecordingUpstream_RecordsSessionAndReadsBack(t *testing.T) {
 	require.NoError(t, err)
 	stdout, err := sess.StdoutPipe()
 	require.NoError(t, err)
+	require.NoError(t, sess.RequestPty("xterm", 24, 80, ssh.TerminalModes{}))
 	require.NoError(t, sess.Start("cat"))
 	_, err = stdin.Write([]byte("ping-from-client\n"))
 	require.NoError(t, err)
@@ -404,7 +466,11 @@ func TestRecordingUpstream_RecordsSessionAndReadsBack(t *testing.T) {
 	_, err = io.ReadFull(stdout, buf)
 	require.NoError(t, err)
 	assert.Equal(t, "ping-from-client\n", string(buf))
-	_ = sess.WindowChange(24, 80)
+	// Ask for a reply so the request is known to have been delivered, and so
+	// recorded, before the session is torn down.
+	ok, err := sess.SendRequest("window-change", true, ssh.Marshal(struct{ Cols, Rows, Width, Height uint32 }{100, 40, 0, 0}))
+	require.NoError(t, err)
+	require.True(t, ok)
 	_ = stdin.Close()
 	_ = sess.Close()
 	_ = client.Close()
@@ -418,8 +484,7 @@ func TestRecordingUpstream_RecordsSessionAndReadsBack(t *testing.T) {
 	got := readBack(t, h)
 	assert.Equal(t, "ping-from-client\n", string(got.data[bsr.Inbound]))
 	assert.Equal(t, "ping-from-client\n", string(got.data[bsr.Outbound]))
-	assert.Contains(t, got.reqTypes[bsr.Inbound], "EXEC")
-	assert.Equal(t, "EXEC", got.reqTypes[bsr.Inbound][1], "head chunk first, then requests in order")
+	assert.Equal(t, []string{"HEAD", "PTYR", "EXEC", "WCHG", "DONE"}, got.reqTypes[bsr.Inbound], "head chunk first, then requests in order")
 	assert.EqualValues(t, 0, h.term.calls.Load())
 	assert.EqualValues(t, 0, h.mark.calls.Load())
 
@@ -428,6 +493,63 @@ func TestRecordingUpstream_RecordsSessionAndReadsBack(t *testing.T) {
 	assert.False(t, strings.Contains(all, testUpstreamPass))
 	_, err = h.store.Path(recSessionId)
 	require.NoError(t, err)
+}
+
+func TestRecordingUpstream_RecordsTargetRequests(t *testing.T) {
+	ctx := context.Background()
+	pt := newPtyTarget(t)
+	inner, err := NewClientUpstream(ctx, pt.addr,
+		injectauth.Input{Username: testUpstreamUser, Password: testUpstreamPass},
+		ssh.FixedHostKey(pt.hostKey.PublicKey()))
+	require.NoError(t, err)
+	h, cu := newRecHarness(t, 1<<24, 1<<22, inner)
+	ru, err := NewRecordingUpstream(ctx, cu, h.deps)
+	require.NoError(t, err)
+	conn, err := ru.Dial(ctx)
+	require.NoError(t, err)
+
+	ch, reqs, err := conn.OpenChannel("session", nil)
+	require.NoError(t, err)
+	ok, err := ch.SendRequest("pty-req", true, ssh.Marshal(struct {
+		Term          string
+		Cols, Rows    uint32
+		Width, Height uint32
+		Modes         string
+	}{Term: "xterm", Cols: 80, Rows: 24}))
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = ch.SendRequest("exec", true, ssh.Marshal(struct{ Command string }{"cat"}))
+	require.NoError(t, err)
+	require.True(t, ok)
+	_, err = ch.Write([]byte("hello\n"))
+	require.NoError(t, err)
+	buf := make([]byte, len("hello\n"))
+	_, err = io.ReadFull(ch, buf)
+	require.NoError(t, err)
+	_, err = ch.SendRequest("window-change", false, ssh.Marshal(struct{ Cols, Rows, Width, Height uint32 }{100, 40, 0, 0}))
+	require.NoError(t, err)
+	require.NoError(t, ch.CloseWrite())
+
+	// The target sends exit-status once its input is closed; it is delivered
+	// only after it has been recorded.
+	select {
+	case r, open := <-reqs:
+		require.True(t, open)
+		assert.Equal(t, "exit-status", r.Type)
+	case <-time.After(10 * time.Second):
+		t.Fatal("exit-status was not delivered")
+	}
+	// The target has already closed the channel and the connection, so these
+	// may report that; finalisation of the recording must still succeed.
+	_ = ch.Close()
+	_ = conn.Close()
+	require.NoError(t, conn.(interface{ FinalizeErr() error }).FinalizeErr())
+
+	got := readBack(t, h)
+	assert.Equal(t, []string{"HEAD", "PTYR", "EXEC", "WCHG", "DONE"}, got.reqTypes[bsr.Inbound])
+	assert.Equal(t, []string{"HEAD", "EXST", "DONE"}, got.reqTypes[bsr.Outbound])
+	assert.Equal(t, "hello\n", string(got.data[bsr.Inbound]))
+	assert.Equal(t, "hello\n", string(got.data[bsr.Outbound]))
 }
 
 func TestRecordingUpstream_QuotaExhaustionTerminatesSession(t *testing.T) {

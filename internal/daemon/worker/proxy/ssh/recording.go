@@ -39,7 +39,9 @@ type RecordingDeps struct {
 	// closed.
 	Recorder *recorder.Recorder
 	// Terminator and Marker are called once, through a recguard.Guard, when a
-	// recording write fails.
+	// recording write fails. Terminator is called while the connection's
+	// recording lock is held, so it must not block waiting for this
+	// connection's channels or goroutines to finish; it should only signal.
 	Terminator recguard.Terminator
 	Marker     recguard.Marker
 	// NewChannelId generates BSR channel ids. Optional; defaults to
@@ -97,23 +99,23 @@ func NewRecordingUpstream(ctx context.Context, inner Upstream, deps RecordingDep
 func (u *RecordingUpstream) Dial(ctx context.Context) (UpstreamConn, error) {
 	const op = "ssh.RecordingUpstream.Dial"
 	if err := u.deps.Scratch.Reserve(u.deps.SessionId, u.deps.Capacity); err != nil {
-		return nil, fmt.Errorf("%s: reserving recording capacity: %w", op, err)
+		return nil, berrors.Wrap(ctx, err, berrors.Op(op), berrors.WithMsg("reserving recording capacity"))
 	}
 	inner, err := u.inner.Dial(ctx)
 	if err != nil {
 		_ = u.deps.Scratch.Discard(u.deps.SessionId)
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, berrors.Wrap(ctx, err, berrors.Op(op))
 	}
 	newId := u.deps.NewChannelId
 	if newId == nil {
 		newId = bsr.NewChannelId
 	}
-	rc := &recordingConn{inner: inner, rec: u.deps.Recorder, newId: newId, open: map[*recChannel]struct{}{}}
+	rc := &recordingConn{inner: inner, rec: u.deps.Recorder, newId: newId, open: map[*recChannel]struct{}{}, done: make(chan struct{})}
 	rc.sink = &opSink{}
 	g, err := recguard.New(rc.sink, &connTerminator{rc: rc, term: u.deps.Terminator}, u.deps.Marker)
 	if err != nil {
 		_ = inner.Close()
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, berrors.Wrap(ctx, err, berrors.Op(op))
 	}
 	rc.guard = g
 	return rc, nil
@@ -154,6 +156,8 @@ type recordingConn struct {
 	guard *recguard.Guard
 	open  map[*recChannel]struct{}
 
+	done      chan struct{} // closed when the connection is closed; unblocks request forwarding
+	doneOnce  sync.Once
 	closeOnce sync.Once
 	finalErr  error
 	closed    bool
@@ -181,6 +185,7 @@ func (rc *recordingConn) record(op func() error) error {
 // closes the embedded ssh.Channel directly to avoid recChannel.Close, which
 // takes rc.mu.
 func (rc *recordingConn) closeAll() {
+	rc.doneOnce.Do(func() { close(rc.done) })
 	for ch := range rc.open {
 		_ = ch.Channel.Close()
 	}
@@ -205,6 +210,7 @@ func (rc *recordingConn) Close() error {
 		rc.mu.Lock()
 		rc.closed = true
 		rc.mu.Unlock()
+		rc.doneOnce.Do(func() { close(rc.done) })
 		innerErr := rc.inner.Close()
 		recErr := rc.rec.Close()
 		var markErr error
@@ -316,7 +322,13 @@ func (c *recChannel) recordUpstreamRequests(in <-chan *ssh.Request, out chan<- *
 			}
 			continue
 		}
-		out <- r
+		select {
+		case out <- r:
+		case <-c.rc.done:
+			if r.WantReply {
+				_ = r.Reply(false, nil)
+			}
+		}
 	}
 }
 
