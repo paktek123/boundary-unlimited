@@ -75,6 +75,11 @@ fork, which is independent of HashiCorp.
   (library only; composes `kubecreds.Parse` and the kubeconfig builder). No
   `connect kube` flag or target type is enabled by this change.
 * Added SSH certificate support to the `injectauth` library: `Input.Certificate` (authorized-key format user certificate) is wrapped with the private key via `ssh.NewCertSigner`; non-user, expired, not-yet-valid, unparsable and key-mismatched certificates are rejected with `ErrBadCertificate`. Library only; not wired into the worker yet. ([Issue #120](https://github.com/paktek123/boundary-unlimited/issues/120))
+* Added an internal, not-yet-wired `ssh.HandleSession` in
+  `internal/daemon/worker/proxy/ssh` that composes the client-facing server,
+  an immutable host key policy snapshot, credential injection and the upstream
+  client, failing closed before any upstream dial. Nothing is enabled by this
+  change; the injected credential purpose stays rejected.
 
 ## 0.21.3 (2026/04/28)
 
