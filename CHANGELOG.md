@@ -88,7 +88,6 @@ fork, which is independent of HashiCorp.
   `NewEventReporter` writes observation events through `internal/event`. Not
   wired into the worker; nothing is enabled by this change.
 
-
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	berrors "github.com/hashicorp/boundary/internal/errors"
 	"github.com/hashicorp/boundary/internal/event"
 )
 
@@ -63,7 +64,11 @@ func (s safeReporter) call(ctx context.Context, fn func(context.Context, Reporte
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				event.WriteError(ctx, "ssh.safeReporter.call", fmt.Errorf("reporter panic: %v", r))
+			}
+		}()
 		fn(ctx, s.r)
 	}()
 	select {
@@ -94,7 +99,7 @@ func (eventReporter) HostKeyFailure(ctx context.Context, targetID, fingerprint s
 		"target_id", targetID,
 		"host_key_fingerprint", fingerprint,
 	)); err != nil {
-		event.WriteError(ctx, op, fmt.Errorf("%s: %w", op, err))
+		event.WriteError(ctx, op, berrors.Wrap(ctx, err, berrors.Op(op)))
 	}
 }
 
@@ -105,6 +110,6 @@ func (eventReporter) SessionRejected(ctx context.Context, targetID, reason strin
 		"target_id", targetID,
 		"reason", reason,
 	)); err != nil {
-		event.WriteError(ctx, op, fmt.Errorf("%s: %w", op, err))
+		event.WriteError(ctx, op, berrors.Wrap(ctx, err, berrors.Op(op)))
 	}
 }
