@@ -140,11 +140,6 @@ func parseEntry(entry string) (ssh.PublicKey, string, error) {
 			return nil, "control characters are not allowed", ErrInvalidComment
 		}
 	}
-	for _, r := range comment {
-		if r < 0x20 || r == 0x7f {
-			return nil, "control characters are not allowed", ErrInvalidComment
-		}
-	}
 	if strings.ContainsAny(comment, "*?") {
 		return nil, "host patterns are not accepted", ErrWildcardPattern
 	}

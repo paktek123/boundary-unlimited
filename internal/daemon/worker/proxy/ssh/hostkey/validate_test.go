@@ -90,6 +90,7 @@ func TestValidate(t *testing.T) {
 		{"options on pin", Policy{PinnedKeys: []string{`command="id" ` + ed}}, ErrKeyOptions},
 		{"options on ca", Policy{HostCAs: []string{`cert-authority ` + ed}}, ErrKeyOptions},
 		{"control char in comment", Policy{PinnedKeys: []string{ed + " bad\x01comment"}}, ErrInvalidComment},
+		{"leading comment line", Policy{PinnedKeys: []string{"# note\n" + ed}}, ErrInvalidComment},
 		{"second line in entry", Policy{PinnedKeys: []string{ed + " a\nb"}}, ErrMalformedEntry},
 		{"duplicate pin", Policy{PinnedKeys: []string{ed, ed}}, ErrDuplicateKey},
 		{"duplicate pin with other comment", Policy{PinnedKeys: []string{ed, ed + " other"}}, ErrDuplicateKey},
