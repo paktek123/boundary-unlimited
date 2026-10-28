@@ -51,14 +51,11 @@ func TestPinned(t *testing.T) {
 	assert.ErrorIs(t, err, ErrHostKeyMismatch)
 }
 
-func TestEmptyPolicyRejects(t *testing.T) {
+func TestEmptyPolicyFailsConstruction(t *testing.T) {
 	cb, err := New(Policy{})
-	require.NoError(t, err)
-	k := newSigner(t)
-	assert.ErrorIs(t, cb("h", addr, k.PublicKey()), ErrHostKeyMismatch)
-	ca := newSigner(t)
-	c := hostCert(t, ca, k, []string{"h"}, time.Now().Add(time.Hour))
-	assert.ErrorIs(t, cb("h", addr, c), ErrHostKeyMismatch)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEmptyPolicy)
+	assert.Nil(t, cb)
 }
 
 func TestMalformedFailsConstruction(t *testing.T) {
