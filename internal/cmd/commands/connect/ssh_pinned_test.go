@@ -5,7 +5,6 @@ package connect
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -24,6 +23,8 @@ func TestPinnedHostKeyArgs(t *testing.T) {
 	assert.NotContains(t, joined, "NoHostAuthenticationForLocalhost")
 	assert.NotContains(t, joined, strings.Fields(key)[1], "the key must not be on the command line")
 
+	require.NotEmpty(t, args)
+	require.Equal(t, "-o", args[0], "first argument must be -o")
 	var file string
 	for i, a := range args {
 		if a == "-o" {
@@ -105,7 +106,7 @@ func TestPinnedHostKeyArgs_RejectsMalformedBeforeWriting(t *testing.T) {
 			assert.Nil(t, cleanup)
 			entries, derr := os.ReadDir(tmp)
 			require.NoError(t, derr)
-			assert.Empty(t, entries, "nothing may be written for a rejected pin: %v", filepath.Join(tmp))
+			assert.Empty(t, entries, "nothing may be written for a rejected pin: %v", tmp)
 		})
 	}
 }

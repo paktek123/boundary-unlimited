@@ -88,7 +88,6 @@ fork, which is independent of HashiCorp.
   with options or control characters and supports non-default ports. Nothing
   supplies a pin yet; `boundary connect ssh` behaviour is unchanged.
 
-
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
