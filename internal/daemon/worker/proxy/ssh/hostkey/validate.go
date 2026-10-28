@@ -157,7 +157,7 @@ func checkAlgorithm(k ssh.PublicKey, fp string) (string, error) {
 	switch k.Type() {
 	case ssh.KeyAlgoED25519, ssh.KeyAlgoECDSA256, ssh.KeyAlgoECDSA384, ssh.KeyAlgoECDSA521:
 		return "", nil
-	case ssh.KeyAlgoDSA:
+	case "ssh-dss":
 		return fmt.Sprintf("DSA key %s is not accepted", fp), ErrWeakKey
 	case ssh.KeyAlgoRSA:
 		cpk, ok := k.(ssh.CryptoPublicKey)
