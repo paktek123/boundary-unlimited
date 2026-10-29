@@ -3,7 +3,8 @@
 
 // Package hostkey builds an ssh.HostKeyCallback from a policy of pinned host
 // keys and/or trusted host certificate authorities. It is fail-closed:
-// trust-on-first-use is not supported and an empty policy rejects every key.
+// trust-on-first-use is not supported and an empty or invalid policy is an
+// error (see Validate).
 package hostkey
 
 import (
@@ -32,28 +33,14 @@ type Policy struct {
 	HostCAs []string
 }
 
-// New returns an ssh.HostKeyCallback enforcing p. Any entry that cannot be
-// parsed causes an error: a partially applied policy is never returned.
+// New returns an ssh.HostKeyCallback enforcing p. The policy must pass
+// Validate: any invalid entry, including an empty policy, causes an error and
+// a partially applied policy is never returned.
 func New(p Policy) (ssh.HostKeyCallback, error) {
 	const op = "hostkey.New"
-	pinned := make([]ssh.PublicKey, 0, len(p.PinnedKeys))
-	for i, s := range p.PinnedKeys {
-		k, err := parse(s)
-		if err != nil {
-			return nil, errors.Wrap(context.Background(), err, op, errors.WithMsg("pinned key %d", i), errors.WithCode(errors.InvalidParameter))
-		}
-		if _, ok := k.(*ssh.Certificate); ok {
-			return nil, errors.New(context.Background(), errors.InvalidParameter, op, fmt.Sprintf("pinned key %d is a certificate; use HostCAs", i))
-		}
-		pinned = append(pinned, k)
-	}
-	cas := make([]ssh.PublicKey, 0, len(p.HostCAs))
-	for i, s := range p.HostCAs {
-		k, err := parse(s)
-		if err != nil {
-			return nil, errors.Wrap(context.Background(), err, op, errors.WithMsg("host CA %d", i), errors.WithCode(errors.InvalidParameter))
-		}
-		cas = append(cas, k)
+	pinned, cas, err := validate(p)
+	if err != nil {
+		return nil, errors.Wrap(context.Background(), err, op)
 	}
 
 	checker := &ssh.CertChecker{
@@ -76,17 +63,6 @@ func New(p Policy) (ssh.HostKeyCallback, error) {
 		}
 		return mismatch(hostname)
 	}, nil
-}
-
-func parse(s string) (ssh.PublicKey, error) {
-	k, _, _, rest, err := ssh.ParseAuthorizedKey([]byte(s))
-	if err != nil {
-		return nil, err
-	}
-	if len(bytes.TrimSpace(rest)) != 0 {
-		return nil, fmt.Errorf("unexpected trailing data")
-	}
-	return k, nil
 }
 
 func isIn(k ssh.PublicKey, set []ssh.PublicKey) bool {

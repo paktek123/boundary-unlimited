@@ -81,6 +81,12 @@ fork, which is independent of HashiCorp.
   an immutable host key policy snapshot, credential injection and the upstream
   client, failing closed before any upstream dial. Nothing is enabled by this
   change; the injected credential purpose stays rejected.
+* Added `hostkey.Validate` in `internal/daemon/worker/proxy/ssh/hostkey` with
+  typed errors per failure class (empty policy, entry count and size limits,
+  key options, control characters, duplicates, wildcard patterns, weak or
+  unsupported algorithms, certificates). `hostkey.New` now enforces it, so an
+  empty or invalid policy never yields a callback. Library only; nothing is
+  enabled by this change.
 
 ## 0.21.3 (2026/04/28)
 
