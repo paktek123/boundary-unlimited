@@ -58,7 +58,10 @@ func (s *Store) WriteFile(sessionID, name string, p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	d, _ := s.dir(sessionID)
+	d, err := s.dir(sessionID)
+	if err != nil {
+		return 0, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r, ok := s.recs[sessionID]
