@@ -81,6 +81,13 @@ fork, which is independent of HashiCorp.
   an immutable host key policy snapshot, credential injection and the upstream
   client, failing closed before any upstream dial. Nothing is enabled by this
   change; the injected credential purpose stays rejected.
+* Added a `Reporter` to `internal/daemon/worker/proxy/ssh` (`SessionConfig.Reporter`,
+  `SessionConfig.TargetId`) that `HandleSession` calls once for an upstream host key
+  verification failure (target id and SHA256 fingerprint only) and for every
+  session refused before dialling (target id and a fixed reason code). A nil,
+  slow or panicking reporter never stops a session from being refused.
+  `NewEventReporter` writes observation events through `internal/event`. Not
+  wired into the worker; nothing is enabled by this change.
 * Added an internal, not-yet-wired `pinnedHostKeyArgs` in
   `internal/cmd/commands/connect` that builds the strict, pinned ssh arguments
   (`StrictHostKeyChecking=yes`, a private 0600 `UserKnownHostsFile` holding

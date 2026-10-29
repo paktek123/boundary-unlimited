@@ -7,6 +7,7 @@ import (
 	"context"
 	"net"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh/hostkey"
@@ -38,6 +39,12 @@ type SessionConfig struct {
 	// Policy restricts what the client may open or request. The zero value
 	// selects DefaultPolicy.
 	Policy Policy
+	// TargetId identifies the target in reported events.
+	TargetId string
+	// Reporter receives host key verification failures and rejected
+	// sessions. Nil means no reporting. A slow or panicking Reporter never
+	// stops a session from being refused.
+	Reporter Reporter
 }
 
 // HandleSession is the single entry point for one proxied SSH connection. It
@@ -58,6 +65,8 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error 
 		PinnedKeys: slices.Clone(cfg.HostKeys.PinnedKeys),
 		HostCAs:    slices.Clone(cfg.HostKeys.HostCAs),
 	}
+	rep := newSafeReporter(cfg.Reporter)
+	rejected := func(reason string) { rep.SessionRejected(ctx, cfg.TargetId, reason) }
 	cred := cfg.Credential
 	cred.PrivateKey = slices.Clone(cred.PrivateKey)
 	cred.Passphrase = slices.Clone(cred.Passphrase)
@@ -67,26 +76,41 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error 
 	}()
 
 	if err := cfg.Authorization.validate(ctx, time.Now()); err != nil {
+		rejected(ReasonInvalidAuthorization)
 		return errors.Wrap(ctx, err, op, errors.WithCode(errors.InvalidParameter))
 	}
 	if cfg.ClientHostKey == nil {
+		rejected(ReasonMissingClientHostKey)
 		return errors.New(ctx, errors.InvalidParameter, op, "missing client-facing host key")
 	}
 	if cfg.UpstreamAddr == "" {
+		rejected(ReasonMissingUpstreamAddr)
 		return errors.New(ctx, errors.InvalidParameter, op, "missing upstream address")
 	}
 	if len(hk.PinnedKeys) == 0 && len(hk.HostCAs) == 0 {
+		rejected(ReasonEmptyHostKeyPolicy)
 		return errors.New(ctx, errors.InvalidParameter, op, "empty upstream host key policy")
 	}
 	if err := pol.validate(ctx); err != nil {
+		rejected(ReasonInvalidSessionPolicy)
 		return errors.Wrap(ctx, err, op, errors.WithCode(errors.InvalidParameter))
 	}
 	cb, err := hostkey.New(hk)
 	if err != nil {
+		rejected(ReasonInvalidHostKeyPolicy)
 		return errors.Wrap(ctx, err, op, errors.WithMsg("invalid upstream host key policy"), errors.WithCode(errors.InvalidParameter))
 	}
-	up, err := NewClientUpstream(ctx, cfg.UpstreamAddr, cred, cb)
+	var failOnce sync.Once
+	reportingCb := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		err := cb(hostname, remote, key)
+		if err != nil {
+			failOnce.Do(func() { rep.HostKeyFailure(ctx, cfg.TargetId, ssh.FingerprintSHA256(key)) })
+		}
+		return err
+	}
+	up, err := NewClientUpstream(ctx, cfg.UpstreamAddr, cred, reportingCb)
 	if err != nil {
+		rejected(ReasonInvalidCredential)
 		return errors.Wrap(ctx, err, op)
 	}
 	return Serve(ctx, conn, cfg.ClientHostKey, cfg.Authorization, up, WithPolicy(pol))
