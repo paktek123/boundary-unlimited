@@ -74,6 +74,7 @@ fork, which is independent of HashiCorp.
   that turns a brokered Kubernetes credential into a private local kubeconfig
   (library only; composes `kubecreds.Parse` and the kubeconfig builder). No
   `connect kube` flag or target type is enabled by this change.
+* Added `RecordingUpstream` (`internal/daemon/worker/proxy/ssh/recording.go`), an `Upstream` wrapper that records every channel's data and requests through the BSR recorder before delivery, reserves scratch capacity before dialling and fails closed through `recguard`. Library only; not wired into the worker. ([Issue #119](https://github.com/paktek123/boundary-unlimited/issues/119))
 * Added SSH certificate support to the `injectauth` library: `Input.Certificate` (authorized-key format user certificate) is wrapped with the private key via `ssh.NewCertSigner`; non-user, expired, not-yet-valid, unparsable and key-mismatched certificates are rejected with `ErrBadCertificate`. Library only; not wired into the worker yet. ([Issue #120](https://github.com/paktek123/boundary-unlimited/issues/120))
 * Added an internal, not-yet-wired `ssh.HandleSession` in
   `internal/daemon/worker/proxy/ssh` that composes the client-facing server,
@@ -87,6 +88,19 @@ fork, which is independent of HashiCorp.
   slow or panicking reporter never stops a session from being refused.
   `NewEventReporter` writes observation events through `internal/event`. Not
   wired into the worker; nothing is enabled by this change.
+* Added an internal, not-yet-wired `pinnedHostKeyArgs` in
+  `internal/cmd/commands/connect` that builds the strict, pinned ssh arguments
+  (`StrictHostKeyChecking=yes`, a private 0600 `UserKnownHostsFile` holding
+  only the pinned ed25519 key, no `NoHostAuthenticationForLocalhost`) and
+  returns an idempotent cleanup. The known_hosts writer now also rejects keys
+  with options or control characters and supports non-default ports. Nothing
+  supplies a pin yet; `boundary connect ssh` behaviour is unchanged.
+* Added `hostkey.Validate` in `internal/daemon/worker/proxy/ssh/hostkey` with
+  typed errors per failure class (empty policy, entry count and size limits,
+  key options, control characters, duplicates, wildcard patterns, weak or
+  unsupported algorithms, certificates). `hostkey.New` now enforces it, so an
+  empty or invalid policy never yields a callback. Library only; nothing is
+  enabled by this change.
 
 ## 0.21.3 (2026/04/28)
 
