@@ -101,6 +101,10 @@ fork, which is independent of HashiCorp.
   unsupported algorithms, certificates). `hostkey.New` now enforces it, so an
   empty or invalid policy never yields a callback. Library only; nothing is
   enabled by this change.
+* worker: Add the standalone `recording/finalize` library (finish, upload, then
+  discard scratch data only after a verified upload). Library only: it is not
+  wired into the worker and enables nothing.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
 
 ## 0.21.3 (2026/04/28)
 
