@@ -38,7 +38,8 @@ type RecordingFinalizer interface {
 }
 
 // FinalizeReporter is told the outcome of every finalisation, so a failure to
-// finalise is never silent. It must not block.
+// finalise is never silent. It must not block (not enforced; it is called
+// inline from Close).
 type FinalizeReporter interface {
 	RecordingFinalized(ctx context.Context, sessionID string, res upload.Result, err error)
 }
@@ -170,12 +171,20 @@ func (r *reservedScratch) Reserve(sessionID string, capacity int64) error {
 }
 
 // finalizingUpstream finalises the recording when the connection it dials is
-// closed.
+// closed. A wrapped upstream supports a single Dial, like RecordingUpstream;
+// finalisation runs at most once per upstream. If Wrap succeeds but Dial is
+// never called or fails after reserving, the reservation is left for orphan
+// recovery, so callers must dial the returned upstream. Finalisation runs
+// inline when the connection is closed (bounded by finalizeTimeout); callers
+// that cannot afford that should close the connection from a goroutine.
 type finalizingUpstream struct {
 	inner     *RecordingUpstream
 	f         *recordingFactory
 	sessionId string
 	ctx       context.Context
+
+	once sync.Once
+	err  error
 }
 
 func (u *finalizingUpstream) Dial(ctx context.Context) (UpstreamConn, error) {
@@ -188,17 +197,15 @@ func (u *finalizingUpstream) Dial(ctx context.Context) (UpstreamConn, error) {
 
 type finalizingConn struct {
 	UpstreamConn
-	u    *finalizingUpstream
-	once sync.Once
-	err  error
+	u *finalizingUpstream
 }
 
 // Close closes the recording connection and then finalises the recording
 // exactly once. Finalisation failures keep the scratch data (for orphan
 // recovery), are reported, and are returned; nothing is discarded here.
 func (c *finalizingConn) Close() error {
-	c.once.Do(func() {
-		closeErr := c.UpstreamConn.Close()
+	closeErr := c.UpstreamConn.Close()
+	c.u.once.Do(func() {
 		ctx, cancel := context.WithTimeout(c.u.ctx, finalizeTimeout)
 		defer cancel()
 		res, ferr := c.u.f.deps.Finalizer.Finalize(ctx, c.u.sessionId)
@@ -206,7 +213,7 @@ func (c *finalizingConn) Close() error {
 		if ferr != nil {
 			ferr = fmt.Errorf("ssh.recordingFactory: finalising recording: %w", ferr)
 		}
-		c.err = errors.Join(closeErr, ferr)
+		c.u.err = ferr
 	})
-	return c.err
+	return errors.Join(closeErr, c.u.err)
 }
