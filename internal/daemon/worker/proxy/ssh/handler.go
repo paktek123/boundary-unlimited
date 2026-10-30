@@ -51,6 +51,9 @@ type SessionConfig struct {
 // It is called once per session, after the configuration has been validated
 // and before the upstream is dialled. Returning an error (or a nil Upstream)
 // makes HandleSession refuse the session before any data is relayed.
+// Implementations must not return a typed nil pointer wrapped in a non-nil
+// Upstream interface together with a nil error; only an untyped nil is
+// detected and refused.
 type RecordingFactory interface {
 	Wrap(ctx context.Context, auth Authorization, inner Upstream) (Upstream, error)
 }
