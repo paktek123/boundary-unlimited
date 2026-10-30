@@ -129,9 +129,8 @@ func TestE2E_UpstreamHostKeyMismatchRefusedAndReported(t *testing.T) {
 	s := startE2E(t, 1<<24, 1<<22, func(*ptyTarget) hostkey.Policy { return pinned(newSigner(t)) })
 	// The client-facing handshake succeeds; the session then fails when the
 	// upstream is dialled and nothing is relayed.
-	sess, err := s.client.NewSession()
-	if err == nil {
-		err = sess.Start("cat")
+	if sess, err := s.client.NewSession(); err == nil {
+		_ = sess.Start("cat")
 	}
 	_ = s.client.Close()
 	require.Error(t, s.waitDone(t))
