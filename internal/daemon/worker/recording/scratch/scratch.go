@@ -363,6 +363,7 @@ func (s *Store) Recover() ([]Orphan, error) {
 		if fi, err := os.Lstat(filepath.Join(d, dataFile)); err == nil && fi.Mode().IsRegular() {
 			size = fi.Size()
 		}
+		size += filesSize(d)
 		r := &recording{size: size, state: stateIncomplete}
 		_, ferr := os.Lstat(filepath.Join(d, finishedFile))
 		_, ierr := os.Lstat(filepath.Join(d, incompleteFile))
