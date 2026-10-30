@@ -39,6 +39,10 @@ fork, which is independent of HashiCorp.
 * Added a standalone, not-yet-wired bounded scratch store for SSH session
   recordings with a fail-closed quota and orphan recovery
   (`internal/daemon/worker/recording/scratch`). No behaviour change.
+* Added the `recording/bsrfs` library, a BSR `storage.FS` backed by the bounded
+  scratch store (new `scratch.Store.WriteFile`/`FilePath`), so BSR bytes count
+  against the quota and fail closed. Library only; not wired into the worker.
+  ([Issue #132](https://github.com/paktek123/boundary-unlimited/issues/132))
 * Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
   missing `HostKeyCallback` in the worker SSH proxy packages.
 * Added pure-Go helpers for the SSH client-facing host key: a per-session
@@ -106,6 +110,10 @@ fork, which is independent of HashiCorp.
   a factory failure refuses the session (reason `recording_unavailable`) before
   any data is relayed. Off by default; nothing in the worker supplies a factory
   yet, so no behaviour changes.
+* worker: Add the standalone `recording/finalize` library (finish, upload, then
+  discard scratch data only after a verified upload). Library only: it is not
+  wired into the worker and enables nothing.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
 
 ## 0.21.3 (2026/04/28)
 
