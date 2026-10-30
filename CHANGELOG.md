@@ -114,6 +114,12 @@ fork, which is independent of HashiCorp.
   discard scratch data only after a verified upload). Library only: it is not
   wired into the worker and enables nothing.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
+* Added `NewRecordingFactory` to the worker SSH proxy: the concrete
+  `RecordingFactory` composing the BSR recorder, the scratch store `storage.FS`
+  adapter and finalisation on close. Quota or recorder errors refuse the
+  session; a failed finalisation keeps the scratch data and is reported. Not
+  wired into the worker; nothing is enabled by this change.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/141))
 * Added `WithRecordingRequired` to the worker SSH `HandleSession`: when set,
   the session is refused (reason `recording_unavailable`) before the upstream
   is dialled unless a working recording factory is configured, including when
