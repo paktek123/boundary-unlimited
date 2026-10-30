@@ -120,6 +120,12 @@ fork, which is independent of HashiCorp.
   session; a failed finalisation keeps the scratch data and is reported. Not
   wired into the worker; nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/141))
+* Added `WithRecordingRequired` to the worker SSH `HandleSession`: when set,
+  the session is refused (reason `recording_unavailable`) before the upstream
+  is dialled unless a working recording factory is configured, including when
+  the factory is nil or returns a (typed) nil upstream. Off by default; nothing
+  in the worker uses it yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
 
 ## 0.21.3 (2026/04/28)
 
