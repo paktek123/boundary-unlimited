@@ -178,3 +178,61 @@ func TestHandleSession_Recording_WriteFailureTerminatesSession(t *testing.T) {
 	assert.EqualValues(t, 1, h.term.calls.Load(), "terminator called exactly once")
 	assert.EqualValues(t, 1, h.mark.calls.Load(), "recording marked incomplete exactly once")
 }
+
+func TestHandleSession_RecordingRequired_RefusesBeforeDial(t *testing.T) {
+	var typedNil *teeUpstream
+	tests := []struct {
+		name string
+		opts []HandleOption
+	}{
+		{"no factory", []HandleOption{WithRecordingRequired()}},
+		{"nil factory", []HandleOption{WithRecordingRequired(), WithRecordingFactory(nil)}},
+		{"factory returns nil upstream", []HandleOption{WithRecordingRequired(), WithRecordingFactory(fnFactory(
+			func(context.Context, Authorization, Upstream) (Upstream, error) { return nil, nil }))}},
+		{"factory returns typed nil upstream", []HandleOption{WithRecordingRequired(), WithRecordingFactory(fnFactory(
+			func(context.Context, Authorization, Upstream) (Upstream, error) { return typedNil, nil }))}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, dials := countingListener(t)
+			pt := newPasswordTarget(t)
+			rep := &fakeReporter{}
+			cfg := recCfg(t, pt.addr, pt.hostKey, rep)
+			cfg.UpstreamAddr = addr
+			c1, c2 := tcpPair(t)
+			defer c1.Close()
+			err := HandleSession(context.Background(), c2, cfg, tt.opts...)
+			require.Error(t, err)
+			assert.Zero(t, dials.Load(), "upstream must never be dialled")
+			assert.Zero(t, pt.authTrys.Load())
+			assert.Equal(t, [][2]string{{reportTargetId, ReasonRecordingUnavailable}}, rep.rejected)
+		})
+	}
+}
+
+func TestHandleSession_RecordingRequired_WorkingFactoryProceeds(t *testing.T) {
+	pt := newPasswordTarget(t)
+	var tee *teeUpstream
+	f := fnFactory(func(_ context.Context, _ Authorization, inner Upstream) (Upstream, error) {
+		tee = &teeUpstream{Upstream: inner}
+		return tee, nil
+	})
+	cfg := recCfg(t, pt.addr, pt.hostKey, nil)
+	c1, c2 := tcpPair(t)
+	done := make(chan error, 1)
+	go func() {
+		done <- HandleSession(context.Background(), c2, cfg, WithRecordingRequired(), WithRecordingFactory(f))
+	}()
+	client := dialClient(t, c1, cfg)
+	sess, err := client.NewSession()
+	require.NoError(t, err)
+	require.NoError(t, sess.Start("hello"))
+	client.Close()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("HandleSession did not return")
+	}
+	require.NotNil(t, tee)
+	assert.Equal(t, 1, tee.dials)
+}

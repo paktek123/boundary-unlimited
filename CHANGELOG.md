@@ -114,6 +114,12 @@ fork, which is independent of HashiCorp.
   discard scratch data only after a verified upload). Library only: it is not
   wired into the worker and enables nothing.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
+* Added `WithRecordingRequired` to the worker SSH `HandleSession`: when set,
+  the session is refused (reason `recording_unavailable`) before the upstream
+  is dialled unless a working recording factory is configured, including when
+  the factory is nil or returns a (typed) nil upstream. Off by default; nothing
+  in the worker uses it yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
 
 ## 0.21.3 (2026/04/28)
 
