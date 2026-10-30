@@ -101,6 +101,11 @@ fork, which is independent of HashiCorp.
   unsupported algorithms, certificates). `hostkey.New` now enforces it, so an
   empty or invalid policy never yields a callback. Library only; nothing is
   enabled by this change.
+* Added an optional `RecordingFactory` (`WithRecordingFactory`) to the worker
+  SSH `HandleSession`. When supplied it wraps the upstream before dialling and
+  a factory failure refuses the session (reason `recording_unavailable`) before
+  any data is relayed. Off by default; nothing in the worker supplies a factory
+  yet, so no behaviour changes.
 
 ## 0.21.3 (2026/04/28)
 
