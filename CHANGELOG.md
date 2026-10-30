@@ -106,6 +106,10 @@ fork, which is independent of HashiCorp.
   a factory failure refuses the session (reason `recording_unavailable`) before
   any data is relayed. Off by default; nothing in the worker supplies a factory
   yet, so no behaviour changes.
+* Added in-process end-to-end tests for the worker SSH proxy (`HandleSession`
+  with the recording wrapper over the scratch store): recorded session, scratch
+  quota exhaustion, disallowed channel types and upstream host key mismatch.
+  Tests only.
 
 ## 0.21.3 (2026/04/28)
 
