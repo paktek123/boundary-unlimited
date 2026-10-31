@@ -57,7 +57,8 @@ func TestMemRepositoryListFilters(t *testing.T) {
 		_, err := repo.Create(ctx, mk(t, fmt.Sprintf("r%d", i), u, t0.Add(time.Duration(i)*time.Minute)))
 		require.NoError(t, err)
 	}
-	cur, _ := repo.Get(ctx, "r0")
+	cur, err := repo.Get(ctx, "r0")
+	require.NoError(t, err)
 	appr, err := Approve(cur, "boss", t0)
 	require.NoError(t, err)
 	_, err = repo.Update(ctx, appr)

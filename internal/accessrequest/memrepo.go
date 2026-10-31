@@ -10,7 +10,11 @@ import (
 	"sync"
 )
 
-// MemRepository is a concurrency-safe in-memory Repository for tests.
+// MemRepository is a concurrency-safe in-memory Repository for tests. It is
+// deliberately permissive: Create accepts a request in any state and Update
+// does not check that the state change is a valid transition. Callers must use
+// the state-machine functions, and a database-backed Repository must not
+// inherit this gap silently: it should validate both.
 type MemRepository struct {
 	mu   sync.Mutex
 	reqs map[string]Request

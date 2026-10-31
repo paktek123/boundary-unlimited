@@ -63,31 +63,36 @@ func (s *Sweeper) Run(ctx context.Context, now time.Time) (SweepResult, error) {
 	return res, errors.Join(errs...)
 }
 
-func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (expired, skipped bool, err error) {
+// expireOne applies Expire to r. After a version conflict the request is
+// re-read; if it is by then terminal or not due (changed concurrently) it is
+// ignored rather than counted.
+func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (bool, bool, error) {
 	for attempt := 0; attempt < 2; attempt++ {
-		next, err := Expire(r, now, s.Opts...)
-		if err != nil {
-			return false, false, err
+		next, eerr := Expire(r, now, s.Opts...)
+		if eerr != nil {
+			return false, false, eerr
 		}
 		if next.State == r.State {
 			return false, false, nil // not due (or changed concurrently)
 		}
-		_, err = s.Repo.Update(ctx, next)
-		if err == nil {
+		_, uerr := s.Repo.Update(ctx, next)
+		if uerr == nil {
 			return true, false, nil
 		}
-		if !errors.Is(err, ErrVersionConflict) {
-			if errors.Is(err, ErrNotFound) {
+		if !errors.Is(uerr, ErrVersionConflict) {
+			if errors.Is(uerr, ErrNotFound) {
 				return false, false, nil
 			}
-			return false, false, err
+			return false, false, uerr
 		}
-		if r, err = s.Repo.Get(ctx, r.Id); err != nil {
-			if errors.Is(err, ErrNotFound) {
+		cur, gerr := s.Repo.Get(ctx, r.Id)
+		if gerr != nil {
+			if errors.Is(gerr, ErrNotFound) {
 				return false, false, nil
 			}
-			return false, false, err
+			return false, false, gerr
 		}
+		r = cur
 	}
 	return false, true, nil
 }
