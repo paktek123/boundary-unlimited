@@ -22,6 +22,7 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a design RFC for data masking of proxied sessions (`docs/rfc/data-masking.md`, [#148](https://github.com/paktek123/boundary-unlimited/issues/148)). Docs only.
 * Added the `injectauth` library (`internal/daemon/worker/proxy/ssh/injectauth`) that converts injected ssh credentials (password, private key with optional passphrase) into `x/crypto/ssh` auth methods with fail-closed parsing. Library only; not wired into the worker yet.
 * Added `internal/bsr/playback`, a validate-then-convert export pipeline for
   session recordings that writes nothing unless validation passes (library
@@ -126,11 +127,21 @@ fork, which is independent of HashiCorp.
   the factory is nil or returns a (typed) nil upstream. Off by default; nothing
   in the worker uses it yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
+* Added the standalone `internal/masking` package: a pure-Go streaming redactor
+  with built-in detectors (Luhn-validated card numbers, email, AWS access key
+  id, JWT, PEM private key) and custom RE2 detectors. Redacts across write
+  boundaries and fails closed. Library only; not wired and nothing accepts
+  masking rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/147))
 * Added the standalone `internal/accessrequest` package: a pure-Go just-in-time
   access request lifecycle state machine (create, approve, deny, cancel, revoke,
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added the `accessrequest.Repository` interface, a concurrency-safe in-memory
+  implementation and `Sweeper` that expires due pending and approved requests
+  (version conflicts retried once, then skipped). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/145))
 
 ## 0.21.3 (2026/04/28)
 
