@@ -126,6 +126,12 @@ fork, which is independent of HashiCorp.
   the factory is nil or returns a (typed) nil upstream. Off by default; nothing
   in the worker uses it yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
+* Added the standalone `internal/masking` package: a pure-Go streaming redactor
+  with built-in detectors (Luhn-validated card numbers, email, AWS access key
+  id, JWT, PEM private key) and custom RE2 detectors. Redacts across write
+  boundaries and fails closed. Library only; not wired and nothing accepts
+  masking rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/147))
 
 ## 0.21.3 (2026/04/28)
 
