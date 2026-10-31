@@ -40,6 +40,10 @@ func TestDetectors(t *testing.T) {
 		{"card plain", "4111111111111111", "[REDACTED:credit_card]"},
 		{"card dashes", "4111-1111-1111-1111.", "[REDACTED:credit_card]."},
 		{"non-luhn digits", "1234567890123456", "1234567890123456"},
+		{"card then expiry", "card 4111111111111111 12/26", "card [REDACTED:credit_card] 12/26"},
+		{"card then quantity", "4111111111111111 7 items", "[REDACTED:credit_card] 7 items"},
+		{"spaced card then digit", "4111 1111 1111 1111 7", "[REDACTED:credit_card] 7"},
+		{"digit before card", "order 2 4111111111111111", "order 2 [REDACTED:credit_card]"},
 		{"too short", "411111111111", "411111111111"},
 		{"too long run", "41111111111111111111", "41111111111111111111"},
 		{"email", "mail bob.smith+x@example.co.uk please", "mail [REDACTED:email] please"},
@@ -61,6 +65,7 @@ func TestDetectors(t *testing.T) {
 func TestSplitAtEveryOffset(t *testing.T) {
 	for _, secret := range []struct{ name, s, token string }{
 		{"card", testCard, "[REDACTED:credit_card]"},
+		{"card expiry", "4111111111111111 12/26", "[REDACTED:credit_card] 12/26"},
 		{"email", "alice@example.com", "[REDACTED:email]"},
 		{"aws", testAWS, "[REDACTED:aws_access_key]"},
 		{"jwt", testJWT, "[REDACTED:jwt]"},
@@ -68,6 +73,9 @@ func TestSplitAtEveryOffset(t *testing.T) {
 	} {
 		in := "prefix " + secret.s + " suffix"
 		want := "prefix " + secret.token + " suffix"
+		if secret.name == "card expiry" {
+			in, want = "prefix "+secret.s, "prefix "+secret.token
+		}
 		for _, maxLen := range []int{DefaultMaxPatternLen, 128} {
 			for i := 0; i <= len(in); i++ {
 				var buf bytes.Buffer
@@ -230,7 +238,10 @@ func BenchmarkRedactor1MiB(b *testing.B) {
 	b.SetBytes(int64(len(data)))
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		r, _ := New(&bytes.Buffer{})
+		r, err := New(&bytes.Buffer{})
+		if err != nil {
+			b.Fatal(err)
+		}
 		for off := 0; off < len(data); off += 4096 {
 			end := off + 4096
 			if end > len(data) {

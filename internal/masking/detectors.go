@@ -112,10 +112,65 @@ func luhnValid(b []byte) bool {
 	return sum%10 == 0
 }
 
+type cardDetector struct{}
+
 // CardDetector finds 13 to 19 digit payment card numbers (optionally
-// separated by single spaces or dashes) that pass the Luhn check.
-func CardDetector() Detector {
-	return &RegexDetector{name: "credit_card", re: cardRe, validate: luhnValid}
+// separated by single spaces or dashes) that pass the Luhn check. For each
+// candidate digit run it tries the longest Luhn-valid window first, so a card
+// followed by other digit groups (an expiry date, a quantity) is still found.
+func CardDetector() Detector { return cardDetector{} }
+
+func (cardDetector) Name() string { return "credit_card" }
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+
+func isWord(c byte) bool {
+	return isDigit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}
+
+func (cardDetector) Find(b []byte) []Span {
+	var out []Span
+	i := 0
+	for i < len(b) {
+		if !isDigit(b[i]) || (i > 0 && isWord(b[i-1])) {
+			i++
+			continue
+		}
+		// Offsets of up to 19 digits starting at i, joined by single separators.
+		var pos []int
+		for j := i; j < len(b) && len(pos) < 19; {
+			if isDigit(b[j]) {
+				pos = append(pos, j)
+				j++
+				continue
+			}
+			if (b[j] == ' ' || b[j] == '-') && j+1 < len(b) && isDigit(b[j+1]) {
+				j++
+				continue
+			}
+			break
+		}
+		matched := false
+		for n := len(pos); n >= 13; n-- {
+			end := pos[n-1] + 1
+			if end < len(b) && isDigit(b[end]) {
+				continue // window ends inside a longer digit run
+			}
+			if luhnValid(b[i:end]) {
+				out = append(out, Span{i, end})
+				i = end
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+		for i < len(b) && isDigit(b[i]) { // retry from the next digit group
+			i++
+		}
+	}
+	return out
 }
 
 // EmailDetector finds email addresses.
@@ -147,7 +202,7 @@ func (pemDetector) Find(b []byte) []Span {
 
 func (d pemDetector) Partial(b []byte) int {
 	matched := d.Find(b)
-	last := -1
+	first := -1
 	for _, loc := range pemBegin.FindAllIndex(b, -1) {
 		inside := false
 		for _, m := range matched {
@@ -157,11 +212,11 @@ func (d pemDetector) Partial(b []byte) int {
 			}
 		}
 		if !inside {
-			last = loc[0]
+			first = loc[0]
 			break // earliest unmatched begin: hold from there
 		}
 	}
-	return last
+	return first
 }
 
 // DefaultDetectors returns the built-in detectors.
