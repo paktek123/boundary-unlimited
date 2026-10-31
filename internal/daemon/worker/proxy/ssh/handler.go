@@ -6,6 +6,7 @@ package ssh
 import (
 	"context"
 	"net"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -47,6 +48,54 @@ type SessionConfig struct {
 	Reporter Reporter
 }
 
+// RecordingFactory wraps the session's upstream so the session is recorded.
+// It is called once per session, after the configuration has been validated
+// and before the upstream is dialled. Returning an error (or a nil Upstream)
+// makes HandleSession refuse the session before any data is relayed.
+// Implementations must not return a typed nil pointer wrapped in a non-nil
+// Upstream interface together with a nil error; only an untyped nil is
+// detected and refused.
+type RecordingFactory interface {
+	Wrap(ctx context.Context, auth Authorization, inner Upstream) (Upstream, error)
+}
+
+// HandleOption configures HandleSession.
+type HandleOption func(*handleOptions)
+
+type handleOptions struct {
+	recording         RecordingFactory
+	recordingRequired bool
+}
+
+// WithRecordingFactory makes HandleSession wrap its upstream with f. Without
+// it, sessions are relayed unrecorded exactly as before. A nil f is ignored.
+func WithRecordingFactory(f RecordingFactory) HandleOption {
+	return func(o *handleOptions) { o.recording = f }
+}
+
+// WithRecordingRequired makes HandleSession refuse the session, before the
+// upstream is dialled, unless a non-nil RecordingFactory is configured and it
+// returns a usable upstream. It is evaluated inside HandleSession so that a
+// target requiring recording can never be relayed unrecorded because the
+// factory was left unset or set to nil by the caller.
+func WithRecordingRequired() HandleOption {
+	return func(o *handleOptions) { o.recordingRequired = true }
+}
+
+// isNilUpstream reports whether u is nil, including a typed nil pointer
+// wrapped in a non-nil interface.
+func isNilUpstream(u Upstream) bool {
+	if u == nil {
+		return true
+	}
+	v := reflect.ValueOf(u)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface:
+		return v.IsNil()
+	}
+	return false
+}
+
 // HandleSession is the single entry point for one proxied SSH connection. It
 // validates cfg, builds the mandatory host key callback from the host key
 // policy snapshot and the upstream from the injected credential, and then runs
@@ -55,9 +104,13 @@ type SessionConfig struct {
 //
 // HandleSession is not called by the worker yet, so nothing is enabled by its
 // existence.
-func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error {
+func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig, opt ...HandleOption) error {
 	const op = "ssh.HandleSession"
 	defer conn.Close()
+	var opts handleOptions
+	for _, o := range opt {
+		o(&opts)
+	}
 
 	// Snapshot everything the session depends on before doing anything else.
 	pol := snapshotPolicy(cfg.Policy)
@@ -113,7 +166,24 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig) error 
 		rejected(ReasonInvalidCredential)
 		return errors.Wrap(ctx, err, op)
 	}
-	return Serve(ctx, conn, cfg.ClientHostKey, cfg.Authorization, up, WithPolicy(pol))
+	var upstream Upstream = up
+	if opts.recording == nil && opts.recordingRequired {
+		rejected(ReasonRecordingUnavailable)
+		return errors.New(ctx, errors.InvalidParameter, op, "recording is required but no recording factory is configured")
+	}
+	if opts.recording != nil {
+		wrapped, err := opts.recording.Wrap(ctx, cfg.Authorization, up)
+		if err != nil {
+			rejected(ReasonRecordingUnavailable)
+			return errors.Wrap(ctx, err, op, errors.WithMsg("recording unavailable"))
+		}
+		if isNilUpstream(wrapped) {
+			rejected(ReasonRecordingUnavailable)
+			return errors.New(ctx, errors.Internal, op, "recording factory returned no upstream")
+		}
+		upstream = wrapped
+	}
+	return Serve(ctx, conn, cfg.ClientHostKey, cfg.Authorization, upstream, WithPolicy(pol))
 }
 
 // snapshotPolicy returns a deep copy of p, or DefaultPolicy for the zero

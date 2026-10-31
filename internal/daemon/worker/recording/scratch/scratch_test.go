@@ -227,3 +227,57 @@ func TestFinishFailsWhenDataFileMissing(t *testing.T) {
 	_, statErr := os.Lstat(filepath.Join(d, finishedFile))
 	require.True(t, os.IsNotExist(statErr))
 }
+
+func TestWriteFile(t *testing.T) {
+	s, _ := newStore(t, 10)
+	require.NoError(t, s.Reserve("s_1", 4))
+	n, err := s.WriteFile("s_1", "sr_1/a.txt", []byte("abc"))
+	require.NoError(t, err)
+	assert.Equal(t, 3, n)
+	_, err = s.WriteFile("s_1", "sr_1/a.txt", []byte("de"))
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), s.Used())
+	p, err := s.FilePath("s_1", "sr_1/a.txt")
+	require.NoError(t, err)
+	b, err := os.ReadFile(p)
+	require.NoError(t, err)
+	assert.Equal(t, "abcde", string(b))
+
+	// Shared with Write: the quota is common.
+	_, err = s.Write("s_1", []byte("12345"))
+	require.NoError(t, err)
+	assert.Equal(t, int64(10), s.Used())
+	_, err = s.WriteFile("s_1", "sr_1/b", []byte("x"))
+	require.ErrorIs(t, err, ErrQuotaExceeded)
+	_, err = s.WriteFile("s_1", "sr_1/b", nil)
+	require.ErrorIs(t, err, ErrIncomplete)
+}
+
+func TestFilePathConfinement(t *testing.T) {
+	s, _ := newStore(t, 10)
+	require.NoError(t, s.Reserve("s_1", 1))
+	for _, name := range []string{"", "/abs", "../x", "a/../b", "a//b", ".", "a/.", "..", "a\\b", "a/b/"} {
+		_, err := s.FilePath("s_1", name)
+		assert.ErrorIs(t, err, ErrInvalidFileName, name)
+		_, err = s.WriteFile("s_1", name, []byte("x"))
+		assert.ErrorIs(t, err, ErrInvalidFileName, name)
+	}
+	_, err := s.FilePath("s_2", "a")
+	assert.ErrorIs(t, err, ErrNotFound)
+	_, err = s.FilePath("../s", "a")
+	assert.ErrorIs(t, err, ErrInvalidSessionID)
+}
+
+func TestRecoverCountsFiles(t *testing.T) {
+	s, root := newStore(t, 100)
+	require.NoError(t, s.Reserve("s_1", 0))
+	_, err := s.WriteFile("s_1", "c/f", []byte("hello"))
+	require.NoError(t, err)
+	s2, err := New(root, 100)
+	require.NoError(t, err)
+	o, err := s2.Recover()
+	require.NoError(t, err)
+	require.Len(t, o, 1)
+	assert.Equal(t, int64(5), o[0].Size)
+	assert.Equal(t, int64(5), s2.Used())
+}
