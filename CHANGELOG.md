@@ -22,6 +22,7 @@ fork, which is independent of HashiCorp.
   (`internal/daemon/worker/proxy/ssh/hostkey`): pinned keys and/or host CAs,
   no trust-on-first-use. Nothing is enabled by this change.
 * Added a design RFC for a `kubernetes` target type (`docs/rfc/kubernetes-target.md`).
+* Added a design RFC for data masking of proxied sessions (`docs/rfc/data-masking.md`, [#148](https://github.com/paktek123/boundary-unlimited/issues/148)). Docs only.
 * Added the `injectauth` library (`internal/daemon/worker/proxy/ssh/injectauth`) that converts injected ssh credentials (password, private key with optional passphrase) into `x/crypto/ssh` auth methods with fail-closed parsing. Library only; not wired into the worker yet.
 * Added `internal/bsr/playback`, a validate-then-convert export pipeline for
   session recordings that writes nothing unless validation passes (library
