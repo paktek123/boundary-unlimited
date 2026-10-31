@@ -6,6 +6,7 @@ package ssh
 import (
 	"context"
 	"net"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -51,6 +52,9 @@ type SessionConfig struct {
 // It is called once per session, after the configuration has been validated
 // and before the upstream is dialled. Returning an error (or a nil Upstream)
 // makes HandleSession refuse the session before any data is relayed.
+// Implementations must not return a typed nil pointer wrapped in a non-nil
+// Upstream interface together with a nil error; only an untyped nil is
+// detected and refused.
 type RecordingFactory interface {
 	Wrap(ctx context.Context, auth Authorization, inner Upstream) (Upstream, error)
 }
@@ -59,13 +63,37 @@ type RecordingFactory interface {
 type HandleOption func(*handleOptions)
 
 type handleOptions struct {
-	recording RecordingFactory
+	recording         RecordingFactory
+	recordingRequired bool
 }
 
 // WithRecordingFactory makes HandleSession wrap its upstream with f. Without
 // it, sessions are relayed unrecorded exactly as before. A nil f is ignored.
 func WithRecordingFactory(f RecordingFactory) HandleOption {
 	return func(o *handleOptions) { o.recording = f }
+}
+
+// WithRecordingRequired makes HandleSession refuse the session, before the
+// upstream is dialled, unless a non-nil RecordingFactory is configured and it
+// returns a usable upstream. It is evaluated inside HandleSession so that a
+// target requiring recording can never be relayed unrecorded because the
+// factory was left unset or set to nil by the caller.
+func WithRecordingRequired() HandleOption {
+	return func(o *handleOptions) { o.recordingRequired = true }
+}
+
+// isNilUpstream reports whether u is nil, including a typed nil pointer
+// wrapped in a non-nil interface.
+func isNilUpstream(u Upstream) bool {
+	if u == nil {
+		return true
+	}
+	v := reflect.ValueOf(u)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface:
+		return v.IsNil()
+	}
+	return false
 }
 
 // HandleSession is the single entry point for one proxied SSH connection. It
@@ -139,13 +167,17 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig, opt ..
 		return errors.Wrap(ctx, err, op)
 	}
 	var upstream Upstream = up
+	if opts.recording == nil && opts.recordingRequired {
+		rejected(ReasonRecordingUnavailable)
+		return errors.New(ctx, errors.InvalidParameter, op, "recording is required but no recording factory is configured")
+	}
 	if opts.recording != nil {
 		wrapped, err := opts.recording.Wrap(ctx, cfg.Authorization, up)
 		if err != nil {
 			rejected(ReasonRecordingUnavailable)
 			return errors.Wrap(ctx, err, op, errors.WithMsg("recording unavailable"))
 		}
-		if wrapped == nil {
+		if isNilUpstream(wrapped) {
 			rejected(ReasonRecordingUnavailable)
 			return errors.New(ctx, errors.Internal, op, "recording factory returned no upstream")
 		}

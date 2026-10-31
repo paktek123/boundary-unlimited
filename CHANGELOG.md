@@ -39,6 +39,10 @@ fork, which is independent of HashiCorp.
 * Added a standalone, not-yet-wired bounded scratch store for SSH session
   recordings with a fail-closed quota and orphan recovery
   (`internal/daemon/worker/recording/scratch`). No behaviour change.
+* Added the `recording/bsrfs` library, a BSR `storage.FS` backed by the bounded
+  scratch store (new `scratch.Store.WriteFile`/`FilePath`), so BSR bytes count
+  against the quota and fail closed. Library only; not wired into the worker.
+  ([Issue #132](https://github.com/paktek123/boundary-unlimited/issues/132))
 * Added an AST-based guard test that forbids `InsecureIgnoreHostKey` and nil or
   missing `HostKeyCallback` in the worker SSH proxy packages.
 * Added pure-Go helpers for the SSH client-facing host key: a per-session
@@ -110,6 +114,22 @@ fork, which is independent of HashiCorp.
   with the recording wrapper over the scratch store): recorded session, scratch
   quota exhaustion, disallowed channel types and upstream host key mismatch.
   Tests only.
+* worker: Add the standalone `recording/finalize` library (finish, upload, then
+  discard scratch data only after a verified upload). Library only: it is not
+  wired into the worker and enables nothing.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
+* Added `NewRecordingFactory` to the worker SSH proxy: the concrete
+  `RecordingFactory` composing the BSR recorder, the scratch store `storage.FS`
+  adapter and finalisation on close. Quota or recorder errors refuse the
+  session; a failed finalisation keeps the scratch data and is reported. Not
+  wired into the worker; nothing is enabled by this change.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/141))
+* Added `WithRecordingRequired` to the worker SSH `HandleSession`: when set,
+  the session is refused (reason `recording_unavailable`) before the upstream
+  is dialled unless a working recording factory is configured, including when
+  the factory is nil or returns a (typed) nil upstream. Off by default; nothing
+  in the worker uses it yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
 
 ## 0.21.3 (2026/04/28)
 

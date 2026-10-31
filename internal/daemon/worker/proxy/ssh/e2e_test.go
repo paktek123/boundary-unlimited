@@ -56,7 +56,7 @@ func (s *e2eSession) waitDone(t *testing.T) error {
 	}
 }
 
-func TestE2E_ShellSessionIsRecordedAndFinalised(t *testing.T) {
+func TestE2E_ShellSessionIsRecorded(t *testing.T) {
 	s := startE2E(t, 1<<24, 1<<22, nil)
 	sess, err := s.client.NewSession()
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestE2E_ScratchQuotaExceededTerminatesSession(t *testing.T) {
 	require.NoError(t, sess.Start("cat"))
 	chunk := make([]byte, 16<<10)
 	for i := range chunk {
-		chunk[i] = byte(i*131 + i>>8*17)
+		chunk[i] = byte((i * 131) + ((i >> 8) * 17))
 	}
 	go func() {
 		for i := 0; i < 64; i++ {
