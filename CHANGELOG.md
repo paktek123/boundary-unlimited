@@ -132,6 +132,11 @@ fork, which is independent of HashiCorp.
   boundaries and fails closed. Library only; not wired and nothing accepts
   masking rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/147))
+* Added the standalone `internal/accessrequest` package: a pure-Go just-in-time
+  access request lifecycle state machine (create, approve, deny, cancel, revoke,
+  expire) with an injected clock and fail-closed validation. Library only; not
+  wired into the controller and nothing is enabled by this change.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
 
 ## 0.21.3 (2026/04/28)
 
