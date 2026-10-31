@@ -27,8 +27,11 @@ type Runner interface {
 // Recover runs at worker start. It lists the orphaned recordings and pushes
 // each through the finalisation pipeline. Orphans that were not finished
 // when the previous process stopped are incomplete (the store writes the
-// marker during Recover, before anything is uploaded); finalisation refuses
+// marker during Recover, see scratch.Store.Recover; before anything is uploaded); finalisation refuses
 // them with scratch.ErrIncomplete and their data is kept, never deleted.
+//
+// The nil checks on store and runner only catch untyped nil interfaces; a
+// typed nil pointer wrapped in the interface is the caller's responsibility.
 //
 // A failure on one orphan does not stop the others; all errors are joined
 // and returned. If ctx ends, Recover stops before the next orphan and
@@ -45,9 +48,9 @@ func Recover(ctx context.Context, store Recoverer, runner Runner) error {
 		return fmt.Errorf("finalize: recover orphans: %w", err)
 	}
 	var errs []error
-	for _, o := range orphans {
+	for i, o := range orphans {
 		if err := ctx.Err(); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("finalize: %d of %d orphans not processed: %w", len(orphans)-i, len(orphans), err))
 			break
 		}
 		if _, err := runner.Finalize(ctx, o.SessionID); err != nil {

@@ -90,6 +90,7 @@ func TestRecoverRealScratch(t *testing.T) {
 	sub := &fakeSub{res: upload.Result{Status: upload.StatusUploaded}}
 	f, _ := New(st, sub)
 	err = Recover(context.Background(), st, f)
+	// Only the crashed orphan fails here; if more failure modes are added, assert per-orphan instead.
 	require.ErrorIs(t, err, scratch.ErrIncomplete)
 	require.Len(t, sub.recs, 1)
 	assert.Equal(t, "s_done", sub.recs[0].SessionID)
