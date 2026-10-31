@@ -125,6 +125,11 @@ fork, which is independent of HashiCorp.
   is dialled unless a working recording factory is configured, including when
   the factory is nil or returns a (typed) nil upstream. Off by default; nothing
   in the worker uses it yet.
+* Added the standalone `internal/accessrequest` package: a pure-Go just-in-time
+  access request lifecycle state machine (create, approve, deny, cancel, revoke,
+  expire) with an injected clock and fail-closed validation. Library only; not
+  wired into the controller and nothing is enabled by this change.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/140))
 
 ## 0.21.3 (2026/04/28)
