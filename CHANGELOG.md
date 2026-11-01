@@ -138,6 +138,7 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added a design RFC for guardrails on proxied sessions (`docs/rfc/guardrails.md`, [#156](https://github.com/paktek123/boundary-unlimited/issues/156)). Docs only.
 
 ## 0.21.3 (2026/04/28)
 
