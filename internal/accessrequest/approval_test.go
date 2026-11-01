@@ -60,7 +60,7 @@ func TestValidateApproval(t *testing.T) {
 			a.Grants = []string{" ID=*; actions=* "}
 		}, DefaultApprovalPolicy(), nil},
 		{"hash mismatch", func(r *Request, _ *ApproverContext) { r.GrantHash = "deadbeef" }, DefaultApprovalPolicy(), ErrGrantsChanged},
-		{"not pending", func(r *Request, _ *ApproverContext) { r.State = StateApproved }, DefaultApprovalPolicy(), nil},
+		{"state is not checked here, Approve checks it", func(r *Request, _ *ApproverContext) { r.State = StateApproved }, DefaultApprovalPolicy(), nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

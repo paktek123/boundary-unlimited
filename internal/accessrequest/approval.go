@@ -54,7 +54,8 @@ func DefaultApprovalPolicy() ApprovalPolicy {
 
 // normalizeGrant canonicalises a grant string for comparison: surrounding
 // space is trimmed, text is lower-cased and the ';'-separated segments are
-// trimmed and sorted so that segment order does not matter.
+// trimmed and sorted so that segment order does not matter. Comparison is
+// case-insensitive by design (grant ids are lower-case in practice).
 func normalizeGrant(g string) string {
 	parts := strings.Split(strings.ToLower(strings.TrimSpace(g)), ";")
 	for i := range parts {
