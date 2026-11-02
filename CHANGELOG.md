@@ -161,6 +161,11 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Added database migration 113 creating the inert `target_kubernetes` subtype
+  table (with history and deleted tables, triggers, and the updated
+  `target_all_subtypes` and warehouse views) and its SQL tests. No protos, API,
+  CLI or domain code: the target type cannot be created by users yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/166))
 
 ## 0.21.3 (2026/04/28)
 
