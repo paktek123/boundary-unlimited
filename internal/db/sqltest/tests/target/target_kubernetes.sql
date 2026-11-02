@@ -48,7 +48,7 @@ begin;
   select throws_ok('update_public_id', null, null, 'update of public_id succeeded');
 
   prepare update_create_time as
-  update target_kubernetes set create_time = now() where public_id = 'tkube_____wb';
+  update target_kubernetes set create_time = '2000-01-01 00:00:00+00' where public_id = 'tkube_____wb';
   select throws_ok('update_create_time', null, null, 'update of create_time succeeded');
 
   -- deleting the target cascades to the subtype row and records the deletion
