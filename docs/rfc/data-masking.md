@@ -118,18 +118,94 @@ Mapped to children of #87:
 
 Rule fields accepted by the API only in the same release as the wiring.
 
-## Open security questions
+## Decisions
 
-For the security reviewer; none are decided here.
+Recorded from the binding security decision on epic #87
+(https://github.com/paktek123/boundary-unlimited/issues/87#issuecomment-6554773994).
+These replace the earlier open security questions.
 
-* Who may create, change or disable masking rules, and which new grant actions
-  are required? May a target-level admin disable a rule that a parent scope
-  imposed?
-* May the audit event include which principal triggered a redaction, and may
-  it include the rule's replacement text? What is the minimum safe event
-  content?
-* Should the built-in detector set be mandatory (cannot be disabled) for
-  recording-enabled targets?
-* Is a lookbehind buffer holding unmasked bytes in worker memory acceptable,
-  and should it be zeroed after use?
-* Retention of already-recorded sessions made before a rule existed.
+1. **Rule administration.** Dedicated actions
+   `masking-rules:create|read|update|delete|list`, evaluated at the owning
+   scope. There is no generic `*` shortcut: a `*` grant on a scope covers them
+   only if it names the type explicitly, and the grant parser must not silently
+   expand wildcards to the new resource type for existing roles at upgrade. A
+   rule owned by a parent scope can be neither disabled, deleted, narrowed nor
+   weakened from a child scope. Child scopes may only add rules. Disabling or
+   weakening a rule requires the action at the owning scope. Rules never
+   unmask ("masking only adds").
+2. **Audit event content.** Allowed: session id, rule id, detector type,
+   redaction count, time window, and principal id (the session already
+   identifies the principal). Forbidden everywhere (events, errors, logs,
+   metric labels, panics): matched values, surrounding text, byte offsets,
+   per-occurrence match lengths, and replacement text. Replacement text is rule
+   configuration readable by `masking-rules:read` holders and must not be echoed
+   in events. Events carry counts per time window only (no per-match events) and
+   are emitted via the existing events package.
+3. **Mandatory built-ins.** On any target with `enable_session_recording=true`
+   the built-in detector set (credit_card, aws_access_key, jwt, private_key;
+   email may be configurable as it is low sensitivity) is always applied and
+   cannot be disabled by any scope. Disabling requires removing recording from
+   the target. Fail closed if the built-in set cannot be loaded.
+4. **Lookbehind buffer.** Acceptable under these conditions: a hard cap on size
+   (configurable, with a compile-time maximum); memory kept only in the
+   session's redactor; zeroed on Close, flush, error and session termination
+   (best effort in Go, by explicit overwrite of the backing array, documented as
+   best effort); never written to disk; swap-eligible memory is a documented
+   residual risk; never included in errors or panics (recover without printing
+   buffer state).
+5. **Pre-existing recordings.** No retroactive rewriting, because it would
+   mutate evidence. Rule changes apply to new sessions only. The session
+   recording record states whether masking was active and the rule-set
+   version/hash, so reviewers can tell unmasked historical recordings apart.
+   Access to recordings made without masking stays governed by the recording
+   read grants.
+
+### Required safeguards
+
+* Rule resource API fields are accepted only in the same release as the worker
+  wiring (enforcement-first). Nothing may accept a rule field that is not
+  enforced.
+* Fail closed everywhere in the failure-mode table; no pass-through path; held
+  bytes are discarded on error, never flushed.
+* Rule compiler: empty selectors match nothing, `all-targets` must be explicit,
+  RE2 only, pattern length and rule count limits, replacement must not
+  reference the match.
+* One rule snapshot per session, with its hash stored for the recording record.
+* Grant parser tests proving the new action type is not matched unintentionally
+  by pre-existing wildcard roles.
+* Logging and event tests with canary values proving no matched value, offset
+  or replacement appears in events, errors or logs.
+* Buffer zeroing on every exit path, including panic and cancellation.
+
+### Threats
+
+Resisted:
+
+* child-scope tampering with rules;
+* secrets leaking via audit events, errors or metrics;
+* unmasked data persisted in recordings (mandatory built-ins);
+* flush of unscanned bytes on failure;
+* ReDoS (RE2 only).
+
+Not resisted (residual risks):
+
+* a user who reshapes output (base64, `rev`, splitting values across
+  commands); this is a non-goal and users must be told so;
+* a compromised owning-scope administrator, who may change or disable the
+  rules that scope owns;
+* memory scraping of a compromised worker, and swap, because the lookbehind
+  buffer holds unmasked bytes briefly;
+* secrets in the input direction (typed by the user).
+
+### Testable acceptance criteria for later slices
+
+* A child-scope principal cannot disable, delete or weaken a parent-scope rule,
+  and can add one.
+* A recording-enabled target always runs the built-in detectors even with all
+  custom rules disabled.
+* A canary secret passed through the redactor never appears in any captured
+  event, error string or log line.
+* A detector panic or buffer overflow terminates the session with zero
+  unscanned bytes emitted.
+* After Close, the lookbehind buffer's backing array is all zero.
+* The recording record exposes whether masking was active and the rule-set hash.

@@ -138,6 +138,10 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added the `accessrequest.Repository` interface, a concurrency-safe in-memory
+  implementation and `Sweeper` that expires due pending and approved requests
+  (version conflicts retried once, then skipped). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/145))
 * Added a design RFC for guardrails on proxied sessions (`docs/rfc/guardrails.md`, [#156](https://github.com/paktek123/boundary-unlimited/issues/156)). Docs only.
 * Added `accessrequest.EffectiveGrants`, a pure time-bounded grant overlay
   evaluator: only approved, decided and unexpired requests contribute grants
@@ -166,6 +170,21 @@ fork, which is independent of HashiCorp.
   panic, and panics recovered without leaking buffer content. Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/163))
+* Added database migration 113 creating the inert `target_kubernetes` subtype
+  table (with history and deleted tables, triggers, and the updated
+  `target_all_subtypes` and warehouse views) and its SQL tests. No protos, API,
+  CLI or domain code: the target type cannot be created by users yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/166))
+* Recorded the security reviewer's binding decisions in the data masking RFC
+  (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
+  only.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/162))
+* Added `masking.EffectivePolicy`: computes the effective masking rules for a
+  session (mandatory built-in detectors on recording-enabled targets, parent
+  scope rules that child scopes cannot disable or override, stable rule-set
+  hash, fails closed, no implicit pass-through). Library only; not wired and
+  nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/164))
 
 ## 0.21.3 (2026/04/28)
 
