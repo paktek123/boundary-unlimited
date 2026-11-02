@@ -139,6 +139,28 @@ fork, which is independent of HashiCorp.
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
 * Added a design RFC for guardrails on proxied sessions (`docs/rfc/guardrails.md`, [#156](https://github.com/paktek123/boundary-unlimited/issues/156)). Docs only.
+* Added `accessrequest.EffectiveGrants`, a pure time-bounded grant overlay
+  evaluator: only approved, decided and unexpired requests contribute grants
+  (expiry instant counts as expired); unparsable grants and malformed requests
+  contribute nothing and are reported. Library only; not wired into
+  authorization.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/146))
+* Added masking rule model and `masking.Compile`: selects enabled rules for a
+  session (empty selectors match nothing; `AllTargets` must be explicit),
+  enforces regex/rule-count/replacement limits and fails closed. Library only;
+  not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/155))
+* Added audit event types for the access request lifecycle (create, approve,
+  deny, cancel, expire, overlay-authorized) to `internal/accessrequest`, with
+  an `Emitter` interface, a recording fake, and constructors that reject
+  credential-looking input. Library only; nothing emits them yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/154))
+* Added approval policy checks to `internal/accessrequest`: `ValidateApproval`,
+  `RecordApproval`, `GrantHash` and `VerifyApprovedGrants` (no self-approval,
+  approver must hold the approve action and every requested grant, wildcard
+  grants need an exact match, bounded TTL, grant-hash binding). Library only;
+  not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
 
 ## 0.21.3 (2026/04/28)
 
