@@ -138,6 +138,11 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added audit event types for the access request lifecycle (create, approve,
+  deny, cancel, expire, overlay-authorized) to `internal/accessrequest`, with
+  an `Emitter` interface, a recording fake, and constructors that reject
+  credential-looking input. Library only; nothing emits them yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/154))
 * Added approval policy checks to `internal/accessrequest`: `ValidateApproval`,
   `RecordApproval`, `GrantHash` and `VerifyApprovedGrants` (no self-approval,
   approver must hold the approve action and every requested grant, wildcard
