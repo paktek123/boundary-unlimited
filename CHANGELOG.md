@@ -138,6 +138,11 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added masking rule model and `masking.Compile`: selects enabled rules for a
+  session (empty selectors match nothing; `AllTargets` must be explicit),
+  enforces regex/rule-count/replacement limits and fails closed. Library only;
+  not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/155))
 * Added audit event types for the access request lifecycle (create, approve,
   deny, cancel, expire, overlay-authorized) to `internal/accessrequest`, with
   an `Emitter` interface, a recording fake, and constructors that reject
