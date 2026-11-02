@@ -161,6 +161,10 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Recorded the security reviewer's binding decisions in the data masking RFC
+  (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
+  only.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/162))
 
 ## 0.21.3 (2026/04/28)
 
