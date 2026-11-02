@@ -143,6 +143,12 @@ fork, which is independent of HashiCorp.
   an `Emitter` interface, a recording fake, and constructors that reject
   credential-looking input. Library only; nothing emits them yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/154))
+* Added approval policy checks to `internal/accessrequest`: `ValidateApproval`,
+  `RecordApproval`, `GrantHash` and `VerifyApprovedGrants` (no self-approval,
+  approver must hold the approve action and every requested grant, wildcard
+  grants need an exact match, bounded TTL, grant-hash binding). Library only;
+  not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
 
 ## 0.21.3 (2026/04/28)
 
