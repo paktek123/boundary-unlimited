@@ -170,7 +170,7 @@ func EffectivePolicy(in PolicyInput) (*Policy, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.Len() == 0 && !(in.AllowNoop && !in.RecordingEnabled) {
+	if c.Len() == 0 && (!in.AllowNoop || in.RecordingEnabled) {
 		return nil, ErrEmptyPolicy
 	}
 	if in.RecordingEnabled && c.Len() < len(builtinRules(false)) {
