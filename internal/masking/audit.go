@@ -132,8 +132,9 @@ func firstErr(err error) error {
 }
 
 // Add records n redactions by the rule. If the current window has ended, it is
-// emitted first. n <= 0 records nothing. Emit errors are returned and the
-// window's counts are kept for the next attempt.
+// emitted first. n <= 0 records nothing. If emitting fails, the error is
+// returned, n is still recorded, and all unemitted counts are kept for the next
+// attempt (they stay in the earlier window).
 func (a *Aggregator) Add(ctx context.Context, ruleId, detector string, n int) error {
 	if err := errors.Join(checkID(ruleId), checkID(detector)); err != nil {
 		return firstErr(err)
@@ -141,19 +142,19 @@ func (a *Aggregator) Add(ctx context.Context, ruleId, detector string, n int) er
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	now := a.now()
+	var flushErr error
 	if len(a.counts) > 0 && !now.Before(a.start.Add(a.window)) {
-		if err := a.flushLocked(ctx, a.start.Add(a.window)); err != nil {
-			return err
+		flushErr = a.flushLocked(ctx, a.start.Add(a.window))
+	}
+	if n > 0 {
+		if len(a.counts) == 0 {
+			a.start = now
 		}
+		// Recorded even if the flush above failed: the count is merged into
+		// the still-unemitted window and emitted by the next successful flush.
+		a.counts[counterKey{ruleId, detector}] += n
 	}
-	if n <= 0 {
-		return nil
-	}
-	if len(a.counts) == 0 {
-		a.start = now
-	}
-	a.counts[counterKey{ruleId, detector}] += n
-	return nil
+	return flushErr
 }
 
 // Flush emits the current window now (for example at session end).

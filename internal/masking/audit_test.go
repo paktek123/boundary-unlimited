@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -90,6 +91,46 @@ func TestAggregatorEmitFailureKeepsCounts(t *testing.T) {
 	require.NoError(t, a.Flush(ctx))
 	require.Len(t, em.Events(), 1)
 	assert.Equal(t, 2, em.Events()[0].Count)
+}
+
+func TestAggregatorAddKeepsCountOnFlushFailure(t *testing.T) {
+	em := &RecordingEmitter{}
+	a, c := newAgg(t, em)
+	ctx := context.Background()
+	require.NoError(t, a.Add(ctx, "r1", "email", 2))
+	c.t = c.t.Add(time.Minute)
+	em.Err = errors.New("sink down")
+	require.Error(t, a.Add(ctx, "r1", "email", 3))
+	em.Err = nil
+	require.NoError(t, a.Flush(ctx))
+	require.Len(t, em.Events(), 1)
+	assert.Equal(t, 5, em.Events()[0].Count)
+}
+
+func TestAggregatorConcurrent(t *testing.T) {
+	em := &RecordingEmitter{}
+	a, _ := newAgg(t, em)
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				require.NoError(t, a.Add(ctx, "r1", "email", 1))
+				if j%10 == 0 {
+					require.NoError(t, a.Flush(ctx))
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	require.NoError(t, a.Flush(ctx))
+	total := 0
+	for _, e := range em.Events() {
+		total += e.Count
+	}
+	assert.Equal(t, 400, total)
 }
 
 func TestAggregatorValidation(t *testing.T) {
