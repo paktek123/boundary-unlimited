@@ -6,6 +6,7 @@ package masking
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -255,4 +256,167 @@ func BenchmarkRedactor1MiB(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+const canary = "CANARY-SECRET-0123456789"
+
+func allZero(b []byte) bool {
+	for _, c := range b {
+		if c != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func TestBufferZeroedOnClose(t *testing.T) {
+	var buf bytes.Buffer
+	r, err := New(&buf, WithMaxPatternLen(64))
+	require.NoError(t, err)
+	_, err = r.Write([]byte("hello " + canary))
+	require.NoError(t, err)
+	backing := r.pending[:cap(r.pending)]
+	require.False(t, allZero(backing), "test must observe held data before Close")
+	require.NoError(t, r.Close())
+	assert.True(t, allZero(backing))
+}
+
+// spy records the Redactor's backing array at the moment it is called, while
+// held data is still present.
+type spy struct {
+	r       *Redactor
+	backing []byte
+	nonZero bool
+}
+
+func (s *spy) observe() {
+	s.backing = s.r.pending[:cap(s.r.pending)]
+	s.nonZero = !allZero(s.backing)
+}
+
+type spyWriter struct {
+	spy
+	panics bool
+}
+
+func (w *spyWriter) Write([]byte) (int, error) {
+	w.observe()
+	if w.panics {
+		panic(canary)
+	}
+	return 0, errors.New("disk full")
+}
+
+func TestBufferZeroedOnError(t *testing.T) {
+	w := &spyWriter{}
+	r, err := New(w, WithMaxPatternLen(4))
+	require.NoError(t, err)
+	w.r = r
+	_, err = r.Write([]byte("abcdefgh" + canary))
+	require.Error(t, err)
+	require.True(t, w.nonZero, "held data must be present when the writer fails")
+	assert.True(t, allZero(w.backing))
+	assert.NotContains(t, err.Error(), canary)
+}
+
+func TestWriterPanicRecovered(t *testing.T) {
+	w := &spyWriter{panics: true}
+	r, err := New(w, WithMaxPatternLen(4))
+	require.NoError(t, err)
+	w.r = r
+	_, err = r.Write([]byte("abcdefgh" + canary))
+	require.ErrorIs(t, err, ErrInternal)
+	require.True(t, w.nonZero)
+	assert.True(t, allZero(w.backing))
+	assert.NotContains(t, err.Error(), canary)
+	assert.Nil(t, r.pending)
+}
+
+func TestBufferZeroedOnOverflow(t *testing.T) {
+	var buf bytes.Buffer
+	r, err := New(&buf, WithMaxPatternLen(64))
+	require.NoError(t, err)
+	_, err = r.Write([]byte("hi"))
+	require.NoError(t, err)
+	backing := r.pending[:cap(r.pending)]
+	_, err = r.Write([]byte("-----BEGIN PRIVATE KEY-----\n" + strings.Repeat("A", 200)))
+	require.ErrorIs(t, err, ErrBufferLimit)
+	assert.True(t, allZero(backing))
+	assert.NotContains(t, buf.String(), "BEGIN")
+	assert.NotContains(t, buf.String(), "AAAA")
+}
+
+type spyPanicDetector struct{ spy }
+
+func (*spyPanicDetector) Name() string { return "panicky" }
+func (d *spyPanicDetector) Find(b []byte) []Span {
+	d.observe()
+	panic("saw " + canary + " in " + string(b))
+}
+
+func TestDetectorPanicFailsClosedWithoutLeak(t *testing.T) {
+	var buf bytes.Buffer
+	d := &spyPanicDetector{}
+	r, err := New(&buf, WithMaxPatternLen(64), WithDetectors(d))
+	require.NoError(t, err)
+	d.r = r
+	_, err = r.Write([]byte("data " + canary))
+	require.ErrorIs(t, err, ErrInternal)
+	require.True(t, d.nonZero, "held data must be present when the detector panics")
+	assert.True(t, allZero(d.backing))
+	assert.NotContains(t, fmt.Sprintf("%v %+v", err, err), canary)
+	assert.Empty(t, buf.String(), "no unscanned bytes may be emitted")
+	assert.Nil(t, r.pending)
+	_, err = r.Write([]byte("more"))
+	require.ErrorIs(t, err, ErrInternal)
+	assert.Empty(t, buf.String())
+}
+
+func TestGrowthZeroesOldBackingArray(t *testing.T) {
+	var buf bytes.Buffer
+	r, err := New(&buf, WithMaxPatternLen(64))
+	require.NoError(t, err)
+	_, err = r.Write([]byte("small " + canary))
+	require.NoError(t, err)
+	old := r.pending[:cap(r.pending)]
+	require.False(t, allZero(old))
+	_, err = r.Write([]byte(strings.Repeat("z", 3*cap(r.pending))))
+	require.NoError(t, err)
+	require.NotSame(t, &old[0], &r.pending[:1][0], "the write must have forced regrowth")
+	assert.True(t, allZero(old))
+}
+
+func TestOutputScratchCleared(t *testing.T) {
+	var got []byte
+	w := writerFunc(func(p []byte) (int, error) { got = p; return len(p), nil })
+	r, err := New(w, WithMaxPatternLen(8))
+	require.NoError(t, err)
+	_, err = r.Write([]byte("hello world, this is output"))
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	assert.True(t, allZero(got), "scratch handed to the writer is cleared afterwards")
+}
+
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
+func TestMaxPatternLenLimit(t *testing.T) {
+	_, err := New(&bytes.Buffer{}, WithMaxPatternLen(MaxPatternLenLimit+1))
+	require.Error(t, err)
+	_, err = New(&bytes.Buffer{}, WithMaxPatternLen(MaxPatternLenLimit))
+	require.NoError(t, err)
+}
+
+func TestLargeWriteHeldBufferBounded(t *testing.T) {
+	var buf bytes.Buffer
+	r, err := New(&buf, WithMaxPatternLen(128))
+	require.NoError(t, err)
+	in := strings.Repeat("x", 100000) + " " + testAWS + " " + strings.Repeat("y", 1000)
+	_, err = r.Write([]byte(in))
+	require.NoError(t, err)
+	assert.LessOrEqual(t, len(r.pending), 2*128) // after the final chunk only the lookbehind remains
+	require.NoError(t, r.Close())
+	assert.Contains(t, buf.String(), "[REDACTED:aws_access_key]")
+	assert.NotContains(t, buf.String(), testAWS)
 }

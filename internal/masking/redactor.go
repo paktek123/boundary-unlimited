@@ -17,6 +17,20 @@ import (
 // DefaultMaxPatternLen is the default longest match (and lookbehind) in bytes.
 const DefaultMaxPatternLen = 4096
 
+// chunkFactor sizes the input chunks relative to MaxPatternLen: Write feeds
+// input in chunks of chunkFactor*MaxPatternLen bytes. Chunks are large so a
+// match up to MaxPatternLen is never cut. The held buffer is therefore bounded
+// by the carried bytes (at most about 2*MaxPatternLen: lookbehind plus an
+// unterminated construct) plus one chunk, and its backing array by twice that
+// when it grows.
+const chunkFactor = 32
+
+// MaxPatternLenLimit is the compile-time maximum accepted by
+// WithMaxPatternLen. It bounds the memory held per Redactor: about
+// (chunkFactor+2)*2 times the configured length for the backing array, i.e.
+// roughly 4.5 MiB at the limit (intended budget).
+const MaxPatternLenLimit = 1 << 16
+
 // DefaultReplacement is the default replacement template; "{detector}" is
 // replaced by the detector name.
 const DefaultReplacement = "[REDACTED:{detector}]"
@@ -26,6 +40,9 @@ const DefaultReplacement = "[REDACTED:{detector}]"
 var (
 	ErrBufferLimit = errors.New("masking: sensitive data exceeds the maximum pattern length")
 	ErrClosed      = errors.New("masking: redactor is closed")
+	// ErrInternal is returned after a detector or writer panic. It carries no
+	// panic value or buffer content.
+	ErrInternal = errors.New("masking: internal error while scanning; stream terminated")
 )
 
 type options struct {
@@ -75,6 +92,9 @@ func New(w io.Writer, opt ...Option) (*Redactor, error) {
 	if o.maxLen <= 0 {
 		return nil, errors.New("masking: max pattern length must be positive")
 	}
+	if o.maxLen > MaxPatternLenLimit {
+		return nil, errors.New("masking: max pattern length exceeds the compile-time maximum")
+	}
 	if o.detectors == nil {
 		o.detectors = DefaultDetectors()
 	}
@@ -87,16 +107,50 @@ func New(w io.Writer, opt ...Option) (*Redactor, error) {
 }
 
 // Write implements io.Writer. It reports len(p) on success even though some
-// bytes are held back until later.
-func (r *Redactor) Write(p []byte) (int, error) {
+// bytes are held back until later. Input is consumed in chunks of at most
+// MaxPatternLen bytes so the held buffer never exceeds a hard cap of about
+// twice that length.
+func (r *Redactor) Write(p []byte) (n int, err error) {
 	if r.err != nil {
 		return 0, r.err
 	}
-	r.pending = append(r.pending, p...)
-	if err := r.process(false); err != nil {
-		return 0, r.fail(err)
+	defer r.recoverPanic(&err)
+	for off := 0; off < len(p); {
+		end := off + chunkFactor*r.opt.maxLen
+		if end > len(p) {
+			end = len(p)
+		}
+		r.hold(p[off:end])
+		if err = r.process(false); err != nil {
+			return 0, r.fail(err)
+		}
+		off = end
 	}
 	return len(p), nil
+}
+
+// hold appends b to the pending buffer. When the backing array must grow the
+// old one is zeroed so no plaintext is left behind.
+func (r *Redactor) hold(b []byte) {
+	if len(r.pending)+len(b) > cap(r.pending) {
+		grown := make([]byte, len(r.pending), 2*(len(r.pending)+len(b)))
+		copy(grown, r.pending)
+		wipe(r.pending)
+		r.pending = grown
+	}
+	r.pending = append(r.pending, b...)
+}
+
+// wipe overwrites the whole backing array of b with zeros (best effort: Go
+// gives no guarantee about copies made by the runtime).
+func wipe(b []byte) { clear(b[:cap(b)]) }
+
+// recoverPanic turns a panic into ErrInternal without recording the panic
+// value, discards held bytes and never emits unscanned data.
+func (r *Redactor) recoverPanic(err *error) {
+	if p := recover(); p != nil {
+		*err = r.fail(ErrInternal)
+	}
 }
 
 // Flush ends the stream: it scans the held bytes one last time, writes them
@@ -105,7 +159,8 @@ func (r *Redactor) Write(p []byte) (int, error) {
 func (r *Redactor) Flush() error { return r.Close() }
 
 // Close is the same as Flush. It does not close the underlying writer.
-func (r *Redactor) Close() error {
+func (r *Redactor) Close() (err error) {
+	defer r.recoverPanic(&err)
 	if r.err != nil {
 		if errors.Is(r.err, ErrClosed) {
 			return nil
@@ -115,11 +170,14 @@ func (r *Redactor) Close() error {
 	if err := r.process(true); err != nil {
 		return r.fail(err)
 	}
+	wipe(r.pending)
+	r.pending = nil
 	r.err = ErrClosed
 	return nil
 }
 
 func (r *Redactor) fail(err error) error {
+	wipe(r.pending)
 	r.pending = nil
 	r.err = err
 	return err
@@ -135,7 +193,7 @@ type named struct {
 func (r *Redactor) scan(b []byte) (spans []named, partial int, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			err = fmt.Errorf("masking: detector panic: %v", p)
+			err = ErrInternal // never include the panic value: it may hold buffer content
 		}
 	}()
 	partial = -1
@@ -224,10 +282,13 @@ func (r *Redactor) process(final bool) error {
 	}
 	out = append(out, r.pending[pos:hold]...)
 	if len(out) > 0 {
+		defer clear(out)
 		if _, err := r.w.Write(out); err != nil {
 			return fmt.Errorf("masking: write: %w", err)
 		}
 	}
-	r.pending = append(r.pending[:0], r.pending[hold:]...)
+	m := copy(r.pending, r.pending[hold:])
+	clear(r.pending[m:])
+	r.pending = r.pending[:m]
 	return nil
 }
