@@ -161,6 +161,12 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Added `masking.EffectivePolicy`: computes the effective masking rules for a
+  session (mandatory built-in detectors on recording-enabled targets, parent
+  scope rules that child scopes cannot disable or override, stable rule-set
+  hash, fails closed, no implicit pass-through). Library only; not wired and
+  nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/164))
 
 ## 0.21.3 (2026/04/28)
 
