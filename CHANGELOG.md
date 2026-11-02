@@ -161,6 +161,11 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Added counts-only masking audit events to `internal/masking` (`Event`,
+  `Emitter`, `Aggregator`): one event per rule and time window carrying only
+  session id, rule id, detector, count, window and principal id, with canary
+  leak tests. Library only; nothing emits them yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/165))
 
 ## 0.21.3 (2026/04/28)
 
