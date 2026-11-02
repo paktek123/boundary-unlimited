@@ -138,6 +138,10 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added the `accessrequest.Repository` interface, a concurrency-safe in-memory
+  implementation and `Sweeper` that expires due pending and approved requests
+  (version conflicts retried once, then skipped). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/145))
 * Added a design RFC for guardrails on proxied sessions (`docs/rfc/guardrails.md`, [#156](https://github.com/paktek123/boundary-unlimited/issues/156)). Docs only.
 * Added `accessrequest.EffectiveGrants`, a pure time-bounded grant overlay
   evaluator: only approved, decided and unexpired requests contribute grants
