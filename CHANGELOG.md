@@ -165,6 +165,10 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Recorded the security reviewer's binding decisions in the data masking RFC
+  (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
+  only.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/162))
 * Added `masking.EffectivePolicy`: computes the effective masking rules for a
   session (mandatory built-in detectors on recording-enabled targets, parent
   scope rules that child scopes cannot disable or override, stable rule-set
