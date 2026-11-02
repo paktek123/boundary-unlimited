@@ -161,6 +161,11 @@ fork, which is independent of HashiCorp.
   grants need an exact match, bounded TTL, grant-hash binding). Library only;
   not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
+* Hardened the `internal/masking` redactor buffer: bounded held buffer with a
+  compile-time maximum pattern length, backing array zeroed on Close, error and
+  panic, and panics recovered without leaking buffer content. Library only;
+  not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/163))
 
 ## 0.21.3 (2026/04/28)
 
