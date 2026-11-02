@@ -143,6 +143,17 @@ fork, which is independent of HashiCorp.
   enforces regex/rule-count/replacement limits and fails closed. Library only;
   not wired and nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/155))
+* Added audit event types for the access request lifecycle (create, approve,
+  deny, cancel, expire, overlay-authorized) to `internal/accessrequest`, with
+  an `Emitter` interface, a recording fake, and constructors that reject
+  credential-looking input. Library only; nothing emits them yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/154))
+* Added approval policy checks to `internal/accessrequest`: `ValidateApproval`,
+  `RecordApproval`, `GrantHash` and `VerifyApprovedGrants` (no self-approval,
+  approver must hold the approve action and every requested grant, wildcard
+  grants need an exact match, bounded TTL, grant-hash binding). Library only;
+  not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/153))
 
 ## 0.21.3 (2026/04/28)
 
