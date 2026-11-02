@@ -65,11 +65,16 @@ func TestChildCannotDisableOrOverrideParent(t *testing.T) {
 
 	// A child may disable and add its own rules.
 	c1 := pr("c1", KindEmail, OriginChild)
-	_, err = EffectivePolicy(PolicyInput{Rules: []PolicyRule{parent, c1}, ChildDisabled: []string{"c1"}, Session: sess})
-	require.NoError(t, err)
 	p, err = EffectivePolicy(PolicyInput{Rules: []PolicyRule{parent, c1}, ChildDisabled: []string{"c1"}, Session: sess})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"p1"}, p.RuleIDs())
+}
+
+func TestDuplicateRuleIDsRejected(t *testing.T) {
+	for _, o := range []Origin{OriginParent, OriginChild} {
+		_, err := EffectivePolicy(PolicyInput{Rules: []PolicyRule{pr("d", KindEmail, o), pr("d", KindJWT, o)}, Session: sess})
+		require.ErrorIs(t, err, ErrDuplicateRuleID)
+	}
 }
 
 func TestUnsetOriginIsParent(t *testing.T) {

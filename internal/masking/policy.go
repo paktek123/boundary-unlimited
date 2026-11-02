@@ -63,7 +63,8 @@ type PolicyInput struct {
 	Rules     []PolicyRule
 	// ChildDisabled lists rule ids a child scope asked to disable. It is only
 	// honoured for child-origin rules; entries naming parent-origin rules or
-	// built-ins are ignored.
+	// built-ins are ignored (and counted by IgnoredOverrides); entries naming
+	// no rule are ignored silently and not counted.
 	ChildDisabled []string
 	Session       SessionInfo
 	Limits        Limits
