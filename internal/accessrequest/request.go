@@ -77,6 +77,9 @@ type Request struct {
 	DecidedBy string
 	// ExpiresAt is set on approval; zero while pending.
 	ExpiresAt time.Time
+	// GrantHash is the GrantHash of Grants, recorded by RecordApproval. It
+	// binds an approval to the exact grants that were reviewed.
+	GrantHash string
 	// Version is for optimistic concurrency in a Repository.
 	Version uint32
 }
