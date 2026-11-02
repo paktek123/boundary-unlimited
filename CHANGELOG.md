@@ -138,6 +138,12 @@ fork, which is independent of HashiCorp.
   expire) with an injected clock and fail-closed validation. Library only; not
   wired into the controller and nothing is enabled by this change.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/144))
+* Added `accessrequest.EffectiveGrants`, a pure time-bounded grant overlay
+  evaluator: only approved, decided and unexpired requests contribute grants
+  (expiry instant counts as expired); unparsable grants and malformed requests
+  contribute nothing and are reported. Library only; not wired into
+  authorization.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/146))
 * Added masking rule model and `masking.Compile`: selects enabled rules for a
   session (empty selectors match nothing; `AllTargets` must be explicit),
   enforces regex/rule-count/replacement limits and fails closed. Library only;
