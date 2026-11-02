@@ -258,13 +258,6 @@ func BenchmarkRedactor1MiB(b *testing.B) {
 	}
 }
 
-type leakyPanicDetector struct{ secret string }
-
-func (leakyPanicDetector) Name() string { return "panicky" }
-func (d leakyPanicDetector) Find(b []byte) []Span {
-	panic("saw " + d.secret + " in " + string(b))
-}
-
 const canary = "CANARY-SECRET-0123456789"
 
 func allZero(b []byte) bool {
@@ -288,13 +281,55 @@ func TestBufferZeroedOnClose(t *testing.T) {
 	assert.True(t, allZero(backing))
 }
 
+// spy records the Redactor's backing array at the moment it is called, while
+// held data is still present.
+type spy struct {
+	r       *Redactor
+	backing []byte
+	nonZero bool
+}
+
+func (s *spy) observe() {
+	s.backing = s.r.pending[:cap(s.r.pending)]
+	s.nonZero = !allZero(s.backing)
+}
+
+type spyWriter struct {
+	spy
+	panics bool
+}
+
+func (w *spyWriter) Write([]byte) (int, error) {
+	w.observe()
+	if w.panics {
+		panic(canary)
+	}
+	return 0, errors.New("disk full")
+}
+
 func TestBufferZeroedOnError(t *testing.T) {
-	r, err := New(failWriter{}, WithMaxPatternLen(4))
+	w := &spyWriter{}
+	r, err := New(w, WithMaxPatternLen(4))
 	require.NoError(t, err)
-	_, err = r.Write([]byte(canary))
+	w.r = r
+	_, err = r.Write([]byte("abcdefgh" + canary))
 	require.Error(t, err)
-	assert.Nil(t, r.pending)
+	require.True(t, w.nonZero, "held data must be present when the writer fails")
+	assert.True(t, allZero(w.backing))
 	assert.NotContains(t, err.Error(), canary)
+}
+
+func TestWriterPanicRecovered(t *testing.T) {
+	w := &spyWriter{panics: true}
+	r, err := New(w, WithMaxPatternLen(4))
+	require.NoError(t, err)
+	w.r = r
+	_, err = r.Write([]byte("abcdefgh" + canary))
+	require.ErrorIs(t, err, ErrInternal)
+	require.True(t, w.nonZero)
+	assert.True(t, allZero(w.backing))
+	assert.NotContains(t, err.Error(), canary)
+	assert.Nil(t, r.pending)
 }
 
 func TestBufferZeroedOnOverflow(t *testing.T) {
@@ -311,13 +346,24 @@ func TestBufferZeroedOnOverflow(t *testing.T) {
 	assert.NotContains(t, buf.String(), "AAAA")
 }
 
+type spyPanicDetector struct{ spy }
+
+func (*spyPanicDetector) Name() string { return "panicky" }
+func (d *spyPanicDetector) Find(b []byte) []Span {
+	d.observe()
+	panic("saw " + canary + " in " + string(b))
+}
+
 func TestDetectorPanicFailsClosedWithoutLeak(t *testing.T) {
 	var buf bytes.Buffer
-	r, err := New(&buf, WithMaxPatternLen(64), WithDetectors(leakyPanicDetector{secret: canary}))
+	d := &spyPanicDetector{}
+	r, err := New(&buf, WithMaxPatternLen(64), WithDetectors(d))
 	require.NoError(t, err)
+	d.r = r
 	_, err = r.Write([]byte("data " + canary))
 	require.ErrorIs(t, err, ErrInternal)
-	assert.NotContains(t, err.Error(), canary)
+	require.True(t, d.nonZero, "held data must be present when the detector panics")
+	assert.True(t, allZero(d.backing))
 	assert.NotContains(t, fmt.Sprintf("%v %+v", err, err), canary)
 	assert.Empty(t, buf.String(), "no unscanned bytes may be emitted")
 	assert.Nil(t, r.pending)
@@ -326,18 +372,34 @@ func TestDetectorPanicFailsClosedWithoutLeak(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
-type panicWriter struct{}
-
-func (panicWriter) Write([]byte) (int, error) { panic(canary) }
-
-func TestWriterPanicRecovered(t *testing.T) {
-	r, err := New(panicWriter{}, WithMaxPatternLen(4))
+func TestGrowthZeroesOldBackingArray(t *testing.T) {
+	var buf bytes.Buffer
+	r, err := New(&buf, WithMaxPatternLen(64))
 	require.NoError(t, err)
-	_, err = r.Write([]byte(canary))
-	require.ErrorIs(t, err, ErrInternal)
-	assert.NotContains(t, err.Error(), canary)
-	assert.Nil(t, r.pending)
+	_, err = r.Write([]byte("small " + canary))
+	require.NoError(t, err)
+	old := r.pending[:cap(r.pending)]
+	require.False(t, allZero(old))
+	_, err = r.Write([]byte(strings.Repeat("z", 3*cap(r.pending))))
+	require.NoError(t, err)
+	require.NotSame(t, &old[0], &r.pending[:1][0], "the write must have forced regrowth")
+	assert.True(t, allZero(old))
 }
+
+func TestOutputScratchCleared(t *testing.T) {
+	var got []byte
+	w := writerFunc(func(p []byte) (int, error) { got = p; return len(p), nil })
+	r, err := New(w, WithMaxPatternLen(8))
+	require.NoError(t, err)
+	_, err = r.Write([]byte("hello world, this is output"))
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	assert.True(t, allZero(got), "scratch handed to the writer is cleared afterwards")
+}
+
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
 
 func TestMaxPatternLenLimit(t *testing.T) {
 	_, err := New(&bytes.Buffer{}, WithMaxPatternLen(MaxPatternLenLimit+1))

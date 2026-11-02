@@ -17,18 +17,18 @@ import (
 // DefaultMaxPatternLen is the default longest match (and lookbehind) in bytes.
 const DefaultMaxPatternLen = 4096
 
-// chunkFactor and capFactor size the held buffer relative to MaxPatternLen:
-// Write feeds input in chunks of chunkFactor*MaxPatternLen bytes and the held
-// buffer (carried lookbehind plus chunk) may never exceed capFactor*
-// MaxPatternLen. Chunks are large so a match up to MaxPatternLen is never cut.
-const (
-	chunkFactor = 32
-	capFactor   = 64
-)
+// chunkFactor sizes the input chunks relative to MaxPatternLen: Write feeds
+// input in chunks of chunkFactor*MaxPatternLen bytes. Chunks are large so a
+// match up to MaxPatternLen is never cut. The held buffer is therefore bounded
+// by the carried bytes (at most about 2*MaxPatternLen: lookbehind plus an
+// unterminated construct) plus one chunk, and its backing array by twice that
+// when it grows.
+const chunkFactor = 32
 
 // MaxPatternLenLimit is the compile-time maximum accepted by
-// WithMaxPatternLen. It bounds the memory held per Redactor (about twice the
-// configured length, see chunkFactor).
+// WithMaxPatternLen. It bounds the memory held per Redactor: about
+// (chunkFactor+2)*2 times the configured length for the backing array, i.e.
+// roughly 4.5 MiB at the limit (intended budget).
 const MaxPatternLenLimit = 1 << 16
 
 // DefaultReplacement is the default replacement template; "{detector}" is
@@ -121,10 +121,7 @@ func (r *Redactor) Write(p []byte) (n int, err error) {
 			end = len(p)
 		}
 		r.hold(p[off:end])
-		if len(r.pending) > capFactor*r.opt.maxLen {
-			return 0, r.fail(ErrBufferLimit)
-		}
-		if err := r.process(false); err != nil {
+		if err = r.process(false); err != nil {
 			return 0, r.fail(err)
 		}
 		off = end
@@ -285,9 +282,8 @@ func (r *Redactor) process(final bool) error {
 	}
 	out = append(out, r.pending[pos:hold]...)
 	if len(out) > 0 {
-		_, err := r.w.Write(out)
-		clear(out)
-		if err != nil {
+		defer clear(out)
+		if _, err := r.w.Write(out); err != nil {
 			return fmt.Errorf("masking: write: %w", err)
 		}
 	}
