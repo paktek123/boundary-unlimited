@@ -11,8 +11,16 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
+
+// MaxRuleIDLen bounds a rule id, so error messages and hash input stay small.
+const MaxRuleIDLen = 128
+
+// MaxInputRules bounds the number of rules Compile will examine (a multiple of
+// HardMaxRules), so a huge input list cannot cost unbounded CPU or memory.
+const MaxInputRules = 4 * HardMaxRules
 
 // Compiled is an immutable, validated rule set for one session. It is not
 // wired into the controller or worker: it enables nothing by itself.
@@ -80,11 +88,17 @@ func Compile(rules []Rule, session SessionInfo, limits Limits) (*Compiled, error
 	if err != nil {
 		return nil, err
 	}
+	if len(rules) > MaxInputRules {
+		return nil, ErrTooManyRules
+	}
 	seen := make(map[string]struct{}, len(rules))
 	var applied []Rule
 	for _, r := range rules {
 		if r.ID == "" {
 			return nil, invalid("", "rule id is required")
+		}
+		if len(r.ID) > MaxRuleIDLen || !utf8.ValidString(r.ID) {
+			return nil, invalid("", "rule id is too long or not valid UTF-8")
 		}
 		if _, dup := seen[r.ID]; dup {
 			return nil, fmt.Errorf("%w: %q", ErrDuplicateRuleID, r.ID)
@@ -158,11 +172,17 @@ func validate(r Rule, l Limits) error {
 		return invalid(r.ID, "message must be literal text (no placeholders)")
 	}
 	for _, c := range r.Message {
-		if c < 0x20 || c == 0x7f {
-			return invalid(r.ID, "message contains control characters")
+		if unicode.IsControl(c) || isBidi(c) {
+			return invalid(r.ID, "message contains control or bidirectional override characters")
 		}
 	}
 	return nil
+}
+
+// isBidi reports bidirectional embedding, override and isolate characters,
+// which can disguise text shown in a terminal.
+func isBidi(c rune) bool {
+	return (c >= 0x202A && c <= 0x202E) || (c >= 0x2066 && c <= 0x2069)
 }
 
 // ruleSetHash hashes the canonical form of the applicable rules, sorted by id,

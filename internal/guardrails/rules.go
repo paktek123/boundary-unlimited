@@ -12,6 +12,8 @@ type MatchKind string
 const (
 	// MatchPrefix matches when the command starts with the pattern and the
 	// pattern ends at a word boundary (end of command or whitespace follows).
+	// Compile only validates the pattern; the matcher slice of
+	// docs/rfc/guardrails.md implements the boundary rule.
 	MatchPrefix MatchKind = "prefix"
 	// MatchRegexp matches an RE2 regular expression (stdlib regexp only).
 	MatchRegexp MatchKind = "regexp"

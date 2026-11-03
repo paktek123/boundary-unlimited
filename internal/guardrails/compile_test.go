@@ -4,6 +4,7 @@
 package guardrails
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -50,6 +51,10 @@ func TestCompileFailures(t *testing.T) {
 		{"message control char", mut(func(r *Rule) { r.Message = "a\nb" }), Limits{}, ErrInvalidRule},
 		{"review unsupported", mut(func(r *Rule) { r.Action = ActionRequireReview }), Limits{}, ErrInvalidRule},
 		{"invalid rule not applicable still fails", mut(func(r *Rule) { r.Selectors = Selectors{TargetIDs: []string{"other"}}; r.Action = "x" }), Limits{}, ErrInvalidRule},
+		{"id too long", mut(func(r *Rule) { r.ID = strings.Repeat("a", MaxRuleIDLen+1) }), Limits{}, ErrInvalidRule},
+		{"id invalid utf8", mut(func(r *Rule) { r.ID = "\xff" }), Limits{}, ErrInvalidRule},
+		{"message C1 control", mut(func(r *Rule) { r.Message = "a\u0085b" }), Limits{}, ErrInvalidRule},
+		{"message bidi override", mut(func(r *Rule) { r.Message = "a\u202eb" }), Limits{}, ErrInvalidRule},
 		{"too many rules", []Rule{okRule("a"), okRule("b")}, Limits{MaxRules: 1}, ErrTooManyRules},
 		{"negative limit", []Rule{okRule("a")}, Limits{MaxRules: -1}, ErrInvalidLimits},
 		{"rules above hard max", nil, Limits{MaxRules: HardMaxRules + 1}, ErrInvalidLimits},
@@ -188,4 +193,39 @@ func TestRuleSetHash(t *testing.T) {
 	off := okRule("off")
 	off.Enabled = false
 	assert.Equal(t, base, h(a, b, other, off))
+}
+
+func TestLimitBoundaries(t *testing.T) {
+	// Zero Limits apply the documented defaults.
+	r := okRule("a")
+	r.Match.Pattern = strings.Repeat("a", DefaultMaxPatternLen)
+	r.Message = strings.Repeat("m", DefaultMaxMessageLen)
+	_, err := Compile([]Rule{r}, sess, Limits{})
+	require.NoError(t, err)
+	r.Match.Pattern += "a"
+	_, err = Compile([]Rule{r}, sess, Limits{})
+	require.ErrorIs(t, err, ErrInvalidRule)
+	r = okRule("a")
+	r.Message = strings.Repeat("m", DefaultMaxMessageLen+1)
+	_, err = Compile([]Rule{r}, sess, Limits{})
+	require.ErrorIs(t, err, ErrInvalidRule)
+
+	// Exactly DefaultMaxRules applicable rules is accepted; one more is not.
+	var rules []Rule
+	for i := 0; i < DefaultMaxRules; i++ {
+		rules = append(rules, okRule(fmt.Sprintf("r%d", i)))
+	}
+	c, err := Compile(rules, sess, Limits{})
+	require.NoError(t, err)
+	assert.Equal(t, DefaultMaxRules, c.Len())
+	_, err = Compile(append(rules, okRule("extra")), sess, Limits{})
+	require.ErrorIs(t, err, ErrTooManyRules)
+
+	// Hard maxima themselves are accepted.
+	_, err = Compile(nil, sess, Limits{MaxRules: HardMaxRules, MaxPatternLen: HardMaxPatternLen, MaxMessageLen: HardMaxMessageLen})
+	require.NoError(t, err)
+
+	// A huge input list is rejected before any rule is examined.
+	_, err = Compile(make([]Rule, MaxInputRules+1), sess, Limits{})
+	require.ErrorIs(t, err, ErrTooManyRules)
 }
