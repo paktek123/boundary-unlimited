@@ -115,6 +115,10 @@ fork, which is independent of HashiCorp.
   discard scratch data only after a verified upload). Library only: it is not
   wired into the worker and enables nothing.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
+* worker: Add `finalize.Recover`, a startup orphan-recovery driver that pushes
+  recordings left by a crashed worker through finalisation (incomplete ones are
+  kept, never deleted). Library only; not wired into the worker.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/131))
 * Added `NewRecordingFactory` to the worker SSH proxy: the concrete
   `RecordingFactory` composing the BSR recorder, the scratch store `storage.FS`
   adapter and finalisation on close. Quota or recorder errors refuse the
