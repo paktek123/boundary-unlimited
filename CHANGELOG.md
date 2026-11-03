@@ -111,10 +111,18 @@ fork, which is independent of HashiCorp.
   a factory failure refuses the session (reason `recording_unavailable`) before
   any data is relayed. Off by default; nothing in the worker supplies a factory
   yet, so no behaviour changes.
+* Added in-process end-to-end tests for the worker SSH proxy (`HandleSession`
+  with the recording wrapper over the scratch store): recorded session, scratch
+  quota exhaustion, disallowed channel types and upstream host key mismatch.
+  Tests only.
 * worker: Add the standalone `recording/finalize` library (finish, upload, then
   discard scratch data only after a verified upload). Library only: it is not
   wired into the worker and enables nothing.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/130))
+* worker: Add `finalize.Recover`, a startup orphan-recovery driver that pushes
+  recordings left by a crashed worker through finalisation (incomplete ones are
+  kept, never deleted). Library only; not wired into the worker.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/131))
 * Added `NewRecordingFactory` to the worker SSH proxy: the concrete
   `RecordingFactory` composing the BSR recorder, the scratch store `storage.FS`
   adapter and finalisation on close. Quota or recorder errors refuse the
@@ -187,6 +195,17 @@ fork, which is independent of HashiCorp.
   the channel and the session with no unscanned bytes delivered. Not wired:
   nothing calls the options yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/173))
+* Added `internal/notify`, a pure-Go library with a signed webhook notifier
+  (HMAC-SHA256 over timestamp and body, HTTPS only, SSRF-safe dialer that
+  re-checks the dialed address, no redirects or proxies, size caps, bounded
+  retries, no secrets or URLs in errors). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/175))
+* Added database migration 114 creating the inert `access_request` and
+  `access_request_approval` tables (with state and decision enum tables,
+  immutability, forward-only state and self-approval triggers) and their SQL
+  tests. No protos, API, CLI or domain code, and no new grant actions: nothing
+  reads or writes these tables yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/174))
 * Recorded the security reviewer's binding decisions in the data masking RFC
   (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
   only.
@@ -197,6 +216,11 @@ fork, which is independent of HashiCorp.
   hash, fails closed, no implicit pass-through). Library only; not wired and
   nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/164))
+* Added `internal/guardrails`: guardrail rule model and compiler (prefix and
+  RE2 matchers, deny/require_review actions, explicit selectors where empty
+  means none, length and rule-count limits with hard maxima, stable rule-set
+  hash, fails closed). Library only; not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
 
 ## 0.21.3 (2026/04/28)
 
