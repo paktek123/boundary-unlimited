@@ -185,6 +185,12 @@ fork, which is independent of HashiCorp.
   re-checks the dialed address, no redirects or proxies, size caps, bounded
   retries, no secrets or URLs in errors). Library only; not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/175))
+* Added database migration 114 creating the inert `access_request` and
+  `access_request_approval` tables (with state and decision enum tables,
+  immutability, forward-only state and self-approval triggers) and their SQL
+  tests. No protos, API, CLI or domain code, and no new grant actions: nothing
+  reads or writes these tables yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/174))
 * Recorded the security reviewer's binding decisions in the data masking RFC
   (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
   only.
@@ -195,6 +201,11 @@ fork, which is independent of HashiCorp.
   hash, fails closed, no implicit pass-through). Library only; not wired and
   nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/164))
+* Added `internal/guardrails`: guardrail rule model and compiler (prefix and
+  RE2 matchers, deny/require_review actions, explicit selectors where empty
+  means none, length and rule-count limits with hard maxima, stable rule-set
+  hash, fails closed). Library only; not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
 
 ## 0.21.3 (2026/04/28)
 
