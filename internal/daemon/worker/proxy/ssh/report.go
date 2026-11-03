@@ -23,6 +23,7 @@ const (
 	ReasonInvalidSessionPolicy = "invalid_session_policy"
 	ReasonInvalidCredential    = "invalid_credential"
 	ReasonRecordingUnavailable = "recording_unavailable"
+	ReasonMaskingUnavailable   = "masking_unavailable"
 )
 
 // Reporter receives security-relevant events from HandleSession. Values

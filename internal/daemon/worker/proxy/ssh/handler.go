@@ -65,6 +65,8 @@ type HandleOption func(*handleOptions)
 type handleOptions struct {
 	recording         RecordingFactory
 	recordingRequired bool
+	masking           MaskingPolicy
+	maskingRequired   bool
 }
 
 // WithRecordingFactory makes HandleSession wrap its upstream with f. Without
@@ -80,6 +82,46 @@ func WithRecordingFactory(f RecordingFactory) HandleOption {
 // factory was left unset or set to nil by the caller.
 func WithRecordingRequired() HandleOption {
 	return func(o *handleOptions) { o.recordingRequired = true }
+}
+
+// WithMasking makes HandleSession redact everything flowing from the target
+// towards the client (channel data and extended data) using p. Redaction is
+// applied below the recording wrapper, so recordings never contain unmasked
+// bytes. If a redactor cannot be built, fails or panics, the channel and the
+// session are terminated and no unscanned bytes are delivered. Without it,
+// sessions are relayed exactly as before. A nil p is ignored.
+//
+// Only channel data and extended data from the target are masked. Channel
+// requests from the target (for example the message in an exit-signal request)
+// and global request replies pass through unmasked; this is a deliberate limit
+// of this option.
+//
+// Note that the redactor holds back up to its maximum pattern length of
+// output until more data arrives or the stream ends.
+func WithMasking(p MaskingPolicy) HandleOption {
+	return func(o *handleOptions) { o.masking = p }
+}
+
+// WithMaskingRequired makes HandleSession refuse the session, before the
+// upstream is dialled, unless a usable non-nil MaskingPolicy is configured.
+// It is evaluated inside HandleSession so a target requiring masking can never
+// be relayed unmasked because the policy was left unset or nil by the caller.
+func WithMaskingRequired() HandleOption {
+	return func(o *handleOptions) { o.maskingRequired = true }
+}
+
+// isNilValue reports whether v is nil, including a typed nil pointer wrapped
+// in a non-nil interface.
+func isNilValue(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface:
+		return rv.IsNil()
+	}
+	return false
 }
 
 // isNilUpstream reports whether u is nil, including a typed nil pointer
@@ -167,12 +209,24 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig, opt ..
 		return errors.Wrap(ctx, err, op)
 	}
 	var upstream Upstream = up
+	if isNilValue(opts.masking) && opts.maskingRequired {
+		rejected(ReasonMaskingUnavailable)
+		return errors.New(ctx, errors.InvalidParameter, op, "masking is required but no masking policy is configured")
+	}
+	if !isNilValue(opts.masking) {
+		if err := checkMaskingPolicy(opts.masking); err != nil {
+			rejected(ReasonMaskingUnavailable)
+			return errors.New(ctx, errors.InvalidParameter, op, "masking policy unusable")
+		}
+		// Masking sits below recording so recordings only hold masked bytes.
+		upstream = newMaskingUpstream(upstream, opts.masking)
+	}
 	if opts.recording == nil && opts.recordingRequired {
 		rejected(ReasonRecordingUnavailable)
 		return errors.New(ctx, errors.InvalidParameter, op, "recording is required but no recording factory is configured")
 	}
 	if opts.recording != nil {
-		wrapped, err := opts.recording.Wrap(ctx, cfg.Authorization, up)
+		wrapped, err := opts.recording.Wrap(ctx, cfg.Authorization, upstream)
 		if err != nil {
 			rejected(ReasonRecordingUnavailable)
 			return errors.Wrap(ctx, err, op, errors.WithMsg("recording unavailable"))

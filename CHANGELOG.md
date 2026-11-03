@@ -188,6 +188,13 @@ fork, which is independent of HashiCorp.
   `target_all_subtypes` and warehouse views) and its SQL tests. No protos, API,
   CLI or domain code: the target type cannot be created by users yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/166))
+* Added `WithMasking` and `WithMaskingRequired` handle options to the SSH
+  session handler. When set, all target-to-client channel and extended data
+  is redacted by a per-channel `internal/masking` redactor below the recording
+  wrapper (recordings hold masked bytes only); a redactor error or panic ends
+  the channel and the session with no unscanned bytes delivered. Not wired:
+  nothing calls the options yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/173))
 * Added `internal/notify`, a pure-Go library with a signed webhook notifier
   (HMAC-SHA256 over timestamp and body, HTTPS only, SSRF-safe dialer that
   re-checks the dialed address, no redirects or proxies, size caps, bounded
