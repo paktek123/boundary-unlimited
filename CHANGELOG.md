@@ -180,6 +180,12 @@ fork, which is independent of HashiCorp.
   `target_all_subtypes` and warehouse views) and its SQL tests. No protos, API,
   CLI or domain code: the target type cannot be created by users yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/166))
+* Added database migration 114 creating the inert `access_request` and
+  `access_request_approval` tables (with state and decision enum tables,
+  immutability, forward-only state and self-approval triggers) and their SQL
+  tests. No protos, API, CLI or domain code, and no new grant actions: nothing
+  reads or writes these tables yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/174))
 * Recorded the security reviewer's binding decisions in the data masking RFC
   (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
   only.
