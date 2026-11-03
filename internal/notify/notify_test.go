@@ -300,7 +300,7 @@ func TestEventValidationAndBodyLimit(t *testing.T) {
 		"zero time":     func(e *Event) { e.Timestamp = time.Time{} },
 		"long summary":  func(e *Event) { e.Summary = strings.Repeat("a", MaxSummaryLen+1) },
 		"control char":  func(e *Event) { e.Summary = "a\nb" },
-		"bidi override": func(e *Event) { e.Summary = "a‮b" },
+		"bidi override": func(e *Event) { e.Summary = "a\u202eb" },
 		"invalid utf8":  func(e *Event) { e.Summary = "a\xffb" },
 	}
 	for name, mod := range bad {
