@@ -190,6 +190,11 @@ fork, which is independent of HashiCorp.
   hash, fails closed, no implicit pass-through). Library only; not wired and
   nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/164))
+* Added `internal/guardrails`: guardrail rule model and compiler (prefix and
+  RE2 matchers, deny/require_review actions, explicit selectors where empty
+  means none, length and rule-count limits with hard maxima, stable rule-set
+  hash, fails closed). Library only; not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
 
 ## 0.21.3 (2026/04/28)
 
