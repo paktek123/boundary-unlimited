@@ -180,6 +180,11 @@ fork, which is independent of HashiCorp.
   `target_all_subtypes` and warehouse views) and its SQL tests. No protos, API,
   CLI or domain code: the target type cannot be created by users yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/166))
+* Added `internal/notify`, a pure-Go library with a signed webhook notifier
+  (HMAC-SHA256 over timestamp and body, HTTPS only, SSRF-safe dialer that
+  re-checks the dialed address, no redirects or proxies, size caps, bounded
+  retries, no secrets or URLs in errors). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/175))
 * Recorded the security reviewer's binding decisions in the data masking RFC
   (`docs/rfc/data-masking.md`), replacing its open security questions. Docs
   only.
