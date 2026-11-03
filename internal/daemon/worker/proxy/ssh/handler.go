@@ -91,6 +91,11 @@ func WithRecordingRequired() HandleOption {
 // session are terminated and no unscanned bytes are delivered. Without it,
 // sessions are relayed exactly as before. A nil p is ignored.
 //
+// Only channel data and extended data from the target are masked. Channel
+// requests from the target (for example the message in an exit-signal request)
+// and global request replies pass through unmasked; this is a deliberate limit
+// of this option.
+//
 // Note that the redactor holds back up to its maximum pattern length of
 // output until more data arrives or the stream ends.
 func WithMasking(p MaskingPolicy) HandleOption {

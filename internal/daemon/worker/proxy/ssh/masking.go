@@ -177,16 +177,20 @@ func newMaskReader(p MaskingPolicy, src io.Reader, terminate func()) (m *maskRea
 }
 
 // failLocked discards everything held, closes the redactor (its output is
-// wiped, never delivered) and returns the error to hand to the relay.
+// wiped, never delivered) and returns the error to hand to the relay. It must
+// only run on the goroutine that owns m.buf (the one inside Read).
 func (m *maskReader) failLocked() error {
 	if m.err == nil || m.err == io.EOF {
 		m.err = errMasking
 	}
-	m.wipeLocked()
+	m.wipeLocked(true)
 	return m.err
 }
 
-func (m *maskReader) wipeLocked() {
+// wipeLocked closes the redactor and wipes the output sink. m.buf is only
+// cleared when wipeBuf is set: the reading goroutine may be filling it from
+// the source at this moment, so every other goroutine must leave it alone.
+func (m *maskReader) wipeLocked(wipeBuf bool) {
 	if m.red != nil {
 		func() {
 			defer func() { _ = recover() }()
@@ -195,11 +199,14 @@ func (m *maskReader) wipeLocked() {
 		m.red = nil
 	}
 	m.out.wipe()
-	clear(m.buf)
+	if wipeBuf {
+		clear(m.buf)
+	}
 }
 
-// discard releases the redactor and wipes buffers; used when the channel is
-// closed. Safe to call repeatedly and concurrently with Read.
+// discard releases the redactor and wipes the sink; used when the channel is
+// closed. It never touches m.buf (owned by the reader). Safe to call
+// repeatedly and concurrently with Read.
 func (m *maskReader) discard() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -207,7 +214,56 @@ func (m *maskReader) discard() {
 	if m.err == nil {
 		m.err = io.ErrClosedPipe
 	}
-	m.wipeLocked()
+	m.wipeLocked(false)
+}
+
+// next returns buffered masked bytes or a sticky error. done is false when the
+// caller must read more from the source.
+func (m *maskReader) next(p []byte) (n int, done bool, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.out.b) > 0 {
+		n = copy(p, m.out.b)
+		clear(m.out.b[:n])
+		m.out.b = m.out.b[n:]
+		return n, true, nil
+	}
+	if m.err != nil {
+		return 0, true, m.err
+	}
+	return 0, false, nil
+}
+
+// feed pushes one source read through the redactor. terminate reports that
+// the session must be ended; err is then the error for the relay.
+func (m *maskReader) feed(rn int, rerr error) (terminate bool, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.red == nil {
+		clear(m.buf)
+		return false, m.err
+	}
+	if rn > 0 {
+		_, werr := m.red.Write(m.buf[:rn])
+		clear(m.buf[:rn])
+		if werr != nil {
+			return true, m.failLocked()
+		}
+	}
+	switch {
+	case rerr == io.EOF:
+		// Clean end of stream: scan and release what is held.
+		if cerr := m.red.Close(); cerr != nil {
+			return true, m.failLocked()
+		}
+		m.red = nil
+		m.err = io.EOF
+	case rerr != nil:
+		// Any other source error: held bytes are discarded, not flushed.
+		m.err = rerr
+		m.wipeLocked(true)
+	}
+	return false, nil
 }
 
 func (m *maskReader) Read(p []byte) (n int, err error) {
@@ -216,64 +272,26 @@ func (m *maskReader) Read(p []byte) (n int, err error) {
 	}
 	defer func() {
 		if recover() != nil {
+			// No lock is held here: every locked section is a helper with
+			// its own deferred unlock.
 			m.mu.Lock()
-			n, err = 0, m.failLocked()
+			err = m.failLocked()
 			m.mu.Unlock()
+			n = 0
 			m.terminate()
 		}
 	}()
 	for {
-		m.mu.Lock()
-		if len(m.out.b) > 0 {
-			n = copy(p, m.out.b)
-			clear(m.out.b[:n])
-			m.out.b = m.out.b[n:]
-			m.mu.Unlock()
-			return n, nil
+		if n, done, err := m.next(p); done {
+			return n, err
 		}
-		if m.err != nil {
-			err = m.err
-			m.mu.Unlock()
-			return 0, err
-		}
-		m.mu.Unlock()
-
-		// Read without holding the lock so discard/Close can interrupt.
+		// Read without holding the lock so discard can interrupt.
 		rn, rerr := m.src.Read(m.buf)
-
-		m.mu.Lock()
-		if m.closed || m.red == nil {
-			clear(m.buf)
-			err = m.err
-			m.mu.Unlock()
-			return 0, err
-		}
-		if rn > 0 {
-			_, werr := m.red.Write(m.buf[:rn])
-			clear(m.buf[:rn])
-			if werr != nil {
-				err = m.failLocked()
-				m.mu.Unlock()
+		if term, ferr := m.feed(rn, rerr); ferr != nil {
+			if term {
 				m.terminate()
-				return 0, err
 			}
+			return 0, ferr
 		}
-		switch {
-		case rerr == io.EOF:
-			// Clean end of stream: scan and release what is held.
-			if cerr := m.red.Close(); cerr != nil {
-				err = m.failLocked()
-				m.mu.Unlock()
-				m.terminate()
-				return 0, err
-			}
-			m.red = nil
-			m.err = io.EOF
-		case rerr != nil:
-			// Any other source error: held bytes are discarded, not flushed.
-			m.err = rerr
-			m.wipeLocked()
-		}
-		m.mu.Unlock()
 	}
 }

@@ -333,7 +333,82 @@ func TestHandleSession_Masking_SitsBelowRecording(t *testing.T) {
 	assert.True(t, ok, "the recording factory must wrap the masking upstream so recordings hold masked bytes only")
 }
 
-func TestMasking_RealPolicyEndToEnd(t *testing.T) {
+func TestMaskingPolicyInterface(t *testing.T) {
 	// the production *masking.Policy satisfies MaskingPolicy.
 	var _ MaskingPolicy = (*masking.Policy)(nil)
+}
+
+// stubChannel is an ssh.Channel with only Read, Stderr and Close implemented.
+type stubChannel struct {
+	ssh.Channel
+	out, errOut io.Reader
+}
+
+func (c *stubChannel) Read(p []byte) (int, error) { return c.out.Read(p) }
+func (c *stubChannel) Stderr() io.ReadWriter {
+	return struct {
+		io.Reader
+		io.Writer
+	}{c.errOut, io.Discard}
+}
+func (c *stubChannel) Close() error { return nil }
+
+func TestMaskChannel_StderrIsMasked(t *testing.T) {
+	conn := &maskingConn{inner: stubConn{ch: &stubChannel{
+		out:    strings.NewReader("out " + canaryKey),
+		errOut: strings.NewReader("err " + canaryKey),
+	}}, policy: goodPolicy()}
+	ch, _, err := conn.OpenChannel("session", nil)
+	require.NoError(t, err)
+	stdout, err := io.ReadAll(ch)
+	require.NoError(t, err)
+	stderr, err := io.ReadAll(ch.Stderr())
+	require.NoError(t, err)
+	assert.NotContains(t, string(stdout), canaryKey)
+	assert.NotContains(t, string(stderr), canaryKey)
+	assert.Contains(t, string(stderr), "err ")
+	assert.Contains(t, string(stderr), "[REDACTED:")
+}
+
+type stubConn struct{ ch ssh.Channel }
+
+func (c stubConn) OpenChannel(string, []byte) (ssh.Channel, <-chan *ssh.Request, error) {
+	return c.ch, nil, nil
+}
+func (stubConn) SendRequest(string, bool, []byte) (bool, []byte, error) { return false, nil, nil }
+func (stubConn) Close() error                                           { return nil }
+
+// A channel closed while a Read is blocked in the source must not race on the
+// read buffer (run with -race).
+func TestMaskReader_DiscardWhileReadInFlight(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		pr, pw := io.Pipe()
+		m, err := newMaskReader(goodPolicy(), pr, func() {})
+		require.NoError(t, err)
+		done := make(chan struct{})
+		go func() { _, _ = io.ReadAll(m); close(done) }()
+		stop := make(chan struct{})
+		go func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					if _, err := pw.Write([]byte("data data data")); err != nil {
+						return
+					}
+				}
+			}
+		}()
+		time.Sleep(5 * time.Millisecond)
+		m.discard()
+		close(stop)
+		_ = pr.Close()
+		_ = pw.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Read did not return after discard")
+		}
+	}
 }
