@@ -225,6 +225,10 @@ fork, which is independent of HashiCorp.
   concurrent `notify.FanOut` with per-notifier timeouts and secret-free aggregated
   errors, and a `RecorderNotifier` fake (`internal/notify`). Library only; not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/183))
+* Added the access requests RFC (`docs/rfc/access-requests.md`) recording the
+  security reviewer's decision (overlay at authorization time, approver model 3).
+  Docs only.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
 
 ## 0.21.3 (2026/04/28)
 
