@@ -221,6 +221,11 @@ fork, which is independent of HashiCorp.
   means none, length and rule-count limits with hard maxima, stable rule-set
   hash, fails closed). Library only; not wired and nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
+* Added counts-only guardrails audit event types, constructors and an `Emitter`
+  interface with a recording fake (`internal/guardrails`). Events hold no command
+  text, fragments, offsets or command hash; canary and reflection tests enforce
+  it. Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/182))
 
 ## 0.21.3 (2026/04/28)
 
