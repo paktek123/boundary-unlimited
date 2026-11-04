@@ -221,6 +221,10 @@ fork, which is independent of HashiCorp.
   means none, length and rule-count limits with hard maxima, stable rule-set
   hash, fails closed). Library only; not wired and nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
+* Added `notify.FromAccessRequest` (fixed-template, no free text), a fail-isolated
+  concurrent `notify.FanOut` with per-notifier timeouts and secret-free aggregated
+  errors, and a `RecorderNotifier` fake (`internal/notify`). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/183))
 
 ## 0.21.3 (2026/04/28)
 
