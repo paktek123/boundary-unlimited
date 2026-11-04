@@ -181,8 +181,8 @@ epic #88. These replace the former "Open security questions".
 5. **Normalisation.** Match on the exact bytes received plus a normalised form;
    block if EITHER the raw or the normalised form matches a block rule (review
    rules likewise). Normalisation: reject invalid UTF-8; reject NUL and
-   ASCII/C1 control characters other than the tab and newline handling defined
-   in this RFC; reject bidi override and zero-width/format characters (Unicode
+   ASCII/C1 control characters other than tab (U+0009) and line feed (U+000A),
+   which are the only permitted controls (carriage return is rejected); reject bidi override and zero-width/format characters (Unicode
    Cf); apply NFKC to the matching copy (not NFC); case-fold only where the rule
    asks. There is a hard maximum command length (compile-time constant, default
    8 KiB); longer commands are blocked. Block means the exec request is rejected
