@@ -121,7 +121,7 @@ func (c *Compiled) Evaluate(raw []byte) (d Decision) {
 	if review != "" {
 		return Decision{Verdict: VerdictReview, RuleID: review, RuleSetHash: c.hash}
 	}
-	if c.defaultDeny && !(anyMatch(c.allow, rawStr) && anyMatch(c.allow, norm)) {
+	if c.defaultDeny && (!anyMatch(c.allow, rawStr) || !anyMatch(c.allow, norm)) {
 		return c.block("")
 	}
 	return Decision{Verdict: VerdictAllow, RuleSetHash: c.hash}
