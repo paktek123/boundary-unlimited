@@ -27,7 +27,7 @@ var (
 func TestEventStructHasOnlyAllowedFields(t *testing.T) {
 	allowed := map[string]reflect.Type{
 		"Type": reflect.TypeOf(EventType("")), "SessionId": reflect.TypeOf(""), "RuleId": reflect.TypeOf(""),
-		"RuleSetHash": reflect.TypeOf(""), "Action": reflect.TypeOf(Action("")), "Decision": reflect.TypeOf(Decision("")),
+		"RuleSetHash": reflect.TypeOf(""), "Action": reflect.TypeOf(Action("")), "Decision": reflect.TypeOf(AuditDecision("")),
 		"Count": reflect.TypeOf(0), "PrincipalId": reflect.TypeOf(""), "Timestamp": reflect.TypeOf(time.Time{}),
 	}
 	typ := reflect.TypeOf(Event{})

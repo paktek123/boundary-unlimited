@@ -31,15 +31,15 @@ const (
 	EventInteractiveBestEffort EventType = "guardrails.interactive_best_effort"
 )
 
-// Decision is what was done with the command or session.
-type Decision string
+// AuditDecision is what was done with the command or session.
+type AuditDecision string
 
 // Decisions.
 const (
-	DecisionBlocked           Decision = "blocked"
-	DecisionReviewRequested   Decision = "review_requested"
-	DecisionTerminated        Decision = "terminated"
-	DecisionAllowedBestEffort Decision = "allowed_best_effort"
+	DecisionBlocked           AuditDecision = "blocked"
+	DecisionReviewRequested   AuditDecision = "review_requested"
+	DecisionTerminated        AuditDecision = "terminated"
+	DecisionAllowedBestEffort AuditDecision = "allowed_best_effort"
 )
 
 // Errors returned by the event constructors. Messages never carry caller input.
@@ -59,7 +59,7 @@ type Event struct {
 	RuleId      string // empty when no rule decided (for example malformed input)
 	RuleSetHash string // the compiled rule-set hash, never a command hash
 	Action      Action // empty when no rule action applies
-	Decision    Decision
+	Decision    AuditDecision
 	Count       int
 	PrincipalId string
 	Timestamp   time.Time
@@ -121,7 +121,7 @@ func checkID(s string, optional bool) error {
 	return nil
 }
 
-func newEvent(t EventType, sessionID, principalID, ruleID, hash string, action Action, d Decision, count int, ts time.Time) (Event, error) {
+func newEvent(t EventType, sessionID, principalID, ruleID, hash string, action Action, d AuditDecision, count int, ts time.Time) (Event, error) {
 	for _, err := range []error{
 		checkID(sessionID, false), checkID(principalID, false), checkID(ruleID, true),
 	} {
