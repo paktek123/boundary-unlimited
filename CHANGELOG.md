@@ -221,6 +221,11 @@ fork, which is independent of HashiCorp.
   means none, length and rule-count limits with hard maxima, stable rule-set
   hash, fails closed). Library only; not wired and nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
+* Added the guardrails command normaliser, evaluator and block counter
+  (`internal/guardrails`: raw-or-NFKC-normalised matching, 8 KiB cap, fail closed,
+  optional default-deny allow list, per-session block counter). Library only;
+  not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/181))
 
 ## 0.21.3 (2026/04/28)
 
