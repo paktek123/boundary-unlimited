@@ -44,7 +44,7 @@ func TestConstructors(t *testing.T) {
 	b, err := NewBlockedEvent("s_1", "u_1", "r_1", hash0, 3, ts0)
 	require.NoError(t, err)
 	assert.Equal(t, Event{Type: EventBlocked, SessionId: "s_1", RuleId: "r_1", RuleSetHash: hash0, Action: ActionDeny,
-		Decision: DecisionBlocked, Count: 3, PrincipalId: "u_1", Timestamp: ts0.UTC()}, b)
+		Decision: AuditDecisionBlocked, Count: 3, PrincipalId: "u_1", Timestamp: ts0.UTC()}, b)
 
 	m, err := NewBlockedEvent("s_1", "u_1", "", hash0, 1, ts0)
 	require.NoError(t, err)
@@ -59,11 +59,11 @@ func TestConstructors(t *testing.T) {
 	term, err := NewSessionTerminatedEvent("s_1", "u_1", hash0, 5, ts0)
 	require.NoError(t, err)
 	assert.Equal(t, 5, term.Count)
-	assert.Equal(t, DecisionTerminated, term.Decision)
+	assert.Equal(t, AuditDecisionTerminated, term.Decision)
 
 	i, err := NewInteractiveBestEffortEvent("s_1", "u_1", hash0, ts0)
 	require.NoError(t, err)
-	assert.Equal(t, DecisionAllowedBestEffort, i.Decision)
+	assert.Equal(t, AuditDecisionAllowedBestEffort, i.Decision)
 }
 
 func TestConstructorValidation(t *testing.T) {
@@ -154,5 +154,4 @@ func TestRepeatedBlocksAreCounted(t *testing.T) {
 	e, err := NewBlockedEvent("s_1", "u_1", "r_1", hash0, 7, ts0)
 	require.NoError(t, err)
 	assert.Equal(t, 7, e.Count)
-	assert.Equal(t, reflect.TypeOf(Event{}).NumField(), reflect.TypeOf(e).NumField())
 }

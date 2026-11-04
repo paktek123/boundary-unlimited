@@ -34,12 +34,12 @@ const (
 // AuditDecision is what was done with the command or session.
 type AuditDecision string
 
-// Decisions.
+// Audit decisions.
 const (
-	DecisionBlocked           AuditDecision = "blocked"
-	DecisionReviewRequested   AuditDecision = "review_requested"
-	DecisionTerminated        AuditDecision = "terminated"
-	DecisionAllowedBestEffort AuditDecision = "allowed_best_effort"
+	AuditDecisionBlocked           AuditDecision = "blocked"
+	AuditDecisionReviewRequested   AuditDecision = "review_requested"
+	AuditDecisionTerminated        AuditDecision = "terminated"
+	AuditDecisionAllowedBestEffort AuditDecision = "allowed_best_effort"
 )
 
 // Errors returned by the event constructors. Messages never carry caller input.
@@ -150,7 +150,7 @@ func NewBlockedEvent(sessionID, principalID, ruleID, ruleSetHash string, count i
 	if ruleID != "" {
 		action = ActionDeny
 	}
-	return newEvent(EventBlocked, sessionID, principalID, ruleID, ruleSetHash, action, DecisionBlocked, count, ts)
+	return newEvent(EventBlocked, sessionID, principalID, ruleID, ruleSetHash, action, AuditDecisionBlocked, count, ts)
 }
 
 // NewReviewRequestedEvent builds an EventReviewRequested. ruleID is required.
@@ -158,16 +158,16 @@ func NewReviewRequestedEvent(sessionID, principalID, ruleID, ruleSetHash string,
 	if ruleID == "" {
 		return Event{}, ErrInvalidAuditInput
 	}
-	return newEvent(EventReviewRequested, sessionID, principalID, ruleID, ruleSetHash, ActionRequireReview, DecisionReviewRequested, 1, ts)
+	return newEvent(EventReviewRequested, sessionID, principalID, ruleID, ruleSetHash, ActionRequireReview, AuditDecisionReviewRequested, 1, ts)
 }
 
 // NewSessionTerminatedEvent builds an EventSessionTerminated; blocks is the
 // number of blocked commands that ended the session.
 func NewSessionTerminatedEvent(sessionID, principalID, ruleSetHash string, blocks int, ts time.Time) (Event, error) {
-	return newEvent(EventSessionTerminated, sessionID, principalID, "", ruleSetHash, "", DecisionTerminated, blocks, ts)
+	return newEvent(EventSessionTerminated, sessionID, principalID, "", ruleSetHash, "", AuditDecisionTerminated, blocks, ts)
 }
 
 // NewInteractiveBestEffortEvent builds the session-start EventInteractiveBestEffort.
 func NewInteractiveBestEffortEvent(sessionID, principalID, ruleSetHash string, ts time.Time) (Event, error) {
-	return newEvent(EventInteractiveBestEffort, sessionID, principalID, "", ruleSetHash, "", DecisionAllowedBestEffort, 1, ts)
+	return newEvent(EventInteractiveBestEffort, sessionID, principalID, "", ruleSetHash, "", AuditDecisionAllowedBestEffort, 1, ts)
 }
