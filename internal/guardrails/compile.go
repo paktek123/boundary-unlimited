@@ -27,6 +27,15 @@ const MaxInputRules = 4 * HardMaxRules
 type Compiled struct {
 	ruleIDs []string
 	hash    string
+
+	// matchers are the applicable rules in input order; used by Evaluate.
+	matchers []matcher
+	limits   Limits
+
+	// defaultDeny is set by WithAllowList: a command is allowed only if both
+	// its raw and normalised forms match an allow pattern.
+	defaultDeny bool
+	allow       []*regexp.Regexp
 }
 
 // RuleIDs returns the ids of the applicable rules, in input order. It is safe
@@ -121,9 +130,14 @@ func Compile(rules []Rule, session SessionInfo, limits Limits) (*Compiled, error
 		}
 		applied = append(applied, r)
 	}
-	c := &Compiled{ruleIDs: make([]string, 0, len(applied))}
+	c := &Compiled{ruleIDs: make([]string, 0, len(applied)), limits: limits}
 	for _, r := range applied {
+		m, err := newMatcher(r)
+		if err != nil {
+			return nil, err
+		}
 		c.ruleIDs = append(c.ruleIDs, r.ID)
+		c.matchers = append(c.matchers, m)
 	}
 	c.hash = ruleSetHash(applied)
 	return c, nil

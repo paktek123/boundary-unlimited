@@ -221,6 +221,11 @@ fork, which is independent of HashiCorp.
   means none, length and rule-count limits with hard maxima, stable rule-set
   hash, fails closed). Library only; not wired and nothing accepts rules yet.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/172))
+* Added the guardrails command normaliser, evaluator and block counter
+  (`internal/guardrails`: raw-or-NFKC-normalised matching, 8 KiB cap, fail closed,
+  optional default-deny allow list, per-session block counter). Library only;
+  not wired and nothing accepts rules yet.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/181))
 * Added counts-only guardrails audit event types, constructors and an `Emitter`
   interface with a recording fake (`internal/guardrails`). Events hold no command
   text, fragments, offsets or command hash; canary and reflection tests enforce
