@@ -122,6 +122,13 @@ func TestService_Rejections(t *testing.T) {
 		_, err := f.svc.Approve(ctx, me, r.Id)
 		require.ErrorIs(t, err, ErrSelfApproval)
 	})
+	t.Run("self deny", func(t *testing.T) {
+		f := newSvc(t)
+		r := f.create(t)
+		me := Actor{Id: reqr.Id, CanApprove: true, Grants: []string{grantA}}
+		_, err := f.svc.Deny(ctx, me, r.Id)
+		require.ErrorIs(t, err, ErrSelfApproval)
+	})
 	t.Run("missing approve action", func(t *testing.T) {
 		f := newSvc(t)
 		r := f.create(t)

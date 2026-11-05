@@ -247,6 +247,19 @@ fork, which is independent of HashiCorp.
   (audit emitted before commit and fail closed; notifier never sees the
   justification and cannot fail the operation). Library only; not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/191))
+* Added the optional `WithGuardrails` option for the SSH session handler
+  (`internal/daemon/worker/proxy/ssh`): exec requests are evaluated before they
+  are forwarded, block/review forward nothing, shell and subsystem requests are
+  refused unless `WithGuardrailAllowInteractive`, and the session ends after the
+  Nth block. Off by default; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/184))
+* Added `MergeOverlay` and `GrantOverlaySource` (`internal/accessrequest`), a fail-closed
+  merge of approved, unexpired access-request grants after base grant resolution.
+  Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/190))
+* Added a design RFC for runbooks (`docs/rfc/runbooks.md`) recording the security
+  reviewer's binding-only parameter decision. Docs only; nothing is enabled.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
 
 ## 0.21.3 (2026/04/28)
 

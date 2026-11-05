@@ -67,6 +67,7 @@ type handleOptions struct {
 	recordingRequired bool
 	masking           MaskingPolicy
 	maskingRequired   bool
+	guardrails        *guardrailConfig
 }
 
 // WithRecordingFactory makes HandleSession wrap its upstream with f. Without
@@ -236,6 +237,15 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig, opt ..
 			return errors.New(ctx, errors.Internal, op, "recording factory returned no upstream")
 		}
 		upstream = wrapped
+	}
+	if opts.guardrails != nil {
+		// Guardrails sit above recording so blocked commands never reach it or the target.
+		g, err := startGuardrails(ctx, opts.guardrails, cfg.Authorization.SessionId, upstream)
+		if err != nil {
+			rejected(ReasonGuardrailsUnavailable)
+			return errors.New(ctx, errors.InvalidParameter, op, "guardrails unusable")
+		}
+		upstream = g
 	}
 	return Serve(ctx, conn, cfg.ClientHostKey, cfg.Authorization, upstream, WithPolicy(pol))
 }
