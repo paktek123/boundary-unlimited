@@ -15,15 +15,16 @@ import (
 // Fixed reason codes passed to Reporter.SessionRejected. They carry no
 // session-specific data.
 const (
-	ReasonInvalidAuthorization = "invalid_authorization"
-	ReasonMissingClientHostKey = "missing_client_host_key"
-	ReasonMissingUpstreamAddr  = "missing_upstream_address"
-	ReasonEmptyHostKeyPolicy   = "empty_host_key_policy"
-	ReasonInvalidHostKeyPolicy = "invalid_host_key_policy"
-	ReasonInvalidSessionPolicy = "invalid_session_policy"
-	ReasonInvalidCredential    = "invalid_credential"
-	ReasonRecordingUnavailable = "recording_unavailable"
-	ReasonMaskingUnavailable   = "masking_unavailable"
+	ReasonInvalidAuthorization  = "invalid_authorization"
+	ReasonMissingClientHostKey  = "missing_client_host_key"
+	ReasonMissingUpstreamAddr   = "missing_upstream_address"
+	ReasonEmptyHostKeyPolicy    = "empty_host_key_policy"
+	ReasonInvalidHostKeyPolicy  = "invalid_host_key_policy"
+	ReasonInvalidSessionPolicy  = "invalid_session_policy"
+	ReasonInvalidCredential     = "invalid_credential"
+	ReasonRecordingUnavailable  = "recording_unavailable"
+	ReasonMaskingUnavailable    = "masking_unavailable"
+	ReasonGuardrailsUnavailable = "guardrails_unavailable"
 )
 
 // Reporter receives security-relevant events from HandleSession. Values
