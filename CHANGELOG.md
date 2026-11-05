@@ -242,10 +242,10 @@ fork, which is independent of HashiCorp.
   security reviewer's decision (overlay at authorization time, approver model 3).
   Docs only.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
-
 * Added a design RFC for runbooks (`docs/rfc/runbooks.md`) recording the security
   reviewer's binding-only parameter decision. Docs only; nothing is enabled.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
+
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
