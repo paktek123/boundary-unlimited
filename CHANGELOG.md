@@ -242,6 +242,11 @@ fork, which is independent of HashiCorp.
   security reviewer's decision (overlay at authorization time, approver model 3).
   Docs only.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
+* Added `accessrequest.Service` composing the state machine, approval policy,
+  audit events and notifier behind `Create`, `Approve`, `Deny` and `Cancel`
+  (audit emitted before commit and fail closed; notifier never sees the
+  justification and cannot fail the operation). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/191))
 
 ## 0.21.3 (2026/04/28)
 
