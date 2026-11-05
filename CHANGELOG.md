@@ -242,6 +242,12 @@ fork, which is independent of HashiCorp.
   security reviewer's decision (overlay at authorization time, approver model 3).
   Docs only.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
+* Added the optional `WithGuardrails` option for the SSH session handler
+  (`internal/daemon/worker/proxy/ssh`): exec requests are evaluated before they
+  are forwarded, block/review forward nothing, shell and subsystem requests are
+  refused unless `WithGuardrailAllowInteractive`, and the session ends after the
+  Nth block. Off by default; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/184))
 * Added `MergeOverlay` and `GrantOverlaySource` (`internal/accessrequest`), a fail-closed
   merge of approved, unexpired access-request grants after base grant resolution.
   Library only; not wired.
