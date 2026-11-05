@@ -246,6 +246,9 @@ fork, which is independent of HashiCorp.
   merge of approved, unexpired access-request grants after base grant resolution.
   Library only; not wired.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/190))
+* Added a design RFC for runbooks (`docs/rfc/runbooks.md`) recording the security
+  reviewer's binding-only parameter decision. Docs only; nothing is enabled.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
 
 ## 0.21.3 (2026/04/28)
 
