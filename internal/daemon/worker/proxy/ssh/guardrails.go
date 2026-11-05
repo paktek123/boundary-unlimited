@@ -224,11 +224,11 @@ func (g *guardChannel) exec(wantReply bool, payload []byte) (bool, error) {
 		g.conn.mu.Lock()
 		g.conn.terminated = true
 		g.conn.mu.Unlock()
-		_ = g.Channel.Close()
-		_ = g.conn.UpstreamConn.Close()
+		_ = g.Close()
+		_ = g.conn.Close()
 		return false, errGuardrails
 	}
-	_ = g.Channel.Close()
+	_ = g.Close()
 	return false, errGuardrails
 }
 
