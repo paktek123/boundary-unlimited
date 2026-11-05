@@ -128,7 +128,7 @@ func (s *Service) Create(ctx context.Context, actor Actor, scopeId string, grant
 // must still match the hash recorded at creation.
 func (s *Service) Approve(ctx context.Context, actor Actor, id string) (Request, error) {
 	return s.decide(ctx, id, NotifyApproved, func(r Request, now time.Time) (Request, Event, error) {
-		out, err := RecordApproval(r, ApproverContext{Id: actor.Id, CanApprove: actor.CanApprove, Grants: actor.Grants}, now, s.cfg.Policy, s.cfg.Options...)
+		out, err := RecordApproval(r, ApproverContext(actor), now, s.cfg.Policy, s.cfg.Options...)
 		if err != nil {
 			return r, Event{}, err
 		}
