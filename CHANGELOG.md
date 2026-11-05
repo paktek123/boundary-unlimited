@@ -242,6 +242,10 @@ fork, which is independent of HashiCorp.
   security reviewer's decision (overlay at authorization time, approver model 3).
   Docs only.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
+* Added `MergeOverlay` and `GrantOverlaySource` (`internal/accessrequest`), a fail-closed
+  merge of approved, unexpired access-request grants after base grant resolution.
+  Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/190))
 
 ## 0.21.3 (2026/04/28)
 
