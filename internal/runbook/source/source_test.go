@@ -62,7 +62,7 @@ func TestGet(t *testing.T) {
 	ctx := context.Background()
 	f := &FakeFetcher{}
 	f.Add(goodSHA, "rb/a.sh", []byte("echo hi\n"))
-	b, pin, err := Get(ctx, f, "https://example.invalid/r.git", goodSHA, "rb/a.sh", Limits{})
+	b, pin, err := Get(ctx, f, "https://example.invalid/r.git", goodSHA, "rb/a.sh", Limits{AllowUncountedTree: true})
 	if err != nil || string(b) != "echo hi\n" || pin.SHA != goodSHA {
 		t.Fatalf("Get: %v %v", pin, err)
 	}
@@ -97,7 +97,7 @@ func TestGet(t *testing.T) {
 	if _, _, err := Get(ctx, nil, "u", goodSHA, "a", Limits{}); err == nil {
 		t.Fatal("nil fetcher accepted")
 	}
-	if _, _, err := Get(ctx, f, "", goodSHA, "rb/a.sh", Limits{}); err == nil {
+	if _, _, err := Get(ctx, f, "", goodSHA, "rb/a.sh", Limits{AllowUncountedTree: true}); err == nil {
 		t.Fatal("empty repo URL accepted")
 	}
 }
@@ -115,4 +115,18 @@ func TestFakeFetcherConformance(t *testing.T) {
 	f := &FakeFetcher{}
 	f.Add(goodSHA, "rb/a.sh", []byte("echo hi\n"))
 	RunFetcherConformance(t, f, "https://example.invalid/r.git", goodSHA, "rb/a.sh", []byte("echo hi\n"))
+}
+
+type uncounted struct{ Fetcher }
+
+func TestGetRefusesFetcherWithoutTreeCounter(t *testing.T) {
+	f := &FakeFetcher{}
+	f.Add(goodSHA, "rb/a.sh", []byte("x"))
+	u := uncounted{f}
+	if _, _, err := Get(context.Background(), u, "u", goodSHA, "rb/a.sh", Limits{}); err == nil {
+		t.Fatal("fetcher without TreeCounter accepted")
+	}
+	if _, _, err := Get(context.Background(), u, "u", goodSHA, "rb/a.sh", Limits{AllowUncountedTree: true}); err != nil {
+		t.Fatal(err)
+	}
 }

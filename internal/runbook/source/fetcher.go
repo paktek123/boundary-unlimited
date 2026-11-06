@@ -19,6 +19,10 @@ const (
 type Limits struct {
 	MaxScriptBytes int // zero means DefaultMaxScriptBytes
 	MaxFiles       int // zero means DefaultMaxFiles; applies to the tree walked
+	// AllowUncountedTree lets Get accept a Fetcher that does not implement
+	// TreeCounter, in which case MaxFiles is not enforced by Get. The zero
+	// value fails closed: such a fetcher is refused. Only tests use it.
+	AllowUncountedTree bool
 }
 
 func (l Limits) withDefaults() Limits {
@@ -32,7 +36,10 @@ func (l Limits) withDefaults() Limits {
 }
 
 // Fetcher retrieves the bytes of one file at one commit. See the package
-// documentation for the contract real implementations must meet.
+// documentation for the contract real implementations must meet. Fetch must
+// stop reading once it has read more than Limits.MaxScriptBytes bytes and
+// return an error, so an oversize blob is never held in memory whole; Get also
+// checks the size of the result.
 type Fetcher interface {
 	Fetch(ctx context.Context, repoURL, sha, path string) ([]byte, error)
 }
@@ -60,7 +67,11 @@ func Get(ctx context.Context, f Fetcher, repoURL, sha, path string, lim Limits) 
 	if err := ValidatePath(path); err != nil {
 		return nil, Pin{}, err
 	}
-	if tc, ok := f.(TreeCounter); ok {
+	tc, ok := f.(TreeCounter)
+	if !ok && !lim.AllowUncountedTree {
+		return nil, Pin{}, errors.New("source: fetcher cannot report the file count (TreeCounter required)")
+	}
+	if ok {
 		n, err := tc.FileCount(ctx, repoURL, sha)
 		if err != nil {
 			return nil, Pin{}, fmt.Errorf("source: counting files: %w", err)

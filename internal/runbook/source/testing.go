@@ -4,6 +4,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"testing"
 )
@@ -15,18 +16,21 @@ func RunFetcherConformance(t *testing.T, f Fetcher, repoURL, sha, path string, c
 	t.Helper()
 	ctx := context.Background()
 	for _, bad := range []string{"main", "v1.0.0", "abc1234", "HEAD", "refs/heads/main", sha[:39], sha + "0", "ABCDEF" + sha[6:]} {
-		if _, _, err := Get(ctx, f, repoURL, bad, path, Limits{}); err == nil {
+		if _, _, err := Get(ctx, f, repoURL, bad, path, Limits{AllowUncountedTree: true}); err == nil {
 			t.Errorf("floating or malformed ref %q accepted", bad)
 		}
 	}
 	for _, bad := range []string{"", "../x.sh", "/etc/passwd", "a/../../x", ".git/config", ".gitmodules", "x\\y"} {
-		if _, _, err := Get(ctx, f, repoURL, sha, bad, Limits{}); err == nil {
+		if _, _, err := Get(ctx, f, repoURL, sha, bad, Limits{AllowUncountedTree: true}); err == nil {
 			t.Errorf("bad path %q accepted", bad)
 		}
 	}
-	b, pin, err := Get(ctx, f, repoURL, sha, path, Limits{})
+	b, pin, err := Get(ctx, f, repoURL, sha, path, Limits{AllowUncountedTree: true})
 	if err != nil {
 		t.Fatalf("known file: %v", err)
+	}
+	if !bytes.Equal(b, content) {
+		t.Error("fetcher returned unexpected bytes")
 	}
 	if err := Verify(pin, b); err != nil {
 		t.Errorf("fresh pin does not verify: %v", err)
@@ -36,8 +40,7 @@ func RunFetcherConformance(t *testing.T, f Fetcher, repoURL, sha, path string, c
 	}
 	cctx, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, _, err := Get(cctx, f, repoURL, sha, path, Limits{}); err == nil {
+	if _, _, err := Get(cctx, f, repoURL, sha, path, Limits{AllowUncountedTree: true}); err == nil {
 		t.Error("cancelled context did not fail")
 	}
-	_ = content
 }
