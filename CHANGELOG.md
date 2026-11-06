@@ -260,6 +260,7 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for runbooks (`docs/rfc/runbooks.md`) recording the security
   reviewer's binding-only parameter decision. Docs only; nothing is enabled.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
+* runbook: Add `internal/runbook`, a pure-Go runbook definition model and parameter validator (types, RE2 regex, enum/int/bool, length caps, reserved variable names, fail closed, values never in errors). Not wired: nothing accepts runbooks yet. Refs #197.
 
 ## 0.21.3 (2026/04/28)
 
