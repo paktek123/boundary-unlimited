@@ -39,6 +39,8 @@ func TestLint(t *testing.T) {
 		{"unterminated backtick", "x=`echo hi\n", []Finding{{RuleUntokenisable, 1, ""}}},
 		{"nul byte", "echo\x00hi\n", []Finding{{RuleUntokenisable, 1, ""}}},
 		{"invalid utf8", "echo \xff\n", []Finding{{RuleUntokenisable, 1, ""}}},
+		{"undeclared in eval still flags eval", "eval \"echo $HOME\"\n", []Finding{{RuleEval, 1, ""}}},
+		{"undeclared in sh -c passes", "sh -c \"$HOME\"\n", nil},
 		{"escaped dollar parsed as escape", "echo \\$HOST\n", nil},
 	}
 	for _, tt := range tests {

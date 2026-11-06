@@ -118,8 +118,6 @@ func Lint(script []byte, paramNames []string) (out []Finding) {
 			}
 			line++
 			codeLine = line
-			code.WriteByte(c)
-			code.Reset()
 			i++
 		case c == '\\' && !inSingle:
 			code.WriteByte(c)
