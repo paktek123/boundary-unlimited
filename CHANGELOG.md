@@ -256,6 +256,7 @@ fork, which is independent of HashiCorp.
   reviewer's binding-only parameter decision. Docs only; nothing is enabled.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
 * runbook: Add `internal/runbook`, a pure-Go runbook definition model and parameter validator (types, RE2 regex, enum/int/bool, length caps, reserved variable names, fail closed, values never in errors). Not wired: nothing accepts runbooks yet. Refs #197.
+* runbook: Add `runbook.Render`, a binding-only renderer: the pinned script is passed byte for byte and parameter values travel only as `RB_`-namespaced environment variables (no text substitution); `Invocation` never prints values. Not wired. Refs #198.
 
 ## 0.21.3 (2026/04/28)
 
