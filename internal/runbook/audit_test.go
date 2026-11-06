@@ -156,3 +156,12 @@ func TestRecordingEmitter(t *testing.T) {
 		t.Error("emit error must propagate and record nothing")
 	}
 }
+
+// A parameter name at the compile-time cap must still produce an event.
+func TestNewEventAcceptsMaxLengthParamName(t *testing.T) {
+	name := "A" + strings.Repeat("B", MaxNameLen-1)
+	v := validatedWith(t, map[string]string{name: "x"})
+	if _, err := NewEvent(baseInput(v)); err != nil {
+		t.Errorf("max-length name rejected: %v", err)
+	}
+}

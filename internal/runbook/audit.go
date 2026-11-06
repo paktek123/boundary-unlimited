@@ -42,9 +42,8 @@ var (
 
 // Limits that keep events small and free of smuggled free text.
 const (
-	maxIDLen        = 256
-	maxAuditParams  = 64
-	maxAuditNameLen = 64
+	maxIDLen       = 256
+	maxAuditParams = 64
 )
 
 // Event is a names-only audit event (safeguard 6 of the security decision on
@@ -182,7 +181,7 @@ func NewEvent(in EventInput) (e Event, err error) {
 		return Event{}, ErrInvalidAuditInput
 	}
 	for _, n := range names {
-		if !paramNameRE.MatchString(n) || len(n) > maxAuditNameLen {
+		if !paramNameRE.MatchString(n) || len(n) > MaxNameLen {
 			return Event{}, ErrInvalidAuditInput
 		}
 	}
