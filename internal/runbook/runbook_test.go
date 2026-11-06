@@ -30,6 +30,7 @@ func TestCompileRejects(t *testing.T) {
 		{"reserved prefix", baseDef(Parameter{Name: "LD_FOO", Type: TypeBool})},
 		{"duplicate", baseDef(str, str)},
 		{"string without regex", baseDef(Parameter{Name: "HOST", Type: TypeString})},
+		{"unbalanced regex escapes anchoring", baseDef(Parameter{Name: "HOST", Type: TypeString, Regex: `x)|(.*`})},
 		{"bad regex", baseDef(Parameter{Name: "HOST", Type: TypeString, Regex: `(?=x)`})},
 		{"enum without values", baseDef(Parameter{Name: "ENVNAME", Type: TypeEnum})},
 		{"enum duplicate", baseDef(Parameter{Name: "ENVNAME", Type: TypeEnum, AllowedValues: []string{"a", "a"}})},
@@ -171,12 +172,37 @@ func TestCanaryNeverInErrorsOrFormatting(t *testing.T) {
 }
 
 func TestReservedList(t *testing.T) {
-	for _, n := range []string{"PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "IFS", "BASH_ENV", "ENV", "SHELLOPTS", "PS4", "PYTHONPATH", "HOME", "SHELL"} {
+	for _, n := range []string{"PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "IFS", "BASH_ENV", "ENV", "SHELLOPTS", "PS4", "PYTHONPATH", "HOME", "SHELL", "GCONV_PATH", "MALLOC_ARENA_MAX", "NODE_X", "TZ", "PS2"} {
 		if !IsReservedName(n) {
 			t.Errorf("%s not reserved", n)
 		}
 	}
 	if IsReservedName("HOST") {
 		t.Error("HOST reserved")
+	}
+}
+
+func TestCompiledIsImmutable(t *testing.T) {
+	min, max := int64(1), int64(5)
+	vals := []string{"a", "b"}
+	d := baseDef(
+		Parameter{Name: "N", Type: TypeInt, Min: &min, Max: &max},
+		Parameter{Name: "E", Type: TypeEnum, AllowedValues: vals},
+	)
+	c, err := Compile(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	max = 1000
+	vals[0] = "evil"
+	d.Parameters[0].Max = &max
+	if _, err := c.Validate(map[string]string{"N": "500"}); err == nil {
+		t.Fatal("caller mutation of Max changed validation")
+	}
+	if _, err := c.Validate(map[string]string{"E": "evil"}); err == nil {
+		t.Fatal("caller mutation of AllowedValues changed validation")
+	}
+	if _, err := c.Validate(map[string]string{"E": "a", "N": "3"}); err != nil {
+		t.Fatal(err)
 	}
 }

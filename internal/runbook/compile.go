@@ -44,17 +44,18 @@ var reservedNames = map[string]struct{}{
 	"BASH_ENV": {}, "ENV": {}, "SHELLOPTS": {}, "BASHOPTS": {}, "PS1": {}, "PS4": {},
 	"PROMPT_COMMAND": {}, "CDPATH": {}, "GLOBIGNORE": {}, "PYTHONPATH": {},
 	"PYTHONSTARTUP": {}, "PERL5LIB": {}, "PERL5OPT": {}, "RUBYLIB": {}, "RUBYOPT": {},
-	"NODE_OPTIONS": {}, "HOME": {}, "SHELL": {}, "USER": {}, "LOGNAME": {},
+	"NODE_OPTIONS": {}, "PS2": {}, "PS3": {}, "MAIL": {}, "MAILPATH": {}, "FPATH": {},
+	"GCONV_PATH": {}, "LOCPATH": {}, "NLSPATH": {}, "TZ": {}, "HISTFILE": {}, "HOME": {}, "SHELL": {}, "USER": {}, "LOGNAME": {},
 	"TMPDIR": {}, "LANG": {}, "TERM": {}, "PWD": {}, "OLDPWD": {},
 }
 
 // IsReservedName reports whether name may not be used as a parameter name.
-// Names starting with LD_, BASH_ or DYLD_ are reserved as well.
+// Names starting with LD_, BASH_, DYLD_, GCONV_, MALLOC_ or NODE_ are reserved as well.
 func IsReservedName(name string) bool {
 	if _, ok := reservedNames[name]; ok {
 		return true
 	}
-	for _, p := range []string{"LD_", "BASH_", "DYLD_"} {
+	for _, p := range []string{"LD_", "BASH_", "DYLD_", "GCONV_", "MALLOC_", "NODE_"} {
 		if strings.HasPrefix(name, p) {
 			return true
 		}
@@ -125,7 +126,7 @@ func Compile(def Definition, _ ...Option) (c *Compiled, err error) {
 		return nil, errors.New("runbook: too many parameters")
 	}
 	out := &Compiled{def: cloneDef(def), byName: map[string]int{}}
-	for i, p := range def.Parameters {
+	for i, p := range out.def.Parameters {
 		cp, err := compileParam(p)
 		if err != nil {
 			return nil, err
@@ -170,6 +171,12 @@ func compileParam(p Parameter) (compiledParam, error) {
 	case TypeString:
 		if p.Regex == "" || len(p.Regex) > MaxRegexLen {
 			return cp, fmt.Errorf("runbook: string parameter %q needs a regex of at most %d bytes", p.Name, MaxRegexLen)
+		}
+		// Compile the author's regex on its own first: spliced into the
+		// anchored form, an unbalanced ")" such as `x)|(.*` would otherwise
+		// compile and escape the implicit anchoring.
+		if _, err := regexp.Compile(p.Regex); err != nil {
+			return cp, fmt.Errorf("runbook: parameter %q has an invalid RE2 regex", p.Name)
 		}
 		re, err := regexp.Compile(`\A(?:` + p.Regex + `)\z`)
 		if err != nil {
@@ -217,10 +224,19 @@ func cloneDef(d Definition) Definition {
 	ps := make([]Parameter, len(d.Parameters))
 	for i, p := range d.Parameters {
 		p.AllowedValues = append([]string(nil), p.AllowedValues...)
+		if p.Min != nil {
+			v := *p.Min
+			p.Min = &v
+		}
+		if p.Max != nil {
+			v := *p.Max
+			p.Max = &v
+		}
 		ps[i] = p
 	}
 	d.Parameters = ps
-	sort.SliceStable(d.Selector.TargetIDs, func(i, j int) bool { return d.Selector.TargetIDs[i] < d.Selector.TargetIDs[j] })
+	sort.Strings(d.Selector.TargetIDs)
+	sort.Strings(d.Selector.ScopeIDs)
 	return d
 }
 
