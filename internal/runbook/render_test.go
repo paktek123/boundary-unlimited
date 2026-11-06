@@ -44,7 +44,7 @@ func TestRenderGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	evil := []string{
-		"a;rm -rf /", "a'b\"c", "$(id)", "`id`", "a b c", "x' OR '1'='1", "${IFS}", "a|b&c>d", "-rf", "\\",
+		"a;rm -rf /", "a'b\"c", "$(id)", "`id`", "a b c", "x' OR '1'='1", "${IFS}", "a|b&c>d", "-rf", "\\", "x'; DROP TABLE t;--",
 	}
 	for _, e := range evil {
 		v, err := c.Validate(map[string]string{"HOST": e, "N": "3"})
@@ -70,6 +70,19 @@ func TestRenderGolden(t *testing.T) {
 	}
 	if !bytes.Equal(base.Script, c.def.Script) {
 		t.Error("script not byte-identical to pinned script")
+	}
+}
+
+// Newlines are control characters: the validator rejects them, and Render
+// rejects them again if a corrupt Validated reaches it.
+func TestRenderRejectsNewline(t *testing.T) {
+	c := renderDef(t)
+	if _, err := c.Validate(map[string]string{"HOST": "a\nb"}); err == nil {
+		t.Error("validator must reject newline")
+	}
+	bad := Validated{vals: map[string]string{"HOST": "a\nb"}, order: []string{"HOST"}}
+	if _, err := Render(c, bad); !errors.Is(err, ErrRender) {
+		t.Errorf("render must reject newline, err=%v", err)
 	}
 }
 
