@@ -65,9 +65,10 @@ func IsReservedName(name string) bool {
 
 // Compiled is a validated Definition ready to validate run-time values.
 type Compiled struct {
-	def    Definition
-	params []compiledParam
-	byName map[string]int
+	def          Definition
+	params       []compiledParam
+	byName       map[string]int
+	lintMarkUsed bool
 }
 
 type compiledParam struct {
@@ -75,6 +76,10 @@ type compiledParam struct {
 	re     *regexp.Regexp // anchored; nil unless TypeString
 	maxLen int
 }
+
+// LintMarkerUsed reports whether Compile accepted lint findings only because
+// the caller supplied WithLintPassMarker.
+func (c *Compiled) LintMarkerUsed() bool { return c.lintMarkUsed }
 
 // Name returns the runbook name.
 func (c *Compiled) Name() string { return c.def.Name }
@@ -96,15 +101,21 @@ func (c *Compiled) ParamNames() []string {
 	return out
 }
 
-// Option configures Compile. None exist yet; the type reserves the signature.
+// Option configures Compile.
 type Option func(*options)
 
-type options struct{}
+type options struct{ lintPass bool }
+
+// WithLintPassMarker lets Compile accept a script that has lint findings.
+// Only the caller can supply it; a script body cannot. Whether it was needed
+// is reported by Compiled.LintMarkerUsed so a later slice can record it in
+// audit. Lint is a tripwire, not a guarantee.
+func WithLintPassMarker() Option { return func(o *options) { o.lintPass = true } }
 
 // Compile validates def and returns a Compiled definition. It fails closed:
 // any problem rejects the whole definition. Errors name the parameter, never
 // a value.
-func Compile(def Definition, _ ...Option) (c *Compiled, err error) {
+func Compile(def Definition, opts ...Option) (c *Compiled, err error) {
 	defer func() {
 		if recover() != nil {
 			c, err = nil, errors.New("runbook: internal error compiling definition")
@@ -125,6 +136,12 @@ func Compile(def Definition, _ ...Option) (c *Compiled, err error) {
 	if len(def.Parameters) > MaxParameters {
 		return nil, errors.New("runbook: too many parameters")
 	}
+	var o options
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&o)
+		}
+	}
 	out := &Compiled{def: cloneDef(def), byName: map[string]int{}}
 	for i, p := range out.def.Parameters {
 		cp, err := compileParam(p)
@@ -136,6 +153,13 @@ func Compile(def Definition, _ ...Option) (c *Compiled, err error) {
 		}
 		out.byName[p.Name] = i
 		out.params = append(out.params, cp)
+	}
+	// Lint tripwire: fail closed unless the caller supplied the marker.
+	if findings := Lint(out.def.Script, out.ParamNames()); len(findings) > 0 {
+		if !o.lintPass {
+			return nil, fmt.Errorf("runbook: script failed lint with %d finding(s), first rule %s at line %d", len(findings), findings[0].Rule, findings[0].Line)
+		}
+		out.lintMarkUsed = true
 	}
 	// A default must pass the same validation as a supplied value.
 	for i := range out.params {
