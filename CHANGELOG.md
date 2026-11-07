@@ -265,6 +265,7 @@ fork, which is independent of HashiCorp.
 * runbook: Add `runbook.Render`, a binding-only renderer: the pinned script is passed byte for byte and parameter values travel only as `RB_`-namespaced environment variables (no text substitution); `Invocation` never prints values. Not wired. Refs #198.
 * runbook: Add `runbook.Lint`, a static tripwire for unsafe re-evaluation in script bodies (eval, `sh -c` with a parameter, sourcing a parameter, command substitution around a parameter, unquoted expansion), and make `Compile` reject findings unless the caller passes `WithLintPassMarker`. Lint is a tripwire, not a guarantee. Not wired. Refs #199.
 * runbook: Add names-only audit events (`runbook.run_requested/started/finished/rejected`) to `internal/runbook` with canary leak tests; events carry parameter names, never values or value hashes. Not wired. Refs #200.
+* event: Add `internal/event/sinkqueue`, a pure-Go bounded batching queue with retry/backoff for event sinks that honours the delivery guarantee (Enforced fails closed, BestEffort drops oldest and counts drops). Library only, no network, not wired. ([Issue #207](https://github.com/paktek123/boundary-unlimited/issues/207))
 
 ## 0.21.3 (2026/04/28)
 
