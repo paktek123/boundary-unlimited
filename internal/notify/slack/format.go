@@ -61,7 +61,7 @@ func Escape(s string) string {
 		case '`':
 			b.WriteString("'")
 		case '@':
-			b.WriteString("@​")
+			b.WriteString("@\u200b")
 		default:
 			b.WriteRune(r)
 		}
