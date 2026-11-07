@@ -242,6 +242,11 @@ fork, which is independent of HashiCorp.
   security reviewer's decision (overlay at authorization time, approver model 3).
   Docs only.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/15))
+* Added `accessrequest.Service` composing the state machine, approval policy,
+  audit events and notifier behind `Create`, `Approve`, `Deny` and `Cancel`
+  (audit emitted before commit and fail closed; notifier never sees the
+  justification and cannot fail the operation). Library only; not wired.
+  ([Issue](https://github.com/paktek123/boundary-unlimited/issues/191))
 * Added the optional `WithGuardrails` option for the SSH session handler
   (`internal/daemon/worker/proxy/ssh`): exec requests are evaluated before they
   are forwarded, block/review forward nothing, shell and subsystem requests are
@@ -255,6 +260,7 @@ fork, which is independent of HashiCorp.
 * Added a design RFC for runbooks (`docs/rfc/runbooks.md`) recording the security
   reviewer's binding-only parameter decision. Docs only; nothing is enabled.
   ([Issue](https://github.com/paktek123/boundary-unlimited/issues/192))
+* runbook: Add `internal/runbook/source`, a pure-Go pinned-commit Git source library (full 40-hex SHA only, path checks, size/file-count limits, script-hash pin with pre-execution verification, fake fetcher and conformance helper). No git or network code; not wired. Refs #201.
 * runbook: Add `internal/runbook`, a pure-Go runbook definition model and parameter validator (types, RE2 regex, enum/int/bool, length caps, reserved variable names, fail closed, values never in errors). Not wired: nothing accepts runbooks yet. Refs #197.
 * runbook: Add names-only audit events (`runbook.run_requested/started/finished/rejected`) to `internal/runbook` with canary leak tests; events carry parameter names, never values or value hashes. Not wired. Refs #200.
 
