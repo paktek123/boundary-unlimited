@@ -263,6 +263,7 @@ fork, which is independent of HashiCorp.
 * runbook: Add `internal/runbook/source`, a pure-Go pinned-commit Git source library (full 40-hex SHA only, path checks, size/file-count limits, script-hash pin with pre-execution verification, fake fetcher and conformance helper). No git or network code; not wired. Refs #201.
 * runbook: Add `internal/runbook`, a pure-Go runbook definition model and parameter validator (types, RE2 regex, enum/int/bool, length caps, reserved variable names, fail closed, values never in errors). Not wired: nothing accepts runbooks yet. Refs #197.
 * runbook: Add `runbook.Lint`, a static tripwire for unsafe re-evaluation in script bodies (eval, `sh -c` with a parameter, sourcing a parameter, command substitution around a parameter, unquoted expansion), and make `Compile` reject findings unless the caller passes `WithLintPassMarker`. Lint is a tripwire, not a guarantee. Not wired. Refs #199.
+* runbook: Add names-only audit events (`runbook.run_requested/started/finished/rejected`) to `internal/runbook` with canary leak tests; events carry parameter names, never values or value hashes. Not wired. Refs #200.
 
 ## 0.21.3 (2026/04/28)
 
