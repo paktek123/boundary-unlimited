@@ -9,3 +9,7 @@
 // The package is a pure library; nothing references it, so it enables nothing
 // by itself.
 package runbook
+
+// Lint is a tripwire, not a guarantee: it catches common unsafe re-evaluation
+// patterns in script bodies but can be defeated. Binding-only delivery of
+// values remains the actual protection.
