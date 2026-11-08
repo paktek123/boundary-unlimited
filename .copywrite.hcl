@@ -24,5 +24,19 @@ project {
     "internal/proto/controller/custom_options/**", 
     "internal/proto/controller/api/**",
     "internal/proto/worker/proxy/v1/**",
+
+    # written for Boundary Unlimited and licensed under MIT (see NOTICE.md);
+    # copywrite would otherwise rewrite these headers to the upstream license.
+    "internal/accessrequest/**",
+    "internal/runbook/**",
+    "internal/masking/**",
+    "internal/guardrails/**",
+    "internal/notify/**",
+    "internal/event/syslogfmt/**",
+    "internal/event/sinkqueue/**",
+    "internal/daemon/worker/recording/finalize/**",
+    "internal/daemon/worker/recording/scratch/**",
+    "internal/daemon/worker/recording/upload/**",
+    "internal/daemon/worker/recording/bsrfs/**",
   ]
 }

@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package masking is a pure-Go streaming redactor for session data. It is a
 // standalone library: nothing in the controller or worker uses it yet, so it

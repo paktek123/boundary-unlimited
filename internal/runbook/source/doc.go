@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package source defines how a runbook script is obtained from a Git
 // repository (see docs/rfc/runbooks.md, "Source of runbooks"). It holds the

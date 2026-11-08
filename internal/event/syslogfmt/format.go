@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package syslogfmt is a pure RFC 5424 message formatter for event sinks. It
 // opens no sockets and reads no configuration; nothing in the event system

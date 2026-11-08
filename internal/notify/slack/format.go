@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package slack formats notify.Event values as Slack incoming-webhook Block
 // Kit payloads. It is a pure function: no network access and no wiring.
