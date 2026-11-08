@@ -25,6 +25,7 @@ files in:
 - `internal/event/syslogfmt`
 - `internal/event/sinkqueue`
 - `internal/daemon/worker/recording/{finalize,scratch,upload,bsrfs}`
+- `internal/target/ssh/hostkeypolicy`
 - `internal/daemon/worker/proxy/ssh` and `internal/daemon/worker/proxy/kube`
 - `internal/bsr/playback` and `internal/bsr/ssh/recorder`
 - in `internal/cmd/commands/connect`: `kube_credentials*.go`, `kubeconfig*.go`,
@@ -45,9 +46,21 @@ keeps its original copyright header and license:
 - The text of the Business Source License 1.1 that was the repository's
   `LICENSE` before the MIT text replaced it is available from git history
   (`git show 7709ad649^:LICENSE`) and at <https://mariadb.com/bsl11/>.
-- Files adapted from upstream files (for example the `ssh` and `rdp` target
-  types, which are copied from the `tcp` target type, and their handlers) are
-  derivative works and also keep the upstream headers.
+- Files adapted from upstream files (the `ssh` and `rdp` target types in
+  `internal/target/` and their handlers under
+  `internal/daemon/controller/handlers/targets/`, which were built by copying the
+  `tcp` target type and then modifying it) are derivative works. They keep the
+  upstream copyright line and `BUSL-1.1`, and carry an extra line crediting the
+  fork's modifications:
+
+  ```go
+  // Copyright IBM Corp. 2020, 2026
+  // Copyright Boundary Unlimited contributors 2026 (modifications)
+  // SPDX-License-Identifier: BUSL-1.1
+  ```
+
+  The extra line records who changed the file. It does not change the license of
+  the file.
 
 ## New files
 

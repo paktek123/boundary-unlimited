@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package hostkeypolicy validates the upstream SSH host key policy values
 // (pinned host keys and host CA) that a target may carry. It is pure

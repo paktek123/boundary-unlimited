@@ -1,4 +1,5 @@
 // Copyright IBM Corp. 2020, 2026
+// Copyright Boundary Unlimited contributors 2026 (modifications)
 // SPDX-License-Identifier: BUSL-1.1
 
 package ssh_test
