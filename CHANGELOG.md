@@ -277,6 +277,7 @@ fork, which is independent of HashiCorp.
 * licensing: Go files written from scratch for this fork (access requests, runbooks, masking, guardrails, notifications, event sink libraries, recording finalisation) now carry a `Copyright Boundary Unlimited contributors` / `SPDX-License-Identifier: MIT` header instead of the upstream IBM/BUSL one. Upstream and adapted files are unchanged. See `NOTICE.md`.
 * licensing: the same MIT header now also covers the worker SSH proxy and Kubernetes proxy, BSR playback and SSH recorder, and the new `boundary connect` Kubernetes and SSH pinning files; `NOTICE.md` now lists the MIT-licensed files and points to the original BUSL text for upstream files.
 
+* notify: Add `teams.NewSender`, a Teams webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `teams.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
