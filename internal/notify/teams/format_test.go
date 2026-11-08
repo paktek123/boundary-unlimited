@@ -51,3 +51,13 @@ func TestNoActionsOrURLs(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(got), "Action.")
 }
+
+func TestFormatGoldenSpecialChars(t *testing.T) {
+	e := ev()
+	e.Type = "access_request.approved"
+	e.Summary = "a<b & c"
+	got, err := Format(e)
+	require.NoError(t, err)
+	want := `{"type":"message","attachments":[{"contentType":"application/vnd.microsoft.card.adaptive","content":{"$schema":"http://adaptivecards.io/schemas/adaptive-card.json","type":"AdaptiveCard","version":"1.4","body":[{"type":"TextBlock","text":"access\\_request.approved","wrap":true,"weight":"Bolder","size":"Medium"},{"type":"TextBlock","text":"a\u0026lt;b \u0026amp; c","wrap":true},{"type":"FactSet","facts":[{"title":"Request","value":"ar\\_123"},{"title":"Scope","value":"p\\_1"},{"title":"Time","value":"2026-01-02T03:04:05Z"}]}]}}]}`
+	assert.Equal(t, want, string(got))
+}
