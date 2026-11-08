@@ -49,6 +49,7 @@ type options struct {
 	maxLen      int
 	replacement string
 	detectors   []Detector
+	onRedact    func(detector string, n int)
 }
 
 // Option configures a Redactor.
@@ -62,6 +63,17 @@ func WithReplacement(t string) Option { return func(o *options) { o.replacement 
 
 // WithDetectors replaces the default detector set.
 func WithDetectors(d ...Detector) Option { return func(o *options) { o.detectors = d } }
+
+// WithOnRedact registers a callback that receives, for every detector that
+// replaced at least one match while processing a chunk, the detector name and
+// the number of replacements. Only counts are reported: never the matched
+// bytes, offsets or lengths. Each replacement is counted exactly once, even
+// when the secret is split across Write calls, because a match is counted only
+// when it is emitted. The callback is invoked synchronously, before the
+// redacted output is written, in sorted detector order. A panic in the callback
+// is treated as a redactor failure (ErrInternal, held bytes wiped). A nil
+// callback disables counting.
+func WithOnRedact(f func(detector string, n int)) Option { return func(o *options) { o.onRedact = f } }
 
 // Redactor wraps an io.Writer and redacts sensitive data, including data
 // split across Write calls, by holding back the last MaxPatternLen bytes
@@ -272,15 +284,43 @@ func (r *Redactor) process(final bool) error {
 	}
 	var out []byte
 	pos := 0
+	var counts map[string]int
 	for _, s := range spans {
 		if s.End > hold {
 			break
+		}
+		if r.opt.onRedact != nil {
+			if counts == nil {
+				counts = map[string]int{}
+			}
+			counts[s.name]++
 		}
 		out = append(out, r.pending[pos:s.Start]...)
 		out = append(out, strings.ReplaceAll(r.opt.replacement, "{detector}", s.name)...)
 		pos = s.End
 	}
 	out = append(out, r.pending[pos:hold]...)
+	if len(counts) > 0 {
+		names := make([]string, 0, len(counts))
+		for k := range counts {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		for _, k := range names {
+			// A panic here is recovered by Write/Close, which fail the
+			// redactor and wipe held bytes; out is cleared by the defer below
+			// only once registered, so clear it explicitly on this path.
+			func() {
+				defer func() {
+					if p := recover(); p != nil {
+						clear(out)
+						panic(ErrInternal)
+					}
+				}()
+				r.opt.onRedact(k, counts[k])
+			}()
+		}
+	}
 	if len(out) > 0 {
 		defer clear(out)
 		if _, err := r.w.Write(out); err != nil {

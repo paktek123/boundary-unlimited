@@ -192,3 +192,14 @@ func (a *Aggregator) flushLocked(ctx context.Context, end time.Time) error {
 	}
 	return nil
 }
+
+// RedactorCallback returns a function suitable for WithOnRedact that feeds the
+// Aggregator with the counts of the given rule. The callback has no context or
+// error return, so Add runs with context.Background and an emit failure is
+// retained inside the Aggregator (counts stay unemitted) and reported by the
+// next Add or Flush call. Only the rule id, detector name and count are used.
+func (a *Aggregator) RedactorCallback(ruleId string) func(detector string, n int) {
+	return func(detector string, n int) {
+		_ = a.Add(context.Background(), ruleId, detector, n)
+	}
+}
