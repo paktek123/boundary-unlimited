@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // This file generates the per-session ephemeral host key presented by the
 // worker's client-facing SSH server. It is not wired to any session flow.

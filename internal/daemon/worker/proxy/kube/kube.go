@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package kube relays an already-authorized client connection to a Kubernetes
 // API server over mandatory, verified TLS. It takes all of its inputs as plain

@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package recorder records SSH channel traffic into a BSR (Boundary Session
 // Recording) connection container using internal/bsr and internal/bsr/ssh.

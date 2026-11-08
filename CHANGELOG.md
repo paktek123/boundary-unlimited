@@ -275,6 +275,7 @@ fork, which is independent of HashiCorp.
 * notify: Add `internal/notify/teams`, a pure, not-yet-wired Microsoft Teams Adaptive Card formatter for `notify.Event` (markdown/mention-escaped, no actions or URLs). No behaviour change ([#210](https://github.com/paktek123/boundary-unlimited/issues/210)).
 * notify: Add `internal/notify/slack`, a pure, not-yet-wired Slack Block Kit formatter for `notify.Event` (mrkdwn-escaped, mention-neutralised, rejects over-long content, no buttons or URLs). No behaviour change ([#209](https://github.com/paktek123/boundary-unlimited/issues/209)).
 * licensing: Go files written from scratch for this fork (access requests, runbooks, masking, guardrails, notifications, event sink libraries, recording finalisation) now carry a `Copyright Boundary Unlimited contributors` / `SPDX-License-Identifier: MIT` header instead of the upstream IBM/BUSL one. Upstream and adapted files are unchanged. See `NOTICE.md`.
+* licensing: the same MIT header now also covers the worker SSH proxy and Kubernetes proxy, BSR playback and SSH recorder, and the new `boundary connect` Kubernetes and SSH pinning files; `NOTICE.md` now lists the MIT-licensed files and points to the original BUSL text for upstream files.
 
 ## 0.21.3 (2026/04/28)
 

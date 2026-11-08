@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package hostkey builds an ssh.HostKeyCallback from a policy of pinned host
 // keys and/or trusted host certificate authorities. It is fail-closed:

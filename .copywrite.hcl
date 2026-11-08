@@ -38,5 +38,18 @@ project {
     "internal/daemon/worker/recording/scratch/**",
     "internal/daemon/worker/recording/upload/**",
     "internal/daemon/worker/recording/bsrfs/**",
+    "internal/daemon/worker/proxy/ssh/**",
+    "internal/daemon/worker/proxy/kube/**",
+    "internal/bsr/playback/**",
+    "internal/bsr/ssh/recorder/**",
+    "internal/cmd/commands/connect/kube_credentials.go",
+    "internal/cmd/commands/connect/kube_credentials_test.go",
+    "internal/cmd/commands/connect/kubeconfig.go",
+    "internal/cmd/commands/connect/kubeconfig_test.go",
+    "internal/cmd/commands/connect/kubecreds/**",
+    "internal/cmd/commands/connect/ssh_known_hosts.go",
+    "internal/cmd/commands/connect/ssh_known_hosts_test.go",
+    "internal/cmd/commands/connect/ssh_pinned.go",
+    "internal/cmd/commands/connect/ssh_pinned_test.go",
   ]
 }
