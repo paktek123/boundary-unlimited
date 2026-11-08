@@ -73,6 +73,12 @@ func TestVerifyUnsortedNamesDoNotBypass(t *testing.T) {
 	require.Error(t, approval.Verify(base, cur))
 }
 
+func TestVerifyRejectsDuplicateNamesOnBothSides(t *testing.T) {
+	d := bind(t, sha1, def("x", "a", "b"))
+	d.ParamNames = []string{"a", "a"}
+	require.ErrorIs(t, approval.Verify(d, d), approval.ErrEmptyBinding)
+}
+
 func TestBindFailsClosed(t *testing.T) {
 	d := def("x", "a")
 	pin, err := source.NewPin(sha1, d.Script)
@@ -84,7 +90,7 @@ func TestBindFailsClosed(t *testing.T) {
 	_, err = approval.Bind(def("tampered", "a"), pin)
 	require.ErrorIs(t, err, approval.ErrMismatch)
 	_, err = approval.Bind(def("x", "a", "a"), pin)
-	require.ErrorIs(t, err, approval.ErrEmptyBinding)
+	require.ErrorIs(t, err, approval.ErrDuplicateParam)
 	_, err = approval.Bind(def("x", ""), pin)
 	require.ErrorIs(t, err, approval.ErrEmptyBinding)
 }

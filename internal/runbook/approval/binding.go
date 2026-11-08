@@ -23,6 +23,8 @@ import (
 var (
 	ErrEmptyBinding = errors.New("approval: binding is empty or incomplete")
 	ErrMismatch     = errors.New("approval: binding does not match the approved binding")
+	// ErrDuplicateParam is returned for a duplicate parameter name.
+	ErrDuplicateParam = errors.New("approval: duplicate parameter name")
 )
 
 // Binding is what an approval covers. Compare it only with Verify.
@@ -54,7 +56,7 @@ func Bind(def runbook.Definition, pinned source.Pin) (Binding, error) {
 			return Binding{}, ErrEmptyBinding
 		}
 		if _, dup := seen[p.Name]; dup {
-			return Binding{}, ErrEmptyBinding
+			return Binding{}, ErrDuplicateParam
 		}
 		seen[p.Name] = struct{}{}
 		names = append(names, p.Name)
@@ -71,10 +73,15 @@ func (b Binding) complete() bool {
 	if b.RunbookRef == "" || b.CommitSHA == "" || b.ScriptHash == "" {
 		return false
 	}
+	seen := make(map[string]struct{}, len(b.ParamNames))
 	for _, n := range b.ParamNames {
 		if n == "" {
 			return false
 		}
+		if _, dup := seen[n]; dup {
+			return false
+		}
+		seen[n] = struct{}{}
 	}
 	return true
 }
