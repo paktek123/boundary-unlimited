@@ -97,6 +97,10 @@ func (c Config) validate() error {
 }
 
 // Batcher is a bounded batching queue. Create it with New.
+//
+// Memory bound: MaxEntries and MaxBytes limit the QUEUED entries. A batch that
+// is being sent (and retried) has left the queue, so worst-case memory is
+// about the queue limit plus one batch (at most BatchSize entries).
 type Batcher struct {
 	cfg   Config
 	clock Clock

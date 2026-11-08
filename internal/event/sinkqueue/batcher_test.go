@@ -285,6 +285,22 @@ func TestCloseContextCancelReportsDropped(t *testing.T) {
 	require.EqualValues(t, 1, b.Dropped())
 }
 
+func TestCloseContextCancelEnforcedReportsDeliveryFailed(t *testing.T) {
+	s, clk := newSender(), &fakeClock{}
+	s.always = true
+	b, err := New(cfg(s, clk, event.Enforced))
+	require.NoError(t, err)
+	require.NoError(t, b.Enqueue([]byte("a")))
+	require.NoError(t, b.Enqueue([]byte("b")))
+	clk.blockUntil(t, 2) // worker is in the first backoff wait
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = b.Close(ctx)
+	require.ErrorIs(t, err, ErrDeliveryFailed)
+	require.ErrorIs(t, err, context.Canceled)
+	require.EqualValues(t, 2, b.Dropped())
+}
+
 func TestConcurrentEnqueueAccounting(t *testing.T) {
 	s := newSender()
 	c := cfg(s, nil, event.BestEffort)
