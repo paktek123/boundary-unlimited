@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package kubecreds validates and normalises brokered credentials for
 // `boundary connect kube`, implementing the credential-shape rules of

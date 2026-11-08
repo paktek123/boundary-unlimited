@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package injectauth converts the credential material the worker receives for
 // an ssh target into golang.org/x/crypto/ssh authentication methods.
