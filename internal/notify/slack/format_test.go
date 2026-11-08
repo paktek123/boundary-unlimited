@@ -5,7 +5,6 @@ package slack
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -51,14 +50,13 @@ func TestFormatRejects(t *testing.T) {
 	_, err := Format(bad)
 	require.ErrorIs(t, err, notify.ErrInvalidEvent)
 
-	// Escaping expands "&" fivefold; 512-char summary stays under the limit,
-	// so exercise the section limit through Escape directly.
+	// Worst-case escaping expansion (512 x "&" -> 5 bytes each) must still
+	// fit the section limit, so ErrTooLong is unreachable for valid events.
 	big := ev()
 	big.Summary = strings.Repeat("&", notify.MaxSummaryLen)
 	out, err := Format(big)
 	require.NoError(t, err)
 	assert.Less(t, len(out), MaxPayload)
-	assert.False(t, errors.Is(err, ErrTooLong))
 }
 
 func TestFormatNoSecretsOrURLs(t *testing.T) {
