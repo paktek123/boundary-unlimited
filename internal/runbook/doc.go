@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package runbook holds the definition model and parameter validator for
 // runbooks (see docs/rfc/runbooks.md). Compile validates a Definition and

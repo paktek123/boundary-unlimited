@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package guardrails holds the rule model and compiler for command guardrails
 // (see docs/rfc/guardrails.md). Compile validates a rule set and selects the

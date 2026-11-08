@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package bsrfs adapts the bounded scratch store to the storage.FS interface
 // used by internal/bsr, so BSR containers are written through the scratch

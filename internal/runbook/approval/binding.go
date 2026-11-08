@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package approval binds a runbook approval to exactly what was reviewed: the
 // runbook reference, the pinned commit SHA, the SHA-256 of the script bytes and

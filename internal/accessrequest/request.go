@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package accessrequest is a pure-Go domain model for just-in-time access
 // requests: a lifecycle state machine with no persistence, API or wiring.

@@ -1,5 +1,5 @@
-// Copyright IBM Corp. 2020, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
 
 // Package sinkqueue is a transport-agnostic, bounded batching queue with
 // retry/backoff for event sinks. It opens no connections, reads no
