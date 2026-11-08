@@ -99,6 +99,8 @@ type SDElement struct {
 }
 
 // Message is the input to Format. Empty header strings become the NILVALUE.
+// Severity's zero value is SevEmergency: always set it explicitly. A wholly
+// zero Message is rejected.
 type Message struct {
 	Facility  Facility
 	Severity  Severity
@@ -155,7 +157,8 @@ func escape(s string, extra string) string {
 			sb.WriteRune(r)
 		case r < 0x20 || r == 0x7f:
 			fmt.Fprintf(&sb, "\\x%02x", r)
-		case (r >= 0x80 && r <= 0x9f) || r == 0x2028 || r == 0x2029:
+		case (r >= 0x80 && r <= 0x9f) || r == 0x2028 || r == 0x2029 ||
+			(r >= 0x202a && r <= 0x202e) || (r >= 0x2066 && r <= 0x2069):
 			fmt.Fprintf(&sb, "\\u%04x", r)
 		default:
 			sb.WriteRune(r)
@@ -187,6 +190,12 @@ func FormatOctetCounted(msg Message) ([]byte, error) {
 }
 
 func format(msg Message, maxSize int) ([]byte, error) {
+	// The zero Severity is emergency (0); a wholly zero Message is almost
+	// certainly a forgotten field, so reject it rather than emit kern.emerg.
+	if msg.Facility == 0 && msg.Severity == 0 && msg.Timestamp.IsZero() && msg.Hostname == "" &&
+		msg.AppName == "" && msg.ProcID == "" && msg.MsgID == "" && len(msg.SD) == 0 && msg.Msg == "" {
+		return nil, ErrInvalidField
+	}
 	if msg.Facility < 0 || msg.Facility > 23 || msg.Severity < 0 || msg.Severity > 7 {
 		return nil, ErrInvalidField
 	}

@@ -41,6 +41,11 @@ func TestGolden(t *testing.T) {
 	require.NotContains(t, string(b), "\n")
 }
 
+func TestZeroMessageRejected(t *testing.T) {
+	_, err := syslogfmt.Format(syslogfmt.Message{})
+	require.ErrorIs(t, err, syslogfmt.ErrInvalidField)
+}
+
 func TestSeverityFor(t *testing.T) {
 	require.Equal(t, syslogfmt.SevError, syslogfmt.SeverityFor(syslogfmt.KindError))
 	require.Equal(t, syslogfmt.SevNotice, syslogfmt.SeverityFor(syslogfmt.KindAudit))
@@ -86,12 +91,12 @@ func TestSDValueEscaping(t *testing.T) {
 
 func TestMsgInjection(t *testing.T) {
 	m := base()
-	m.Msg = "ok\n<134>1 2026-01-01T00:00:00Z evil app 1 x - forged\r\x00\x1b[2J \u0085end\xff"
+	m.Msg = "ok\n<134>1 2026-01-01T00:00:00Z evil app 1 x - forged\r\x00\x1b[2J\u2028\u0085\u202eend\xff"
 	for _, f := range []func(syslogfmt.Message) ([]byte, error){syslogfmt.Format, syslogfmt.FormatDatagram, syslogfmt.FormatOctetCounted} {
 		b, err := f(m)
 		require.NoError(t, err)
 		s := string(b)
-		for _, bad := range []string{"\n", "\r", "\x00", "\x1b", " ", "\u0085", "\xff"} {
+		for _, bad := range []string{"\n", "\r", "\x00", "\x1b", "\u2028", "\u0085", "\u202e", "\xff"} {
 			require.NotContains(t, s, bad)
 		}
 	}
