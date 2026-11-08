@@ -31,7 +31,6 @@ func TestOnRedactCounts(t *testing.T) {
 	}{
 		{"single", "a " + testAWS + " b", map[string]int{"aws_access_key": 1}},
 		{"multiple same", testAWS + " " + testAWS, map[string]int{"aws_access_key": 2}},
-		{"multiple detectors", testAWS + " " + testCard + " " + testJWT, nil},
 		{"none", "nothing to see", map[string]int{}},
 	}
 	for _, tc := range tests {
@@ -39,19 +38,21 @@ func TestOnRedactCounts(t *testing.T) {
 			rec := &countRec{}
 			out := redactAll(t, tc.in, WithOnRedact(rec.cb))
 			assert.NotContains(t, out, testAWS)
-			if tc.want == nil {
-				assert.Len(t, rec.got, 3)
-				for _, n := range rec.got {
-					assert.Equal(t, 1, n)
-				}
-				return
-			}
 			if len(tc.want) == 0 {
-				assert.Empty(t, rec.got)
+				assert.Empty(t, rec.got, "no callback without matches")
 				return
 			}
 			assert.Equal(t, tc.want, rec.got)
 		})
+	}
+}
+
+func TestOnRedactMultipleDetectors(t *testing.T) {
+	rec := &countRec{}
+	redactAll(t, testAWS+" "+testCard+" "+testJWT, WithOnRedact(rec.cb))
+	assert.Len(t, rec.got, 3)
+	for d, n := range rec.got {
+		assert.Equal(t, 1, n, d)
 	}
 }
 

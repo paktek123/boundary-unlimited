@@ -70,7 +70,10 @@ func WithDetectors(d ...Detector) Option { return func(o *options) { o.detectors
 // bytes, offsets or lengths. Each replacement is counted exactly once, even
 // when the secret is split across Write calls, because a match is counted only
 // when it is emitted. The callback is invoked synchronously, before the
-// redacted output is written, in sorted detector order. A panic in the callback
+// redacted output is written, in sorted detector order. Counts are therefore
+// reported at most once per replacement but before delivery: if the
+// underlying writer then fails, the count was reported for output that never
+// reached it (the redactor is failed at that point). A panic in the callback
 // is treated as a redactor failure (ErrInternal, held bytes wiped). A nil
 // callback disables counting.
 func WithOnRedact(f func(detector string, n int)) Option { return func(o *options) { o.onRedact = f } }
