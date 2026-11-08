@@ -188,7 +188,8 @@ func TestSweeper(t *testing.T) {
 	ctx := context.Background()
 	repo := NewMemRepository()
 	seed(t, repo)
-	s := &Sweeper{Repo: repo}
+	s, err0 := NewSweeper(repo, nil, WithoutAudit())
+	require.NoError(t, err0)
 	now := t0.Add(DefaultMaxPendingAge) // pending-old due; appr (1h) due; pending-new created now
 	res, err := s.Run(ctx, now)
 	require.NoError(t, err)
@@ -208,7 +209,9 @@ func TestSweeper(t *testing.T) {
 	// nothing due before deadlines
 	repo2 := NewMemRepository()
 	seed(t, repo2)
-	res, err = (&Sweeper{Repo: repo2}).Run(ctx, t0.Add(time.Minute))
+	s2, err0 := NewSweeper(repo2, nil, WithoutAudit())
+	require.NoError(t, err0)
+	res, err = s2.Run(ctx, t0.Add(time.Minute))
 	require.NoError(t, err)
 	assert.Equal(t, SweepResult{}, res)
 }
@@ -216,7 +219,7 @@ func TestSweeper(t *testing.T) {
 func TestSweeperInvalid(t *testing.T) {
 	_, err := (&Sweeper{}).Run(context.Background(), t0)
 	require.ErrorIs(t, err, ErrInvalidInput)
-	_, err = (&Sweeper{Repo: NewMemRepository()}).Run(context.Background(), time.Time{})
+	_, err = (&Sweeper{Repo: NewMemRepository(), noAudit: true}).Run(context.Background(), time.Time{})
 	require.ErrorIs(t, err, ErrInvalidInput)
 	var nilS *Sweeper
 	_, err = nilS.Run(context.Background(), t0)
@@ -228,7 +231,7 @@ func TestSweeperContextCancelled(t *testing.T) {
 	seed(t, repo)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := (&Sweeper{Repo: repo}).Run(ctx, t0.Add(100*time.Hour))
+	_, err := (&Sweeper{Repo: repo, noAudit: true}).Run(ctx, t0.Add(100*time.Hour))
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, StatePending, stateOf(t, repo, "pending-old"))
 }
@@ -266,7 +269,7 @@ func TestSweeperConflictRetriedOnceThenSkipped(t *testing.T) {
 			mem := NewMemRepository()
 			_, err := mem.Create(ctx, mk(t, "a", "u1", t0))
 			require.NoError(t, err)
-			res, err := (&Sweeper{Repo: &conflictRepo{MemRepository: mem, n: tc.fails}}).Run(ctx, t0.Add(100*time.Hour))
+			res, err := (&Sweeper{Repo: &conflictRepo{MemRepository: mem, n: tc.fails}, noAudit: true}).Run(ctx, t0.Add(100*time.Hour))
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res)
 			assert.Equal(t, tc.wantSt, stateOf(t, mem, "a"))
@@ -285,7 +288,7 @@ func TestSweeperConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := (&Sweeper{Repo: repo}).Run(ctx, now)
+			res, err := (&Sweeper{Repo: repo, noAudit: true}).Run(ctx, now)
 			if err != nil {
 				t.Error(err)
 			}

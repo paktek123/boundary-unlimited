@@ -12,9 +12,51 @@ import (
 
 // Sweeper expires pending requests past their maximum age and approved
 // requests past ExpiresAt. It is safe to run repeatedly and concurrently.
+//
+// Audit: before a request is expired, the Sweeper emits an access-request.expire
+// event to Emitter and skips the request (state unchanged) if emitting fails
+// or panics. An event emitted before a lost version race is acceptable and may
+// be repeated when the request is retried, exactly as in Service. A Sweeper
+// without an Emitter fails closed unless it was built with WithoutAudit.
 type Sweeper struct {
 	Repo Repository
 	Opts []Option
+	// Emitter is the audit sink; required unless WithoutAudit was used.
+	Emitter Emitter
+
+	noAudit bool
+}
+
+// SweeperOption configures NewSweeper.
+type SweeperOption func(*Sweeper)
+
+// WithoutAudit explicitly allows a Sweeper with no audit emitter. Expiries
+// then change state without an audit event; use it only in tests or where
+// auditing is done elsewhere.
+func WithoutAudit() SweeperOption { return func(s *Sweeper) { s.noAudit = true } }
+
+// WithSweepOptions sets the policy options passed to Expire.
+func WithSweepOptions(o ...Option) SweeperOption {
+	return func(s *Sweeper) { s.Opts = append([]Option(nil), o...) }
+}
+
+// NewSweeper returns a Sweeper. A nil or typed-nil emitter is an error unless
+// WithoutAudit is given.
+func NewSweeper(repo Repository, em Emitter, opt ...SweeperOption) (*Sweeper, error) {
+	s := &Sweeper{Repo: repo, Emitter: em}
+	for _, o := range opt {
+		o(s)
+	}
+	if isNil(repo) {
+		return nil, fmt.Errorf("%w: repository is required", ErrInvalidInput)
+	}
+	if isNil(em) {
+		if !s.noAudit {
+			return nil, fmt.Errorf("%w: audit emitter is required", ErrInvalidInput)
+		}
+		s.Emitter = nil
+	}
+	return s, nil
 }
 
 // SweepResult counts what one run did.
@@ -37,6 +79,9 @@ func (s *Sweeper) Run(ctx context.Context, now time.Time) (SweepResult, error) {
 	}
 	if now.IsZero() {
 		return res, fmt.Errorf("%w: zero time", ErrInvalidInput)
+	}
+	if isNil(s.Emitter) && !s.noAudit {
+		return res, fmt.Errorf("%w: audit emitter is required", ErrInvalidInput)
 	}
 	reqs, err := s.Repo.List(ctx, ListFilter{States: []State{StatePending, StateApproved}})
 	if err != nil {
@@ -75,6 +120,9 @@ func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (bool
 		if next.State == r.State {
 			return false, false, nil // not due (or changed concurrently)
 		}
+		if aerr := s.audit(ctx, next, now); aerr != nil {
+			return false, false, aerr // audit first: state stays unchanged
+		}
 		_, uerr := s.Repo.Update(ctx, next)
 		if uerr == nil {
 			return true, false, nil
@@ -95,4 +143,28 @@ func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (bool
 		r = cur
 	}
 	return false, true, nil
+}
+
+// errSweepAudit carries no event content.
+var errSweepAudit = errors.New("accessrequest: audit event could not be emitted")
+
+// audit emits the expire event for next (the request in its expired state).
+// An error or panic from the emitter is reported as errSweepAudit.
+func (s *Sweeper) audit(ctx context.Context, next Request, now time.Time) (err error) {
+	if isNil(s.Emitter) {
+		return nil // only reachable with WithoutAudit
+	}
+	ev, eerr := NewExpireEvent(next, now)
+	if eerr != nil {
+		return fmt.Errorf("%w: %w", errSweepAudit, eerr)
+	}
+	defer func() {
+		if recover() != nil {
+			err = errSweepAudit
+		}
+	}()
+	if s.Emitter.Emit(ctx, ev) != nil {
+		return errSweepAudit
+	}
+	return nil
 }
