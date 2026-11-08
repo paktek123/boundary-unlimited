@@ -51,5 +51,13 @@ project {
     "internal/cmd/commands/connect/ssh_known_hosts_test.go",
     "internal/cmd/commands/connect/ssh_pinned.go",
     "internal/cmd/commands/connect/ssh_pinned_test.go",
+    "internal/target/ssh/hostkeypolicy/**",
+
+    # adapted from upstream (tcp target type): the upstream copyright line and
+    # BUSL-1.1 stay, with an added line crediting the fork's modifications.
+    "internal/target/ssh/**",
+    "internal/target/rdp/**",
+    "internal/daemon/controller/handlers/targets/ssh/**",
+    "internal/daemon/controller/handlers/targets/rdp/**",
   ]
 }
