@@ -78,6 +78,14 @@ type WebhookConfig struct {
 	AllowedCIDRs []netip.Prefix
 	// Resolver resolves the destination host. Nil uses net.DefaultResolver.
 	Resolver Resolver
+	// Format optionally renders the request body for a validated event (for
+	// example a chat-service payload). Nil keeps the default JSON encoding of
+	// Event, unchanged. The output must be JSON (Content-Type is
+	// application/json), is capped by MaxBodyBytes and is signed like the
+	// default body. A Format error or panic fails the delivery with a fixed
+	// error that carries no event text. The notify package must not import the
+	// formatter packages; the caller passes the function.
+	Format func(Event) ([]byte, error)
 }
 
 // String and GoString never print the URL or secret.
@@ -101,6 +109,7 @@ type WebhookNotifier struct {
 	backoff     time.Duration
 	maxBody     int
 	maxResp     int64
+	format      func(Event) ([]byte, error)
 	client      *http.Client
 	sleep       func(ctx context.Context, d time.Duration) error
 	now         func() time.Time
@@ -192,6 +201,7 @@ func newWebhook(cfg WebhookConfig, h hooks) (*WebhookNotifier, error) {
 		backoff:     time.Duration(backoff),
 		maxBody:     int(maxBody),
 		maxResp:     maxResp,
+		format:      cfg.Format,
 		client: &http.Client{
 			Transport:     tr,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -253,7 +263,7 @@ func (w *WebhookNotifier) Notify(ctx context.Context, e Event) (err error) {
 		return err
 	}
 	e.Timestamp = e.Timestamp.UTC()
-	body, merr := json.Marshal(e)
+	body, merr := w.encode(e)
 	if merr != nil {
 		return fmt.Errorf("%w: encode", ErrInvalidEvent)
 	}
@@ -287,6 +297,24 @@ func (w *WebhookNotifier) Notify(ctx context.Context, e Event) (err error) {
 		return last
 	}
 	return fmt.Errorf("%w: %s", ErrDelivery, last.Error())
+}
+
+// encode renders the body: the default JSON, or the configured formatter. A
+// formatter error, panic or empty output is reported without its content.
+func (w *WebhookNotifier) encode(e Event) (body []byte, err error) {
+	if w.format == nil {
+		return json.Marshal(e)
+	}
+	defer func() {
+		if recover() != nil {
+			body, err = nil, errTransport
+		}
+	}()
+	body, err = w.format(e)
+	if err != nil || len(body) == 0 {
+		return nil, errTransport
+	}
+	return body, nil
 }
 
 var (

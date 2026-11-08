@@ -377,3 +377,72 @@ func TestResponseBodyIsCapped(t *testing.T) {
 	w := newTestNotifier(t, srv, func(c *WebhookConfig) { c.MaxResponseBytes = 1024 })
 	require.NoError(t, w.Notify(context.Background(), testEvent()))
 }
+
+func TestCustomFormatter(t *testing.T) {
+	var gotBody []byte
+	var gotSig, gotTS string
+	var calls atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		gotBody, _ = io.ReadAll(r.Body)
+		gotSig, gotTS = r.Header.Get(SignatureHeader), r.Header.Get(TimestampHeader)
+		rw.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	want := `{"text":"formatted"}`
+	w := newTestNotifier(t, srv, func(c *WebhookConfig) {
+		c.Format = func(Event) ([]byte, error) { return []byte(want), nil }
+	})
+	require.NoError(t, w.Notify(context.Background(), testEvent()))
+	assert.Equal(t, want, string(gotBody))
+	ts, err := strconv.ParseInt(gotTS, 10, 64)
+	require.NoError(t, err)
+	assert.True(t, Verify([]byte(canarySecret), ts, gotBody, gotSig))
+
+	// Validation runs before the formatter.
+	called := false
+	w = newTestNotifier(t, srv, func(c *WebhookConfig) {
+		c.Format = func(Event) ([]byte, error) { called = true; return []byte("{}"), nil }
+	})
+	bad := testEvent()
+	bad.Type = ""
+	require.ErrorIs(t, w.Notify(context.Background(), bad), ErrInvalidEvent)
+	assert.False(t, called)
+}
+
+func TestCustomFormatterFailuresAndLimits(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+	}))
+	defer srv.Close()
+
+	e := testEvent()
+	e.Summary = "summary with " + canarySecret
+	tests := []struct {
+		name   string
+		format func(Event) ([]byte, error)
+		want   error
+	}{
+		{"oversize", func(Event) ([]byte, error) { return []byte(strings.Repeat("a", 300)), nil }, ErrBodyTooLarge},
+		{"error", func(ev Event) ([]byte, error) { return nil, errors.New("boom " + ev.Summary) }, ErrInvalidEvent},
+		{"panic", func(ev Event) ([]byte, error) { panic("boom " + ev.Summary) }, ErrInvalidEvent},
+		{"empty", func(Event) ([]byte, error) { return nil, nil }, ErrInvalidEvent},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newTestNotifier(t, srv, func(c *WebhookConfig) {
+				c.MaxBodyBytes = 200
+				c.Format = tc.format
+			})
+			err := w.Notify(context.Background(), e)
+			require.ErrorIs(t, err, tc.want)
+			for _, s := range []string{err.Error(), fmt.Sprintf("%v %+v %#v", err, err, err), fmt.Sprintf("%v %#v", w, w)} {
+				assert.NotContains(t, s, canarySecret)
+				assert.NotContains(t, s, "example.com")
+			}
+		})
+	}
+	assert.Zero(t, calls.Load(), "nothing may be sent")
+}
