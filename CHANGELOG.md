@@ -266,6 +266,7 @@ fork, which is independent of HashiCorp.
 * runbook: Add `runbook.Lint`, a static tripwire for unsafe re-evaluation in script bodies (eval, `sh -c` with a parameter, sourcing a parameter, command substitution around a parameter, unquoted expansion), and make `Compile` reject findings unless the caller passes `WithLintPassMarker`. Lint is a tripwire, not a guarantee. Not wired. Refs #199.
 * runbook: Add names-only audit events (`runbook.run_requested/started/finished/rejected`) to `internal/runbook` with canary leak tests; events carry parameter names, never values or value hashes. Not wired. Refs #200.
 * notify: Add `internal/notify/teams`, a pure, not-yet-wired Microsoft Teams Adaptive Card formatter for `notify.Event` (markdown/mention-escaped, no actions or URLs). No behaviour change ([#210](https://github.com/paktek123/boundary-unlimited/issues/210)).
+* notify: Add `internal/notify/slack`, a pure, not-yet-wired Slack Block Kit formatter for `notify.Event` (mrkdwn-escaped, mention-neutralised, rejects over-long content, no buttons or URLs). No behaviour change ([#209](https://github.com/paktek123/boundary-unlimited/issues/209)).
 
 ## 0.21.3 (2026/04/28)
 
