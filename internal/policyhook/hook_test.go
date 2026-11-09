@@ -88,7 +88,7 @@ func TestAuthorize_Table(t *testing.T) {
 		{"deny", reply(200, `{"allow":false}`), nil, Deny, ReasonDeny},
 		{"500", reply(500, `{"allow":true}`), nil, Deny, ReasonError},
 		{"403", reply(403, `{"allow":true}`), nil, Deny, ReasonError},
-		{"redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/x", 302) }), nil, Deny, ReasonError},
+		{"redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/x", http.StatusFound) }), nil, Deny, ReasonError},
 		{"malformed json", reply(200, `{"allow":`), nil, Deny, ReasonInvalidResponse},
 		{"empty body", reply(200, ``), nil, Deny, ReasonInvalidResponse},
 		{"allow missing", reply(200, `{"other":true}`), nil, Deny, ReasonInvalidResponse},
