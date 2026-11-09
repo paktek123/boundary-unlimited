@@ -93,8 +93,8 @@ func (p *Policy) Len() int { return p.compiled.Len() }
 func (p *Policy) IgnoredOverrides() int { return p.ignored }
 
 // NewRedactor returns a Redactor over w using the effective rules.
-func (p *Policy) NewRedactor(w io.Writer) (*Redactor, error) {
-	return p.compiled.NewRedactor(w)
+func (p *Policy) NewRedactor(w io.Writer, opt ...Option) (*Redactor, error) {
+	return p.compiled.NewRedactor(w, opt...)
 }
 
 func builtinRules(email bool) []Rule {
