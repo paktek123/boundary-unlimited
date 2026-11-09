@@ -34,7 +34,7 @@ type fakeMaskPolicy struct {
 
 func (p *fakeMaskPolicy) RuleSetHash() string { return p.hash }
 
-func (p *fakeMaskPolicy) NewRedactor(w io.Writer) (*masking.Redactor, error) {
+func (p *fakeMaskPolicy) NewRedactor(w io.Writer, opt ...masking.Option) (*masking.Redactor, error) {
 	p.mu.Lock()
 	p.calls++
 	n := p.calls
@@ -42,7 +42,7 @@ func (p *fakeMaskPolicy) NewRedactor(w io.Writer) (*masking.Redactor, error) {
 	if p.newErr != nil || (p.failFrom > 0 && n > p.failFrom) {
 		return nil, errors.New("redactor unavailable")
 	}
-	return masking.New(w, p.opts...)
+	return masking.New(w, append(append([]masking.Option{}, opt...), p.opts...)...)
 }
 
 func goodPolicy() *fakeMaskPolicy { return &fakeMaskPolicy{hash: "h1"} }
