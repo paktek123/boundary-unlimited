@@ -279,6 +279,7 @@ fork, which is independent of HashiCorp.
 
 * notify: Add `slack.NewSender`, a Slack webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `slack.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
 * notify: Add `teams.NewSender`, a Teams webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `teams.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
+* kubernetes target: Add the generated `controller.storage.target.kubernetes.store.v1.Target` store proto (`internal/target/kubernetes/store`, [#24](https://github.com/paktek123/boundary-unlimited/issues/24)) matching the `target_kubernetes` table of migration 113. Nothing registers or uses it yet; no `kubernetes` target type is enabled.
 
 ## 0.21.3 (2026/04/28)
 
