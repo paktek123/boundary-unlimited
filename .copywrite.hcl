@@ -31,6 +31,7 @@ project {
     "internal/runbook/**",
     "internal/masking/**",
     "internal/guardrails/**",
+    "internal/policyhook/**",
     "internal/notify/**",
     "internal/event/syslogfmt/**",
     "internal/event/sinkqueue/**",
