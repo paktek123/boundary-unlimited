@@ -188,7 +188,7 @@ func TestRepository_DeleteTarget(t *testing.T) {
 					id, err := db.NewPublicId(ctx, globals.KubernetesTargetPrefix)
 					require.NoError(t, err)
 					tar, _ := target.New(ctx, kubernetes.Subtype, proj.PublicId)
-					tar.SetPublicId(ctx, id)
+					require.NoError(t, tar.SetPublicId(ctx, id))
 					return tar
 				}(),
 			},

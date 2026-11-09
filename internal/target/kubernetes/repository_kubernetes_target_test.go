@@ -265,7 +265,7 @@ func TestRepository_CreateTarget(t *testing.T) {
 					require.NoError(t, err)
 					id, err := db.NewPublicId(ctx, globals.KubernetesTargetPrefix)
 					require.NoError(t, err)
-					tar.SetPublicId(ctx, id)
+					require.NoError(t, tar.SetPublicId(ctx, id))
 					return tar
 				}(),
 			},
@@ -855,7 +855,7 @@ func TestRepository_UpdateTcpTarget(t *testing.T) {
 				target.WithDefaultPort(tt.args.port),
 				target.WithAddress(tt.args.address),
 			)
-			updateTarget.SetPublicId(ctx, tar.GetPublicId())
+			require.NoError(updateTarget.SetPublicId(ctx, tar.GetPublicId()))
 			if tt.args.PublicId != nil {
 				ut := updateTarget.(*kubernetes.Target)
 				ut.PublicId = *tt.args.PublicId
