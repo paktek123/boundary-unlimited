@@ -33,6 +33,7 @@ project {
     "internal/guardrails/**",
     "internal/policyhook/**",
     "internal/notify/**",
+    "internal/netguard/**",
     "internal/event/syslogfmt/**",
     "internal/event/sinkqueue/**",
     "internal/daemon/worker/recording/finalize/**",
