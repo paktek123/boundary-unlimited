@@ -18,6 +18,7 @@ func TestResourceInfoFromPrefix(t *testing.T) {
 		OidcManagedGroupPrefix:       resource.ManagedGroup,
 		StaticHostSetPrefix:          resource.HostSet,
 		JsonCredentialPrefix:         resource.Credential,
+		KubernetesTargetPrefix:       resource.Target,
 	}
 
 	for prefix, typ := range vals {

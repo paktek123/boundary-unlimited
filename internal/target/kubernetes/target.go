@@ -1,7 +1,7 @@
 // Copyright IBM Corp. 2020, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-// Package kubernetes provides a Target subtype for an Kubernetes Target.
+// Package kubernetes provides a Target subtype for a Kubernetes cluster API target.
 // Importing this package will register it with the target package and
 // allow the target.Repository to support kubernetes.Targets.
 package kubernetes
@@ -28,8 +28,8 @@ const (
 	Subtype          = globals.Subtype("kubernetes")
 )
 
-// Target is a resources that represets a networked service
-// that can be accessed via Kubernetes. It is a subtype of target.Target.
+// Target is a resource that represents a networked service
+// that can be accessed via the Kubernetes API. It is a subtype of target.Target.
 type Target struct {
 	*store.Target
 	// Network address assigned to the Target.
@@ -252,7 +252,9 @@ func (t *Target) SetCredentialSources(sources []target.CredentialSource) {
 }
 
 // SetEnableSessionRecording is a no-op: kubernetes targets do not support
-// session recording, and nothing enforces it (enforcement-first).
+// session recording, and nothing enforces it (enforcement-first). The API
+// layer (#25) MUST reject enable_session_recording and storage_bucket_id
+// explicitly rather than rely on this silent no-op.
 func (t *Target) SetEnableSessionRecording(bool) {}
 
 // SetStorageBucketId is a no-op: see SetEnableSessionRecording.
