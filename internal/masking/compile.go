@@ -25,12 +25,15 @@ func (c *Compiled) RuleIDs() []string { return append([]string(nil), c.ruleIDs..
 func (c *Compiled) Len() int { return len(c.detectors) }
 
 // NewRedactor returns a Redactor over w using the compiled rules.
-func (c *Compiled) NewRedactor(w io.Writer) (*Redactor, error) {
+// Extra options (for example WithOnRedact) are applied first, so the compiled
+// detectors, pattern length and replacement can never be overridden by them.
+func (c *Compiled) NewRedactor(w io.Writer, opt ...Option) (*Redactor, error) {
 	// "{detector}" makes each rule's own replacement text the output.
-	return New(w,
+	opts := append(append([]Option{}, opt...),
 		WithDetectors(append([]Detector{}, c.detectors...)...),
 		WithMaxPatternLen(c.maxLen),
 		WithReplacement("{detector}"))
+	return New(w, opts...)
 }
 
 // ruleDetector wraps a detector so that its Name is the rule's literal
