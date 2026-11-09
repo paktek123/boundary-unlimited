@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/boundary/internal/masking"
 	"golang.org/x/crypto/ssh"
@@ -16,8 +17,10 @@ import (
 // MaskingPolicy is the effective masking configuration of one session. It is
 // satisfied by *masking.Policy.
 type MaskingPolicy interface {
-	// NewRedactor returns a redactor writing masked output to w.
-	NewRedactor(w io.Writer) (*masking.Redactor, error)
+	// NewRedactor returns a redactor writing masked output to w. The options
+	// (for example masking.WithOnRedact) are applied in addition to the
+	// policy's own settings, which always take precedence.
+	NewRedactor(w io.Writer, opt ...masking.Option) (*masking.Redactor, error)
 	// RuleSetHash identifies the effective rule set. It must not be empty.
 	RuleSetHash() string
 }
@@ -32,6 +35,7 @@ var errMasking = errors.New("ssh: masking failed; channel terminated")
 type maskingUpstream struct {
 	inner  Upstream
 	policy MaskingPolicy
+	audit  *maskAudit // nil: no audit events
 }
 
 var _ Upstream = (*maskingUpstream)(nil)
@@ -40,12 +44,19 @@ func newMaskingUpstream(inner Upstream, p MaskingPolicy) *maskingUpstream {
 	return &maskingUpstream{inner: inner, policy: p}
 }
 
+// withAudit makes the upstream count redactions into a, for counts-only audit
+// events. It returns u for chaining.
+func (u *maskingUpstream) withAudit(a *maskAudit) *maskingUpstream {
+	u.audit = a
+	return u
+}
+
 func (u *maskingUpstream) Dial(ctx context.Context) (UpstreamConn, error) {
 	c, err := u.inner.Dial(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &maskingConn{inner: c, policy: u.policy}, nil
+	return &maskingConn{inner: c, policy: u.policy, audit: u.audit}, nil
 }
 
 // checkMaskingPolicy proves p can build and close a redactor, so a broken
@@ -72,6 +83,7 @@ func checkMaskingPolicy(p MaskingPolicy) (err error) {
 type maskingConn struct {
 	inner  UpstreamConn
 	policy MaskingPolicy
+	audit  *maskAudit
 }
 
 var _ UpstreamConn = (*maskingConn)(nil)
@@ -93,18 +105,18 @@ func (c *maskingConn) OpenChannel(name string, data []byte) (ssh.Channel, <-chan
 		_ = ch.Close()
 		_ = c.inner.Close()
 	}
-	out, err := newMaskReader(c.policy, ch, terminate)
+	out, err := newMaskReaderAudit(c.policy, ch, terminate, c.audit)
 	if err != nil {
 		terminate()
 		return nil, nil, errMasking
 	}
-	errR, err := newMaskReader(c.policy, ch.Stderr(), terminate)
+	errR, err := newMaskReaderAudit(c.policy, ch.Stderr(), terminate, c.audit)
 	if err != nil {
 		out.discard()
 		terminate()
 		return nil, nil, errMasking
 	}
-	return &maskChannel{Channel: ch, out: out, errR: errR, stderr: ch.Stderr()}, reqs, nil
+	return &maskChannel{Channel: ch, out: out, errR: errR, stderr: ch.Stderr(), audit: c.audit}, reqs, nil
 }
 
 type maskChannel struct {
@@ -112,6 +124,7 @@ type maskChannel struct {
 	out    *maskReader
 	errR   *maskReader
 	stderr io.ReadWriter
+	audit  *maskAudit
 }
 
 func (c *maskChannel) Read(p []byte) (int, error) { return c.out.Read(p) }
@@ -127,6 +140,11 @@ func (c *maskChannel) Close() error {
 	err := c.Channel.Close()
 	c.out.discard()
 	c.errR.discard()
+	// Flush the counts-only events; an emitter failure is reported to the
+	// relay as a masking failure.
+	if aerr := c.audit.flush(); aerr != nil && err == nil {
+		err = errMasking
+	}
 	return err
 }
 
@@ -156,9 +174,14 @@ type maskReader struct {
 	buf    []byte
 	err    error // sticky; io.EOF after a clean, flushed end of stream
 	closed bool
+	audit  *maskAudit
 }
 
-func newMaskReader(p MaskingPolicy, src io.Reader, terminate func()) (m *maskReader, err error) {
+func newMaskReader(p MaskingPolicy, src io.Reader, terminate func()) (*maskReader, error) {
+	return newMaskReaderAudit(p, src, terminate, nil)
+}
+
+func newMaskReaderAudit(p MaskingPolicy, src io.Reader, terminate func(), a *maskAudit) (m *maskReader, err error) {
 	defer func() {
 		if recover() != nil {
 			m, err = nil, errMasking
@@ -167,8 +190,12 @@ func newMaskReader(p MaskingPolicy, src io.Reader, terminate func()) (m *maskRea
 	if isNilValue(p) || p.RuleSetHash() == "" {
 		return nil, errMasking
 	}
-	m = &maskReader{src: src, terminate: terminate, buf: make([]byte, 32<<10)}
-	r, err := p.NewRedactor(&m.out)
+	m = &maskReader{src: src, terminate: terminate, buf: make([]byte, 32<<10), audit: a}
+	var opts []masking.Option
+	if cb := a.callback(p.RuleSetHash()); cb != nil {
+		opts = append(opts, masking.WithOnRedact(cb))
+	}
+	r, err := p.NewRedactor(&m.out, opts...)
 	if err != nil || r == nil {
 		return nil, errMasking
 	}
@@ -246,14 +273,14 @@ func (m *maskReader) feed(rn int, rerr error) (terminate bool, err error) {
 	if rn > 0 {
 		_, werr := m.red.Write(m.buf[:rn])
 		clear(m.buf[:rn])
-		if werr != nil {
+		if werr != nil || m.audit.failed() {
 			return true, m.failLocked()
 		}
 	}
 	switch {
 	case rerr == io.EOF:
 		// Clean end of stream: scan and release what is held.
-		if cerr := m.red.Close(); cerr != nil {
+		if cerr := m.red.Close(); cerr != nil || m.audit.failed() || m.audit.flush() != nil {
 			return true, m.failLocked()
 		}
 		m.red = nil
@@ -294,4 +321,70 @@ func (m *maskReader) Read(p []byte) (n int, err error) {
 			return 0, ferr
 		}
 	}
+}
+
+// maskAudit feeds redaction counts of every channel of one session into one
+// masking.Aggregator. Only counts and rule/detector labels ever reach the
+// emitter, never matched bytes. The first emitter failure is sticky: every
+// reader then fails closed and the session is terminated.
+type maskAudit struct {
+	ctx context.Context
+	agg *masking.Aggregator
+
+	mu  sync.Mutex
+	err error
+}
+
+// newMaskAudit builds the per-session audit state. sessionID and principalID
+// are validated by masking.NewAggregator.
+func newMaskAudit(ctx context.Context, sessionID, principalID string, window time.Duration, em masking.Emitter) (*maskAudit, error) {
+	if em == nil {
+		return nil, errMasking
+	}
+	agg, err := masking.NewAggregator(sessionID, principalID, window, em, nil)
+	if err != nil {
+		return nil, errMasking
+	}
+	return &maskAudit{ctx: ctx, agg: agg}, nil
+}
+
+// callback returns the masking.WithOnRedact callback for the rule set, or nil
+// when a is nil. The rule set hash is the rule id of the event; the detector
+// is the rule's replacement label.
+func (a *maskAudit) callback(ruleSetID string) func(detector string, n int) {
+	if a == nil {
+		return nil
+	}
+	return func(detector string, n int) {
+		if err := a.agg.Add(a.ctx, ruleSetID, detector, n); err != nil {
+			a.fail()
+		}
+	}
+}
+
+func (a *maskAudit) fail() {
+	a.mu.Lock()
+	a.err = errMasking
+	a.mu.Unlock()
+}
+
+func (a *maskAudit) failed() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.err != nil
+}
+
+// flush emits the pending counts. A failure is sticky.
+func (a *maskAudit) flush() error {
+	if a == nil {
+		return nil
+	}
+	if err := a.agg.Flush(a.ctx); err != nil {
+		a.fail()
+		return errMasking
+	}
+	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh/hostkey"
 	"github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh/injectauth"
 	"github.com/hashicorp/boundary/internal/errors"
+	"github.com/hashicorp/boundary/internal/masking"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -67,6 +68,7 @@ type handleOptions struct {
 	recordingRequired bool
 	masking           MaskingPolicy
 	maskingRequired   bool
+	maskingAudit      *maskingAuditConfig
 	guardrails        *guardrailConfig
 }
 
@@ -101,6 +103,25 @@ func WithRecordingRequired() HandleOption {
 // output until more data arrives or the stream ends.
 func WithMasking(p MaskingPolicy) HandleOption {
 	return func(o *handleOptions) { o.masking = p }
+}
+
+type maskingAuditConfig struct {
+	emitter     masking.Emitter
+	principalID string
+	window      time.Duration
+}
+
+// WithMaskingAudit makes HandleSession emit counts-only masking audit events
+// (internal/masking.Event: session id, rule set id, detector label, count and
+// time window; never matched values) through em, aggregated over window and
+// flushed when a channel ends. If em fails the channel and the session are
+// terminated and nothing further is delivered. It has no effect without
+// WithMasking, and it is refused (the session is rejected) when em is nil or
+// the ids or window are invalid.
+func WithMaskingAudit(em masking.Emitter, principalID string, window time.Duration) HandleOption {
+	return func(o *handleOptions) {
+		o.maskingAudit = &maskingAuditConfig{emitter: em, principalID: principalID, window: window}
+	}
 }
 
 // WithMaskingRequired makes HandleSession refuse the session, before the
@@ -220,7 +241,16 @@ func HandleSession(ctx context.Context, conn net.Conn, cfg SessionConfig, opt ..
 			return errors.New(ctx, errors.InvalidParameter, op, "masking policy unusable")
 		}
 		// Masking sits below recording so recordings only hold masked bytes.
-		upstream = newMaskingUpstream(upstream, opts.masking)
+		mu := newMaskingUpstream(upstream, opts.masking)
+		if ac := opts.maskingAudit; ac != nil {
+			ma, err := newMaskAudit(ctx, cfg.Authorization.SessionId, ac.principalID, ac.window, ac.emitter)
+			if err != nil {
+				rejected(ReasonMaskingUnavailable)
+				return errors.New(ctx, errors.InvalidParameter, op, "masking audit unusable")
+			}
+			mu.withAudit(ma)
+		}
+		upstream = mu
 	}
 	if opts.recording == nil && opts.recordingRequired {
 		rejected(ReasonRecordingUnavailable)
