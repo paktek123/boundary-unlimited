@@ -121,6 +121,9 @@ const (
 	// RdpTargetPrefix is the prefix for RDP targets
 	RdpTargetPrefix = "trdp"
 
+	// KubernetesTargetPrefix is the prefix for Kubernetes targets
+	KubernetesTargetPrefix = "tkube"
+
 	// WorkerPrefix is the prefix for workers
 	WorkerPrefix = "w"
 
@@ -333,6 +336,10 @@ var prefixToResourceType = map[string]ResourceInfo{
 		Subtype: UnknownSubtype,
 	},
 	RdpTargetPrefix: {
+		Type:    resource.Target,
+		Subtype: UnknownSubtype,
+	},
+	KubernetesTargetPrefix: {
 		Type:    resource.Target,
 		Subtype: UnknownSubtype,
 	},
