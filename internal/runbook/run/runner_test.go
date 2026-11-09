@@ -267,3 +267,49 @@ func TestRun_ScopeSelector(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type panicExec struct{}
+
+func (panicExec) Execute(context.Context, RenderedBinding) (Result, error) {
+	panic("executor exploded " + canary)
+}
+
+func TestRun_ExecutorPanicStillAuditsFinish(t *testing.T) {
+	f := newFixture(t)
+	f.r.Executor = panicExec{}
+	_, err := f.r.Run(context.Background(), f.req)
+	if !errors.Is(err, ErrExecute) || strings.Contains(err.Error(), canary) {
+		t.Fatalf("err %v", err)
+	}
+	evs := f.em.rec.Events()
+	if len(evs) != 2 || evs[1].Type != runbook.EventRunFinished || evs[1].Outcome != runbook.OutcomeFailure {
+		t.Fatalf("events: %+v", evs)
+	}
+}
+
+type cancelExec struct{ cancel context.CancelFunc }
+
+func (c cancelExec) Execute(context.Context, RenderedBinding) (Result, error) {
+	c.cancel()
+	return Result{}, nil
+}
+
+func TestRun_FinishAuditedAfterContextCancel(t *testing.T) {
+	f := newFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	f.r.Executor = cancelExec{cancel}
+	// An emitter that, like a real sink, refuses to work on a cancelled context.
+	f.r.Emitter = emitterFunc(func(c context.Context, e runbook.Event) error {
+		if c.Err() != nil {
+			return c.Err()
+		}
+		return f.em.Emit(c, e)
+	})
+	if _, err := f.r.Run(ctx, f.req); err != nil {
+		t.Fatalf("err %v", err)
+	}
+	evs := f.em.rec.Events()
+	if len(evs) != 2 || evs[1].Type != runbook.EventRunFinished {
+		t.Fatalf("finish event missing after cancel: %+v", evs)
+	}
+}

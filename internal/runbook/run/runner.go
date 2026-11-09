@@ -21,6 +21,7 @@ var (
 	ErrAudit          = errors.New("run: audit event could not be emitted")
 	ErrExecute        = errors.New("run: execution failed")
 	ErrFetch          = errors.New("run: could not fetch the pinned script")
+	ErrInternal       = errors.New("run: internal error")
 )
 
 // RenderedBinding is everything an Executor receives: the rendered
@@ -91,15 +92,21 @@ func (r *Runner) now() time.Time {
 // the start audit event was emitted. A failed check emits a best-effort
 // rejection event and returns the failure. The finish event carries names
 // only; an error emitting it is returned alongside the Executor's Result.
+// A nil error does not mean the script succeeded: callers must also check
+// Result.ExitCode (non-zero is recorded as a failure outcome). An Executor
+// panic is recovered, recorded as a failure outcome and returned as ErrExecute.
+// The finish event is emitted even if ctx was cancelled while the Executor ran.
 func (r *Runner) Run(ctx context.Context, req Request) (res Result, err error) {
 	defer func() {
 		if recover() != nil {
-			res, err = Result{}, fmt.Errorf("%w: internal error", ErrInvalidRequest)
+			res, err = Result{}, ErrInternal
 		}
 	}()
 	if r == nil || r.Fetcher == nil || r.Emitter == nil || r.Executor == nil {
 		return Result{}, fmt.Errorf("%w: runner not configured", ErrInvalidRequest)
 	}
+	// reject emits a best-effort rejection event. If the failure was itself an
+	// audit failure there is nothing to add: no further event is attempted.
 	reject := func(err error) (Result, error) {
 		r.rejected(ctx, req)
 		return Result{}, err
@@ -156,18 +163,35 @@ func (r *Runner) Run(ctx context.Context, req Request) (res Result, err error) {
 		return Result{}, err
 	}
 
-	res, execErr := r.Executor.Execute(ctx, RenderedBinding{Invocation: inv, Binding: current, TargetID: req.TargetID, PrincipalID: req.PrincipalID})
+	res, execErr := r.execute(ctx, RenderedBinding{Invocation: inv, Binding: current, TargetID: req.TargetID, PrincipalID: req.PrincipalID})
 	in.Type, in.Timestamp, in.Outcome, in.SessionId = runbook.EventRunFinished, r.now(), runbook.OutcomeSuccess, res.SessionID
 	if execErr != nil || res.ExitCode != 0 {
 		in.Outcome = runbook.OutcomeFailure
 	}
-	if emitErr := r.emit(ctx, in); emitErr != nil {
+	// The run happened, so its end must be audited even if ctx was cancelled.
+	fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishEmitTimeout)
+	defer cancel()
+	if emitErr := r.emit(fctx, in); emitErr != nil {
 		return res, emitErr
 	}
 	if execErr != nil {
 		return res, ErrExecute // the Executor's error text is not propagated
 	}
 	return res, nil
+}
+
+// finishEmitTimeout bounds the finish event emission.
+const finishEmitTimeout = 5 * time.Second
+
+// execute calls the Executor and turns a panic into an error so the finish
+// event is still emitted. The panic value is never propagated.
+func (r *Runner) execute(ctx context.Context, rb RenderedBinding) (res Result, err error) {
+	defer func() {
+		if recover() != nil {
+			res, err = Result{}, ErrExecute
+		}
+	}()
+	return r.Executor.Execute(ctx, rb)
 }
 
 func (r *Runner) emit(ctx context.Context, in runbook.EventInput) error {
