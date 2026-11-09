@@ -21,6 +21,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/hashicorp/boundary/internal/netguard"
 )
 
 // Hard limits. Configuration above a maximum is rejected, never clamped.
@@ -180,7 +182,7 @@ func newWebhook(cfg WebhookConfig, h hooks) (*WebhookNotifier, error) {
 		if res == nil {
 			res = net.DefaultResolver
 		}
-		sd := &safeDialer{resolver: res, allow: append([]netip.Prefix(nil), cfg.AllowedCIDRs...), timeout: time.Duration(timeout)}
+		sd := &netguard.Dialer{Resolver: res, Allow: append([]netip.Prefix(nil), cfg.AllowedCIDRs...), Timeout: time.Duration(timeout)}
 		dial = sd.DialContext
 	}
 	tr := &http.Transport{

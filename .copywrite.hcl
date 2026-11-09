@@ -32,6 +32,7 @@ project {
     "internal/masking/**",
     "internal/guardrails/**",
     "internal/notify/**",
+    "internal/netguard/**",
     "internal/event/syslogfmt/**",
     "internal/event/sinkqueue/**",
     "internal/daemon/worker/recording/finalize/**",
