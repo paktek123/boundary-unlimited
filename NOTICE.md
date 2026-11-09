@@ -21,6 +21,7 @@ files in:
 - `internal/runbook` (including `source` and `approval`)
 - `internal/masking`
 - `internal/guardrails`
+- `internal/policyhook`
 - `internal/notify` (including `slack` and `teams`)
 - `internal/event/syslogfmt`
 - `internal/event/sinkqueue`

@@ -279,6 +279,7 @@ fork, which is independent of HashiCorp.
 
 * notify: Add `slack.NewSender`, a Slack webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `slack.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
 * notify: Add `teams.NewSender`, a Teams webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `teams.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
+* Added `internal/policyhook` ([#62](https://github.com/paktek123/boundary-unlimited/issues/62)), a not-wired client library for the external authorizer RFC: additive-only (AND with grants), fail closed on every error, bounded response, DENY-only opt-in cache, every decision audited and an unauditable allow denied. Nothing selects or calls it yet.
 
 ## 0.21.3 (2026/04/28)
 
