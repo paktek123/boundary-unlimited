@@ -279,6 +279,7 @@ fork, which is independent of HashiCorp.
 
 * notify: Add `slack.NewSender`, a Slack webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `slack.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
 * notify: Add `teams.NewSender`, a Teams webhook `notify.Notifier` that reuses the `notify.WebhookNotifier` transport (https only, SSRF-safe dialer, no redirects, caps) with the `teams.Format` body; the webhook URL never appears in errors. Not wired to any runtime path.
+* Added a design RFC for an external authorizer hook on session authorization (`docs/rfc/external-authorizer.md`, [#63](https://github.com/paktek123/boundary-unlimited/issues/63)): additive-only, always fail closed, DENY-only short cache. Docs only.
 
 ## 0.21.3 (2026/04/28)
 
