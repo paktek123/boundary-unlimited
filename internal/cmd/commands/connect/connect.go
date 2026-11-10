@@ -793,6 +793,27 @@ func (c *Command) handleExec(clientProxy *apiproxy.ClientProxy, passthroughArgs 
 		creds = sshCreds
 
 	case "kube":
+		kubeIn, err := c.kubeFlags.prepareKubeconfig(c.sessInfo.Endpoint, addr, c.sessInfo.Credentials)
+		if err != nil {
+			c.PrintCliError(fmt.Errorf("Failed to prepare kubeconfig: %w", err))
+			c.execCmdReturnValue.Store(int32(2))
+			return
+		}
+		if kubeIn != nil {
+			// The kubeconfig carries the server, the TLS server name and
+			// the credential, so no --server flag is passed and the
+			// credential is not printed.
+			defer func() { _ = kubeIn.Cleanup() }()
+			envs = append(envs, kubeIn.Env...)
+			kept := creds.Unspecified[:0:0]
+			for _, u := range creds.Unspecified {
+				if u != kubeIn.Used {
+					kept = append(kept, u)
+				}
+			}
+			creds.Unspecified = kept
+			break
+		}
 		kubeArgs, err := c.kubeFlags.buildArgs(c, port, host, addr)
 		if err != nil {
 			c.PrintCliError(fmt.Errorf("Error parsing session args: %w", err))
