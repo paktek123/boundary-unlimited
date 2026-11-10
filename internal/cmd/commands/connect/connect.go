@@ -793,7 +793,7 @@ func (c *Command) handleExec(clientProxy *apiproxy.ClientProxy, passthroughArgs 
 		creds = sshCreds
 
 	case "kube":
-		kubeIn, err := c.kubeFlags.prepareKubeconfig(c.sessInfo.Endpoint, addr, c.sessInfo.Credentials)
+		kubeIn, err := c.prepareKubeconfig(c.sessInfo.Endpoint, addr, c.sessInfo.Credentials)
 		if err != nil {
 			c.PrintCliError(fmt.Errorf("Failed to prepare kubeconfig: %w", err))
 			c.execCmdReturnValue.Store(int32(2))

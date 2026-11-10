@@ -56,7 +56,7 @@ func TestPrepareKubeconfig(t *testing.T) {
 		f := &kubeFlags{flagKubeScheme: "https", flagKubeHost: "override.example.com"}
 		in, err := f.prepareKubeconfig("tcp://k8s.example.com:6443", local, []*targets.SessionCredential{jsonCred(map[string]any{"token": sentinel})})
 		require.NoError(t, err)
-		defer in.Cleanup()
+		defer func() { _ = in.Cleanup() }()
 		b, err := os.ReadFile(strings.TrimPrefix(in.Env[0], "KUBECONFIG="))
 		require.NoError(t, err)
 		assert.Contains(t, string(b), "override.example.com")
