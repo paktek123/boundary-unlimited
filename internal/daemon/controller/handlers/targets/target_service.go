@@ -114,6 +114,11 @@ type Service struct {
 	workerRPCGracePeriod *atomic.Int64
 	maxPageSize          uint
 	controllerExt        intglobals.ControllerExtension
+
+	// sessionAuthorizer is the optional external authorizer consulted by
+	// AuthorizeSession after the built-in grants allowed the request. Nil
+	// (the default) means no external authorizer is configured.
+	sessionAuthorizer SessionAuthorizer
 }
 
 var _ pbs.TargetServiceServer = (*Service)(nil)
@@ -922,6 +927,13 @@ func (s Service) AuthorizeSession(ctx context.Context, req *pbs.AuthorizeSession
 	endpointUrl := &url.URL{
 		Scheme: t.GetType().String(),
 		Host:   net.JoinHostPort(h, p),
+	}
+
+	// Additive external authorizer: consulted only after the built-in grants
+	// allowed the request (authResult above). A deny, error or timeout is
+	// returned to the client as a generic forbidden error.
+	if err := s.externalAuthorize(ctx, correlationId, authResults.UserId, authResults.Scope, t, hostId); err != nil {
+		return nil, err
 	}
 
 	// Get workers and filter down to ones that can service this request
