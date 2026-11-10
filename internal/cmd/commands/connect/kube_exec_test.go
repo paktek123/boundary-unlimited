@@ -52,6 +52,37 @@ func TestPrepareKubeconfig(t *testing.T) {
 		_, err = os.Stat(path)
 		assert.True(t, os.IsNotExist(err))
 	})
+	t.Run("client certificate credential", func(t *testing.T) {
+		certB64, keyB64 := kubeTestPair(t)
+		f := &kubeFlags{flagKubeScheme: "https"}
+		in, err := f.prepareKubeconfig("tcp://k8s.example.com:6443", local, []*targets.SessionCredential{
+			jsonCred(map[string]any{"client-certificate-data": certB64, "client-key-data": keyB64}),
+		})
+		require.NoError(t, err)
+		defer func() { _ = in.Cleanup() }()
+		b, err := os.ReadFile(strings.TrimPrefix(in.Env[0], "KUBECONFIG="))
+		require.NoError(t, err)
+		assert.Contains(t, string(b), "client-certificate-data")
+		assert.NotContains(t, string(b), "insecure-skip-tls-verify")
+	})
+	t.Run("kubeconfig-shaped credential has server rewritten", func(t *testing.T) {
+		f := &kubeFlags{flagKubeScheme: "https"}
+		full := map[string]any{
+			"clusters": []any{map[string]any{"name": "c1", "cluster": map[string]any{
+				"server": "https://upstream.example:6443", "tls-server-name": "k8s.internal",
+			}}},
+			"users":           []any{map[string]any{"name": "u1", "user": map[string]any{"token": sentinel}}},
+			"contexts":        []any{map[string]any{"name": "ctx", "context": map[string]any{"cluster": "c1", "user": "u1"}}},
+			"current-context": "ctx",
+		}
+		in, err := f.prepareKubeconfig("tcp://k8s.example.com:6443", local, []*targets.SessionCredential{jsonCred(full)})
+		require.NoError(t, err)
+		defer func() { _ = in.Cleanup() }()
+		b, err := os.ReadFile(strings.TrimPrefix(in.Env[0], "KUBECONFIG="))
+		require.NoError(t, err)
+		assert.Contains(t, string(b), "https://"+local)
+		assert.NotContains(t, string(b), "upstream.example")
+	})
 	t.Run("host flag overrides endpoint for server name", func(t *testing.T) {
 		f := &kubeFlags{flagKubeScheme: "https", flagKubeHost: "override.example.com"}
 		in, err := f.prepareKubeconfig("tcp://k8s.example.com:6443", local, []*targets.SessionCredential{jsonCred(map[string]any{"token": sentinel})})
