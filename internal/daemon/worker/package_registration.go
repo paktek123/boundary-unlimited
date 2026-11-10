@@ -4,5 +4,6 @@
 package worker
 
 import (
+	_ "github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh"
 	_ "github.com/hashicorp/boundary/internal/daemon/worker/proxy/tcp"
 )

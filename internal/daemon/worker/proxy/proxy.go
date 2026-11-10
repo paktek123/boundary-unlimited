@@ -16,6 +16,11 @@ import (
 var (
 	TcpHandlerName = "tcp"
 
+	// SshHandlerName is the name the ssh proxy handler registers under. The
+	// worker does not select it for any session yet (GetHandler only returns
+	// the tcp handler), so registering it enables nothing by itself.
+	SshHandlerName = "ssh"
+
 	// handlers is the map of registered handlers
 	handlers *sync.Map = new(sync.Map)
 
@@ -54,6 +59,16 @@ func RegisterHandler(protocol string, handler Handler) error {
 		return ErrProtocolAlreadyRegistered
 	}
 	return nil
+}
+
+// LookupHandler returns the handler registered under name, or
+// ErrUnknownProtocol if there is none.
+func LookupHandler(name string) (Handler, error) {
+	handler, ok := handlers.Load(name)
+	if !ok {
+		return nil, ErrUnknownProtocol
+	}
+	return handler.(Handler), nil
 }
 
 // tcpOnly returns only the TCP protocol.
