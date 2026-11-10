@@ -47,6 +47,10 @@ type SessionConfig struct {
 	// sessions. Nil means no reporting. A slow or panicking Reporter never
 	// stops a session from being refused.
 	Reporter Reporter
+	// RecordingEnabled is set by the session input decoder when the
+	// authorized session requires recording. The registered worker handler
+	// then fails closed unless a recording factory is installed.
+	RecordingEnabled bool
 }
 
 // RecordingFactory wraps the session's upstream so the session is recorded.
