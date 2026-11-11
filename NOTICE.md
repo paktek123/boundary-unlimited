@@ -25,6 +25,7 @@ files in:
 - `internal/notify` (including `slack` and `teams`)
 - `internal/netguard`
 - `internal/event/syslogfmt`
+- `internal/event/syslogsink`
 - `internal/event/sinkqueue`
 - `internal/daemon/worker/recording/{finalize,scratch,upload,bsrfs}`
 - `internal/daemon/worker/proxy/ssh` and `internal/daemon/worker/proxy/kube`
