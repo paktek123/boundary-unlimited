@@ -120,6 +120,8 @@ type verifier struct {
 	act                action.Type
 	ctx                context.Context
 	acl                perms.ACL
+	// overlay adds grants for session authorization only; nil by default.
+	overlay GrantOverlayFunc
 }
 
 // TODO (jefferai 10/2022): NewVerifierContextWithAccounts performs the function
@@ -283,6 +285,8 @@ func Verify(ctx context.Context, resourceType resource.Type, opt ...Option) (ret
 	if v.requestInfo.EncryptedToken != "" {
 		v.decryptToken(ctx)
 	}
+
+	v.overlay = opts.withGrantOverlay
 
 	resourcesToFetchGrants := append([]resource.Type{resourceType}, opts.withFetchAdditionalResourceGrants...)
 
@@ -681,6 +685,22 @@ func (v verifier) performAuthCheck(ctx context.Context, resourceType []resource.
 		parsedGrants = append(parsedGrants, parsed)
 	}
 
+	// Optional overlay (approved access requests). Only for session
+	// authorization and only for an identified user. Overlay tuples are parsed
+	// one by one and any that fail to parse are skipped, so the overlay can
+	// never make the whole check fail or widen anything beyond what it parsed.
+	if v.overlay != nil && v.act == action.AuthorizeSession && *userData.User.Id != globals.AnonymousUserId {
+		for _, tuple := range safeOverlay(ctx, v.overlay, *userData.User.Id, scopeInfo.Id) {
+			parsed, perr := perms.Parse(ctx, tuple,
+				perms.WithUserId(*userData.User.Id),
+				perms.WithSkipFinalValidation(true))
+			if perr != nil {
+				continue
+			}
+			grantTuples = append(grantTuples, tuple)
+			parsedGrants = append(parsedGrants, parsed)
+		}
+	}
 	retAcl = perms.NewACL(parsedGrants...)
 	aclResults = retAcl.Allowed(*v.res, v.act, *userData.User.Id)
 	// We don't set authenticated above because setting this but not authorized

@@ -119,6 +119,10 @@ type Service struct {
 	// AuthorizeSession after the built-in grants allowed the request. Nil
 	// (the default) means no external authorizer is configured.
 	sessionAuthorizer SessionAuthorizer
+
+	// grantOverlay optionally adds grants (approved access requests) for
+	// AuthorizeSession only. Nil (the default) means no overlay.
+	grantOverlay GrantOverlayProvider
 }
 
 var _ pbs.TargetServiceServer = (*Service)(nil)
@@ -1603,6 +1607,9 @@ func (s Service) authResult(ctx context.Context, id string, a action.Type, isRec
 	var parentId string
 	var t target.Target
 	opts := []auth.Option{auth.WithAction(a), auth.WithRecursive(isRecursive)}
+	if a == action.AuthorizeSession && s.grantOverlay != nil {
+		opts = append(opts, auth.WithGrantOverlay(s.grantOverlay.OverlayGrants))
+	}
 	switch a {
 	case action.List, action.Create:
 		parentId = id
