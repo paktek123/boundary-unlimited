@@ -35,6 +35,7 @@ project {
     "internal/notify/**",
     "internal/netguard/**",
     "internal/event/syslogfmt/**",
+    "internal/event/syslogsink/**",
     "internal/event/sinkqueue/**",
     "internal/daemon/worker/recording/finalize/**",
     "internal/daemon/worker/recording/scratch/**",
