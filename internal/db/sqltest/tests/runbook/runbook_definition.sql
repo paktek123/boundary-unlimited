@@ -10,7 +10,7 @@ begin;
     (public_id, scope_id, name, interpreter, source_commit_sha, script_path, script_sha256)
   values
     ('rb_______01', 'p____bwidget', 'restart-service', 'sh', repeat('a', 40), 'runbooks/restart.sh', repeat('b', 64));
-  select is(version, 1::bigint) from runbook_definition where public_id = 'rb_______01';
+  select is(version::bigint, 1::bigint) from runbook_definition where public_id = 'rb_______01';
   select is(parameters, '[]'::jsonb) from runbook_definition where public_id = 'rb_______01';
   -- the default selector selects nothing
   select is(target_selector, '{}'::jsonb) from runbook_definition where public_id = 'rb_______01';
@@ -62,7 +62,7 @@ begin;
   select throws_ok('change_scope', null, null, 'scope change succeeded');
 
   update runbook_definition set description = 'changed' where public_id = 'rb_______01';
-  select is(version, 2::bigint) from runbook_definition where public_id = 'rb_______01';
+  select is(version::bigint, 2::bigint) from runbook_definition where public_id = 'rb_______01';
 
   -- deleting the scope cascades
   delete from iam_scope where public_id = 'p____bwidget';
