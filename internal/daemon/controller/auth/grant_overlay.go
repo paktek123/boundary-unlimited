@@ -6,7 +6,9 @@ package auth
 import (
 	"context"
 
+	"github.com/hashicorp/boundary/globals"
 	"github.com/hashicorp/boundary/internal/perms"
+	"github.com/hashicorp/boundary/internal/types/action"
 )
 
 // GrantOverlayFunc returns extra grants (for example from approved, unexpired
@@ -40,4 +42,27 @@ func safeOverlay(ctx context.Context, f GrantOverlayFunc, userId, scopeId string
 		return nil
 	}
 	return got
+}
+
+// applyOverlay adds the overlay grants to the role grants. The overlay is used
+// only for session authorization and only for an identified (non-anonymous)
+// user. Overlay tuples are parsed one by one and any that fail to parse are
+// skipped, so the overlay can never make the check fail. Grants are appended,
+// never replacing the role grants. With a nil overlay the inputs are returned
+// unchanged.
+func applyOverlay(ctx context.Context, overlay GrantOverlayFunc, act action.Type, userId, scopeId string, tuples []perms.GrantTuple, parsed []perms.Grant) ([]perms.GrantTuple, []perms.Grant) {
+	if overlay == nil || act != action.AuthorizeSession || userId == "" || userId == globals.AnonymousUserId {
+		return tuples, parsed
+	}
+	for _, tuple := range safeOverlay(ctx, overlay, userId, scopeId) {
+		g, err := perms.Parse(ctx, tuple,
+			perms.WithUserId(userId),
+			perms.WithSkipFinalValidation(true))
+		if err != nil {
+			continue
+		}
+		tuples = append(tuples, tuple)
+		parsed = append(parsed, g)
+	}
+	return tuples, parsed
 }

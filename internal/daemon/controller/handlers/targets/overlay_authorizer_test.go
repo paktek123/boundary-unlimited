@@ -133,6 +133,22 @@ func TestAccessRequestOverlay(t *testing.T) {
 		assert.Empty(t, got)
 	})
 
+	t.Run("ids=* with a concrete action passes through (intended)", func(t *testing.T) {
+		// Only grants whose ids AND actions are both wildcards are dropped. An
+		// approved "ids=*;type=target;actions=authorize-session" follows the
+		// approved grant string and allows session authorization on every
+		// target in the request scope, but nothing else.
+		r := ovReq(accessrequest.StateApproved, func(r *accessrequest.Request) {
+			r.Grants = []string{"ids=*;type=target;actions=authorize-session"}
+		})
+		got, err := mk(ovSource{reqs: []accessrequest.Request{r}}, &ovAudit{}).OverlayGrants(ctx, "u_req", "p_1")
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.True(t, allowed(t, got, "ttcp_aaaaaaaaaa", action.AuthorizeSession))
+		assert.True(t, allowed(t, got, "ttcp_bbbbbbbbbb", action.AuthorizeSession))
+		assert.False(t, allowed(t, got, "ttcp_aaaaaaaaaa", action.Delete))
+	})
+
 	fails := map[string]AccessRequestOverlay{
 		"source error": mk(ovSource{err: errors.New("db down")}, &ovAudit{}),
 		"source panic": mk(ovSource{boom: true}, &ovAudit{}),
@@ -165,4 +181,13 @@ type nilOverlay struct{}
 
 func (*nilOverlay) OverlayGrants(context.Context, string, string) ([]perms.GrantTuple, error) {
 	return nil, nil
+}
+
+func TestOverlayOpts(t *testing.T) {
+	with := Service{}.WithGrantOverlay(AccessRequestOverlay{})
+	assert.Len(t, with.overlayOpts(action.AuthorizeSession), 1)
+	for _, a := range []action.Type{action.Read, action.List, action.Create, action.Update, action.Delete} {
+		assert.Empty(t, with.overlayOpts(a), a.String())
+	}
+	assert.Empty(t, Service{}.overlayOpts(action.AuthorizeSession), "no provider, no option")
 }

@@ -45,6 +45,9 @@ type AccessRequestOverlay struct {
 	Clock  accessrequest.Clock
 	// Audit receives one access-request.overlay-authorized event per overlay
 	// grant (request, requester and grant ids only) before the grant is used.
+	// Read the event as "overlay evaluated": it is emitted for every approved,
+	// unexpired grant in the scope, whether or not that grant ends up
+	// authorizing the requested target (the ACL decides that afterwards).
 	Audit accessrequest.Emitter
 }
 
