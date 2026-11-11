@@ -4,6 +4,7 @@
 package notify
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -65,4 +66,45 @@ func FromAccessRequest(req accessrequest.Request, kind Kind) (Event, error) {
 		return Event{}, err
 	}
 	return e, nil
+}
+
+// AccessRequestNotifier adapts a Notifier (typically a *FanOut) to
+// accessrequest.Notifier, so the access-request Service and Sweeper can tell
+// destinations about lifecycle steps. It builds the minimal Event with
+// FromAccessRequest (ids, kind, timestamp and a fixed summary: never the
+// justification, grants or principals) and returns only fixed errors.
+type AccessRequestNotifier struct{ n Notifier }
+
+var _ accessrequest.Notifier = (*AccessRequestNotifier)(nil)
+
+// NewAccessRequestNotifier returns the adapter. A nil Notifier is an error.
+func NewAccessRequestNotifier(n Notifier) (*AccessRequestNotifier, error) {
+	if n == nil {
+		return nil, fmt.Errorf("%w: notifier is required", ErrInvalidEvent)
+	}
+	return &AccessRequestNotifier{n: n}, nil
+}
+
+var arKinds = map[accessrequest.NotifyKind]Kind{
+	accessrequest.NotifyRequested: KindRequested,
+	accessrequest.NotifyApproved:  KindApproved,
+	accessrequest.NotifyDenied:    KindDenied,
+	accessrequest.NotifyCancelled: KindCancelled,
+	accessrequest.NotifyExpired:   KindExpired,
+}
+
+// Notify implements accessrequest.Notifier.
+func (a *AccessRequestNotifier) Notify(ctx context.Context, kind accessrequest.NotifyKind, r accessrequest.Request) error {
+	if a == nil || a.n == nil {
+		return ErrNotifierFailed
+	}
+	k, ok := arKinds[kind]
+	if !ok {
+		return fmt.Errorf("%w: kind", ErrInvalidEvent)
+	}
+	e, err := FromAccessRequest(r, k)
+	if err != nil {
+		return err
+	}
+	return a.n.Notify(ctx, e)
 }

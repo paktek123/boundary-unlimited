@@ -29,6 +29,8 @@ project {
     # copywrite would otherwise rewrite these headers to the upstream license.
     "internal/accessrequest/**",
     "internal/runbook/**",
+    "internal/db/schema/migrations/oss/postgres/115/**",
+    "internal/db/sqltest/tests/runbook/**",
     "internal/masking/**",
     "internal/guardrails/**",
     "internal/policyhook/**",

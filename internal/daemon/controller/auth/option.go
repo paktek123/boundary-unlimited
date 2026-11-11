@@ -35,6 +35,7 @@ type options struct {
 	withResource                      *perms.Resource
 	withActions                       []string
 	withFetchAdditionalResourceGrants []resource.Type
+	withGrantOverlay                  GrantOverlayFunc
 }
 
 func getDefaultOptions() options {

@@ -51,6 +51,16 @@ type SessionConfig struct {
 	// authorized session requires recording. The registered worker handler
 	// then fails closed unless a recording factory is installed.
 	RecordingEnabled bool
+	// Guardrails, when non-nil, is set by the session input decoder when
+	// guardrails apply to the authorized session. The registered worker
+	// handler then compiles the rules and fails closed when they do not
+	// compile or no audit emitter is installed.
+	Guardrails *GuardrailsInput
+	// Masking, when non-nil, is set by the session input decoder when the
+	// authorized session requires masking. The registered worker handler then
+	// compiles the effective policy and fails closed (refuses the session)
+	// when the policy cannot be compiled or no audit emitter is installed.
+	Masking *MaskingInput
 }
 
 // RecordingFactory wraps the session's upstream so the session is recorded.
