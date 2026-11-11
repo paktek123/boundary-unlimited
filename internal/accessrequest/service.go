@@ -20,6 +20,7 @@ const (
 	NotifyApproved  NotifyKind = "approved"
 	NotifyDenied    NotifyKind = "denied"
 	NotifyCancelled NotifyKind = "cancelled"
+	NotifyExpired   NotifyKind = "expired"
 )
 
 // AuditSink receives the audit event of every transition before the
@@ -53,8 +54,11 @@ type ServiceConfig struct {
 	Policy   ApprovalPolicy
 	Audit    AuditSink
 	Notifier Notifier
-	Clock    Clock
-	NewId    IDGenerator
+	// NotifyTimeout bounds one Notify call. Zero selects DefaultNotifyTimeout.
+	// A notifier that ignores its context is abandoned at the timeout.
+	NotifyTimeout time.Duration
+	Clock         Clock
+	NewId         IDGenerator
 	// Options are the lifecycle limits (pending age, justification length,
 	// grant count). The duration cap is always Policy.MaxTTL.
 	Options []Option
@@ -205,14 +209,62 @@ func (s *Service) emit(ctx context.Context, ev Event) (err error) {
 	return nil
 }
 
-// notify tells the Notifier about a committed change. The justification is
-// removed, errors are ignored and a panic is contained.
+// notify tells the Notifier about a committed change; see deliverNotice.
 func (s *Service) notify(ctx context.Context, kind NotifyKind, r Request) {
-	if isNil(s.cfg.Notifier) {
+	deliverNotice(ctx, s.cfg.Notifier, s.cfg.Audit, s.cfg.NotifyTimeout, kind, r)
+}
+
+// DefaultNotifyTimeout bounds one Notifier call when none is configured.
+const DefaultNotifyTimeout = 15 * time.Second
+
+// deliverNotice tells n about a committed change. It never changes request
+// state and never returns an error: the justification is removed, the call is
+// bounded by timeout, and an error, panic or timeout is recorded as an
+// access-request.notify-failed audit event (best effort; identifiers only,
+// never the error text, which could carry a URL or secret).
+func deliverNotice(ctx context.Context, n Notifier, em Emitter, timeout time.Duration, kind NotifyKind, r Request) {
+	if isNil(n) {
+		return
+	}
+	if timeout <= 0 {
+		timeout = DefaultNotifyTimeout
+	}
+	r.Justification = ""
+	r.Grants = append([]string(nil), r.Grants...)
+	nctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	done := make(chan bool, 1) // buffered: an abandoned notifier can still finish
+	go func() {
+		ok := false
+		defer func() {
+			_ = recover() // the value is discarded: it may hold secrets
+			done <- ok
+		}()
+		ok = n.Notify(nctx, kind, r) == nil
+	}()
+	var ok bool
+	select {
+	case ok = <-done:
+	case <-nctx.Done():
+		select {
+		case ok = <-done:
+		default:
+		}
+	}
+	if ok {
+		return
+	}
+	auditNotifyFailure(ctx, em, r)
+}
+
+func auditNotifyFailure(ctx context.Context, em Emitter, r Request) {
+	if isNil(em) {
 		return
 	}
 	defer func() { _ = recover() }()
-	r.Justification = ""
-	r.Grants = append([]string(nil), r.Grants...)
-	_ = s.cfg.Notifier.Notify(ctx, kind, r)
+	ev, err := NewNotifyFailedEvent(r, time.Now())
+	if err != nil {
+		return
+	}
+	_ = em.Emit(ctx, ev)
 }

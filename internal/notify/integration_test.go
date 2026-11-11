@@ -194,7 +194,7 @@ func TestIntegrationFailingAndHangingEndpointsDoNotBreakService(t *testing.T) {
 
 	assert.Len(t, good.deliveries(), 6, "healthy notifier still receives every delivery")
 	assert.Len(t, bad.deliveries(), 6)
-	assert.Len(t, audit.Events(), 6, "audit unaffected by notifier failures")
+	assertAuditLifecycleAndFailures(t, audit)
 
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
@@ -218,7 +218,7 @@ func TestIntegrationPrivateDestinationRefused(t *testing.T) {
 
 	runLifecycle(t, svc)
 
-	assert.Len(t, audit.Events(), 6)
+	assertAuditLifecycleAndFailures(t, audit)
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 	require.Len(t, ad.errs, 6)
@@ -227,4 +227,23 @@ func TestIntegrationPrivateDestinationRefused(t *testing.T) {
 		assert.NotContains(t, e.Error(), "10.0.0.5")
 		assert.NotContains(t, e.Error(), itCanary)
 	}
+}
+
+// assertAuditLifecycleAndFailures checks that the six lifecycle events are
+// intact and that every failed notification was audited, with no secret.
+func assertAuditLifecycleAndFailures(t *testing.T, audit *accessrequest.RecordingEmitter) {
+	t.Helper()
+	var lifecycle, failed int
+	for _, e := range audit.Events() {
+		if e.Type == accessrequest.EventNotifyFailed {
+			failed++
+		} else {
+			lifecycle++
+		}
+		s := fmt.Sprintf("%+v %#v", e, e)
+		assert.NotContains(t, s, canarySecret)
+		assert.NotContains(t, s, itCanary)
+	}
+	assert.Equal(t, 6, lifecycle, "lifecycle audit unaffected by notifier failures")
+	assert.Equal(t, 6, failed, "every failed notification is audited")
 }
