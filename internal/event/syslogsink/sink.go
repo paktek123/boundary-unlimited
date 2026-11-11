@@ -100,7 +100,10 @@ func (s *Sender) Frame(msg syslogfmt.Message) ([]byte, error) {
 	return syslogfmt.FormatOctetCounted(msg)
 }
 
-// Send implements sinkqueue.Sender. It dials, writes every entry in order and
+// Send implements sinkqueue.Sender. Entries must already be framed for the
+// transport with Frame (so UDP entries respect syslogfmt.MaxDatagramSize);
+// Send writes them as given. A persistent connection instead of dialling per
+// batch is a possible follow-up if throughput matters. It dials, writes every entry in order and
 // closes the connection. Any failure returns ErrDelivery so the caller can
 // retry the whole batch; for TCP and TLS this can duplicate entries that were
 // already written (at-least-once).

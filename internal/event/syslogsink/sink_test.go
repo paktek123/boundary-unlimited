@@ -37,21 +37,26 @@ func msg(text string) syslogfmt.Message {
 	}
 }
 
-// readOctetCounted reads n octet-counted frames.
-func readOctetCounted(t *testing.T, r *bufio.Reader, n int) []string {
-	t.Helper()
+// readOctetCounted reads n octet-counted frames. It returns an error instead
+// of failing the test so it is safe to call from a spawned goroutine.
+func readOctetCounted(r *bufio.Reader, n int) ([]string, error) {
 	var out []string
 	for i := 0; i < n; i++ {
 		l, err := r.ReadString(' ')
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		size, err := strconv.Atoi(strings.TrimSuffix(l, " "))
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		buf := make([]byte, size)
-		_, err = io.ReadFull(r, buf)
-		require.NoError(t, err)
+		if _, err = io.ReadFull(r, buf); err != nil {
+			return nil, err
+		}
 		out = append(out, string(buf))
 	}
-	return out
+	return out, nil
 }
 
 func TestNewValidation(t *testing.T) {
@@ -81,14 +86,20 @@ func TestTCP(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer ln.Close()
-	got := make(chan []string, 1)
+	type result struct {
+		frames []string
+		err    error
+	}
+	got := make(chan result, 1)
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
+			got <- result{err: err}
 			return
 		}
 		defer c.Close()
-		got <- readOctetCounted(t, bufio.NewReader(c), 2)
+		f, err := readOctetCounted(bufio.NewReader(c), 2)
+		got <- result{f, err}
 	}()
 	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, Address: ln.Addr().String()})
 	require.NoError(t, err)
@@ -98,7 +109,10 @@ func TestTCP(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, s.Send(context.Background(), [][]byte{f1, f2}))
 	select {
-	case frames := <-got:
+	case res := <-got:
+		require.NoError(t, res.err)
+		frames := res.frames
+		require.Len(t, frames, 2)
 		assert.Contains(t, frames[0], "one")
 		assert.Contains(t, frames[1], "two")
 		assert.Contains(t, frames[0], "2026-01-02T03:04:05.000000Z host1 boundary 42 audit")
@@ -175,14 +189,24 @@ func tlsListener(t *testing.T, cert tls.Certificate, max uint16) net.Listener {
 func TestTLS(t *testing.T) {
 	cert, pool := testCert(t, "collector.test")
 	ln := tlsListener(t, cert, tls.VersionTLS13)
-	got := make(chan string, 1)
+	type result struct {
+		frame string
+		err   error
+	}
+	got := make(chan result, 1)
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
+			got <- result{err: err}
 			return
 		}
 		defer c.Close()
-		got <- readOctetCounted(t, bufio.NewReader(c), 1)[0]
+		f, err := readOctetCounted(bufio.NewReader(c), 1)
+		if err != nil {
+			got <- result{err: err}
+			return
+		}
+		got <- result{frame: f[0]}
 	}()
 
 	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, Address: ln.Addr().String(), RootCAs: pool, ServerName: "collector.test"})
@@ -191,8 +215,9 @@ func TestTLS(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, s.Send(context.Background(), [][]byte{f}))
 	select {
-	case fr := <-got:
-		assert.Contains(t, fr, "secure")
+	case res := <-got:
+		require.NoError(t, res.err)
+		assert.Contains(t, res.frame, "secure")
 	case <-time.After(5 * time.Second):
 		t.Fatal("no frame received")
 	}
