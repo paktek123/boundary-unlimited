@@ -63,6 +63,15 @@ func handleProxy(controlCtx context.Context, dataCtx context.Context, df proxy.D
 		return refuse(errors.New(controlCtx, errors.InvalidParameter, op, "authorization does not match connection"))
 	}
 	opts = slices.Clone(opts)
+	if cfg.RecordingEnabled {
+		// Fail closed: a session that must be recorded is never relayed
+		// without a recording factory.
+		f := installedRecordingFactory()
+		if f == nil {
+			return refuse(errors.New(controlCtx, errors.InvalidParameter, op, "recording is required but no recording factory is installed"))
+		}
+		opts = append(opts, WithRecordingFactory(f), WithRecordingRequired())
+	}
 	return func() {
 		// HandleSession validates again, closes conn and reports refusals.
 		_ = HandleSession(dataCtx, conn, cfg, opts...)
