@@ -6,6 +6,7 @@ package runbook
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -100,6 +101,19 @@ func TestMemRepositoryRejectsHandBuiltDefinitions(t *testing.T) {
 			s.Parameters = []Parameter{{Name: "A", Type: TypeBool}, {Name: "A", Type: TypeBool}}
 		}},
 		{"bad interpreter", func(s *StoredDefinition) { s.Interpreter = "python" }},
+		{"empty selector id", func(s *StoredDefinition) { s.Selector = TargetSelector{TargetIDs: []string{""}} }},
+		{"wildcard selector id", func(s *StoredDefinition) { s.Selector = TargetSelector{TargetIDs: []string{"*"}} }},
+		{"dup selector id", func(s *StoredDefinition) { s.Selector = TargetSelector{ScopeIDs: []string{"p_1", "p_1"}} }},
+		{"too many selector ids", func(s *StoredDefinition) {
+			ids := make([]string, MaxSelectorEntries+1)
+			for i := range ids {
+				ids[i] = fmt.Sprintf("ttcp_%d", i)
+			}
+			s.Selector = TargetSelector{TargetIDs: ids}
+		}},
+		{"all targets plus ids", func(s *StoredDefinition) {
+			s.Selector = TargetSelector{AllTargets: true, TargetIDs: []string{"ttcp_1"}}
+		}},
 		{"nonzero version", func(s *StoredDefinition) { s.Version = 3 }},
 	}
 	for _, tt := range tests {

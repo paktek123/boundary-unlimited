@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/boundary/internal/runbook/source"
@@ -124,6 +125,31 @@ func (s StoredDefinition) validate() error {
 		if _, err := compileParam(p); err != nil {
 			return fmt.Errorf("%w: %s", ErrInvalidInput, err.Error())
 		}
+	}
+	return validateSelector(s.Selector)
+}
+
+// MaxSelectorEntries bounds each selector list.
+const MaxSelectorEntries = 256
+
+func validateSelector(sel TargetSelector) error {
+	for _, ids := range [][]string{sel.TargetIDs, sel.ScopeIDs} {
+		if len(ids) > MaxSelectorEntries {
+			return fmt.Errorf("%w: too many selector entries", ErrInvalidInput)
+		}
+		seen := map[string]struct{}{}
+		for _, id := range ids {
+			if id == "" || len(id) > 64 || !printable(id) || strings.ContainsAny(id, " *") {
+				return fmt.Errorf("%w: invalid selector id", ErrInvalidInput)
+			}
+			if _, dup := seen[id]; dup {
+				return fmt.Errorf("%w: duplicate selector id", ErrInvalidInput)
+			}
+			seen[id] = struct{}{}
+		}
+	}
+	if sel.AllTargets && (len(sel.TargetIDs) > 0 || len(sel.ScopeIDs) > 0) {
+		return fmt.Errorf("%w: all_targets cannot be combined with explicit ids", ErrInvalidInput)
 	}
 	return nil
 }

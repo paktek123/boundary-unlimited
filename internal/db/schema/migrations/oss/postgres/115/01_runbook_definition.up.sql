@@ -57,7 +57,7 @@ begin;
   );
   comment on table runbook_definition is
     'runbook_definition is a table where each row is a reviewable, pinned runbook definition. '
-    'Nothing creates these rows yet.';
+    'Nothing creates these rows yet. An oplog_ticket is registered together with the DB-backed repository slice.';
 
   create trigger immutable_columns before update on runbook_definition
     for each row execute procedure immutable_columns('public_id', 'scope_id', 'create_time');
