@@ -34,6 +34,7 @@ TESTS ?= tests/setup/*.sql \
 		 tests/policy/*.sql \
 		 tests/purge/*.sql \
 		 tests/recording/*.sql \
+		 tests/runbook/*.sql \
 		 tests/sentinel/*.sql \
 		 tests/server/*.sql \
 		 tests/session/*.sql \
