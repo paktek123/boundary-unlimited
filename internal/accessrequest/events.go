@@ -23,6 +23,10 @@ const (
 	EventCancel            EventType = "access-request.cancel"
 	EventExpire            EventType = "access-request.expire"
 	EventOverlayAuthorized EventType = "access-request.overlay-authorized"
+	// EventNotifyFailed records that a lifecycle notification could not be
+	// delivered. It carries identifiers only: no destination, error text or
+	// response body.
+	EventNotifyFailed EventType = "access-request.notify-failed"
 )
 
 // ErrSensitiveField is returned by event constructors when a field looks like
@@ -172,4 +176,10 @@ func NewOverlayAuthorizedEvent(r Request, grant string, now time.Time) (Event, e
 		return Event{}, fmt.Errorf("%w: grant was not part of the request", ErrInvalidInput)
 	}
 	return newEvent(EventOverlayAuthorized, r, r.DecidedBy, now, []string{grant}, r.ExpiresAt)
+}
+
+// NewNotifyFailedEvent builds the event recorded when a notification for r
+// could not be delivered, observed at at. It never contains the reason.
+func NewNotifyFailedEvent(r Request, at time.Time) (Event, error) {
+	return newEvent(EventNotifyFailed, r, "", at, nil, time.Time{})
 }

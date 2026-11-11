@@ -23,6 +23,11 @@ type Sweeper struct {
 	Opts []Option
 	// Emitter is the audit sink; required unless WithoutAudit was used.
 	Emitter Emitter
+	// Notifier, when set, is told about each committed expiry (NotifyExpired).
+	// Failures are audited and never change request state.
+	Notifier Notifier
+	// NotifyTimeout bounds one Notify call; zero selects DefaultNotifyTimeout.
+	NotifyTimeout time.Duration
 
 	noAudit bool
 }
@@ -34,6 +39,9 @@ type SweeperOption func(*Sweeper)
 // then change state without an audit event; use it only in tests or where
 // auditing is done elsewhere.
 func WithoutAudit() SweeperOption { return func(s *Sweeper) { s.noAudit = true } }
+
+// WithSweeperNotifier sets the Notifier told about each committed expiry.
+func WithSweeperNotifier(n Notifier) SweeperOption { return func(s *Sweeper) { s.Notifier = n } }
 
 // WithSweepOptions sets the policy options passed to Expire.
 func WithSweepOptions(o ...Option) SweeperOption {
@@ -125,6 +133,11 @@ func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (bool
 		}
 		_, uerr := s.Repo.Update(ctx, next)
 		if uerr == nil {
+			// Notification is synchronous: a sweep of N expiries with a slow
+			// notifier can take up to N x NotifyTimeout. Failures are audited
+			// through s.Emitter, which is skipped when the Sweeper was built
+			// with WithoutAudit (nil emitter).
+			deliverNotice(ctx, s.Notifier, s.Emitter, s.NotifyTimeout, now, NotifyExpired, next)
 			return true, false, nil
 		}
 		if !errors.Is(uerr, ErrVersionConflict) {
