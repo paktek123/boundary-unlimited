@@ -18,7 +18,7 @@ and are licensed under the MIT License. The license text is in
 files in:
 
 - `internal/accessrequest`
-- `internal/runbook` (including `source` and `approval`)
+- `internal/runbook` (including `source` and `approval`), its migration `internal/db/schema/migrations/oss/postgres/115` and its sqltest `internal/db/sqltest/tests/runbook`
 - `internal/masking`
 - `internal/guardrails`
 - `internal/policyhook`
