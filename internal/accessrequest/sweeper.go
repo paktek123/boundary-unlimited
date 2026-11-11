@@ -133,7 +133,11 @@ func (s *Sweeper) expireOne(ctx context.Context, r Request, now time.Time) (bool
 		}
 		_, uerr := s.Repo.Update(ctx, next)
 		if uerr == nil {
-			deliverNotice(ctx, s.Notifier, s.Emitter, s.NotifyTimeout, NotifyExpired, next)
+			// Notification is synchronous: a sweep of N expiries with a slow
+			// notifier can take up to N x NotifyTimeout. Failures are audited
+			// through s.Emitter, which is skipped when the Sweeper was built
+			// with WithoutAudit (nil emitter).
+			deliverNotice(ctx, s.Notifier, s.Emitter, s.NotifyTimeout, now, NotifyExpired, next)
 			return true, false, nil
 		}
 		if !errors.Is(uerr, ErrVersionConflict) {

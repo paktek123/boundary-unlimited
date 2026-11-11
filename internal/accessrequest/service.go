@@ -211,7 +211,7 @@ func (s *Service) emit(ctx context.Context, ev Event) (err error) {
 
 // notify tells the Notifier about a committed change; see deliverNotice.
 func (s *Service) notify(ctx context.Context, kind NotifyKind, r Request) {
-	deliverNotice(ctx, s.cfg.Notifier, s.cfg.Audit, s.cfg.NotifyTimeout, kind, r)
+	deliverNotice(ctx, s.cfg.Notifier, s.cfg.Audit, s.cfg.NotifyTimeout, s.cfg.Clock.Now(), kind, r)
 }
 
 // DefaultNotifyTimeout bounds one Notifier call when none is configured.
@@ -222,7 +222,7 @@ const DefaultNotifyTimeout = 15 * time.Second
 // bounded by timeout, and an error, panic or timeout is recorded as an
 // access-request.notify-failed audit event (best effort; identifiers only,
 // never the error text, which could carry a URL or secret).
-func deliverNotice(ctx context.Context, n Notifier, em Emitter, timeout time.Duration, kind NotifyKind, r Request) {
+func deliverNotice(ctx context.Context, n Notifier, em Emitter, timeout time.Duration, at time.Time, kind NotifyKind, r Request) {
 	if isNil(n) {
 		return
 	}
@@ -231,6 +231,9 @@ func deliverNotice(ctx context.Context, n Notifier, em Emitter, timeout time.Dur
 	}
 	r.Justification = ""
 	r.Grants = append([]string(nil), r.Grants...)
+	// The state change is already committed, so a cancelled caller context
+	// must not turn a deliverable notification into a recorded failure.
+	ctx = context.WithoutCancel(ctx)
 	nctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	done := make(chan bool, 1) // buffered: an abandoned notifier can still finish
@@ -254,15 +257,15 @@ func deliverNotice(ctx context.Context, n Notifier, em Emitter, timeout time.Dur
 	if ok {
 		return
 	}
-	auditNotifyFailure(ctx, em, r)
+	auditNotifyFailure(ctx, em, r, at)
 }
 
-func auditNotifyFailure(ctx context.Context, em Emitter, r Request) {
+func auditNotifyFailure(ctx context.Context, em Emitter, r Request, at time.Time) {
 	if isNil(em) {
 		return
 	}
 	defer func() { _ = recover() }()
-	ev, err := NewNotifyFailedEvent(r, time.Now())
+	ev, err := NewNotifyFailedEvent(r, at)
 	if err != nil {
 		return
 	}

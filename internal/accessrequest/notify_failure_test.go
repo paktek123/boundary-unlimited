@@ -145,3 +145,19 @@ func TestSweeper_NotifiesExpiryAndAuditsFailure(t *testing.T) {
 	stored, _ := f2.repo.Get(ctx, r2.Id)
 	assert.Equal(t, StateExpired, stored.State)
 }
+
+func TestService_CancelledCallerContextStillDeliversAndUsesInjectedClock(t *testing.T) {
+	f := newSvc(t)
+	cctx, cancel := context.WithCancel(context.Background())
+	r := f.create(t)
+	cancel() // caller gone after the state change committed
+	f.svc.notify(cctx, NotifyApproved, r)
+	assert.Contains(t, f.note.kinds, NotifyApproved, "delivery must not be skipped by a cancelled caller context")
+	assert.NotContains(t, eventTypes(f.audit), EventNotifyFailed)
+
+	f.svc.cfg.Notifier = &recNotifier{err: errors.New("x")}
+	f.svc.notify(context.Background(), NotifyApproved, r)
+	evs := f.audit.Events()
+	require.Equal(t, EventNotifyFailed, evs[len(evs)-1].Type)
+	assert.True(t, evs[len(evs)-1].At.Equal(f.clock.t), "failure event uses the injected clock")
+}
