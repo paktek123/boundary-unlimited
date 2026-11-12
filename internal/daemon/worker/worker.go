@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/boundary/internal/daemon/worker/common"
 	"github.com/hashicorp/boundary/internal/daemon/worker/internal/metric"
 	"github.com/hashicorp/boundary/internal/daemon/worker/proxy"
+	"github.com/hashicorp/boundary/internal/daemon/worker/recording/scratch"
 	"github.com/hashicorp/boundary/internal/daemon/worker/session"
 	"github.com/hashicorp/boundary/internal/errors"
 	"github.com/hashicorp/boundary/internal/event"
@@ -236,6 +237,10 @@ type Worker struct {
 	// SshKnownHostsCallback is used to provide a ssh.HostKeyCallback for SSH host key verification
 	// when connecting to an SSH target. This is an atomic because it can be updated at runtime via SIGHUP.
 	SshKnownHostsCallback atomic.Pointer[ssh.HostKeyCallback]
+
+	// sshScratch is the ssh recording scratch store; nil when no
+	// recording_storage_path is configured.
+	sshScratch *scratch.Store
 }
 
 func New(ctx context.Context, conf *Config) (*Worker, error) {
@@ -381,6 +386,11 @@ func New(ctx context.Context, conf *Config) (*Worker, error) {
 			return nil, fmt.Errorf("error create recording storage: %w", err)
 		}
 		w.RecordingStorage = s
+	}
+
+	installSSHAuditEmitters(event.WriteSysEvent)
+	if w.sshScratch, err = newSSHScratch(w.conf.RawConfig.Worker.RecordingStoragePath); err != nil {
+		return nil, fmt.Errorf("error creating ssh recording scratch store: %w", err)
 	}
 
 	w.parseAndStoreTags(conf.RawConfig.Worker.Tags)
@@ -698,6 +708,13 @@ func (w *Worker) Start() error {
 		return fmt.Errorf("error deriving worker auth key id: %w", err)
 	}
 	w.WorkerAuthCurrentKeyId.Store(currentKeyId)
+
+	// Register recordings left by a previous process before any session is
+	// accepted. The recording factory is not installed here, so sessions that
+	// require recording stay refused (fail closed).
+	if err := recoverSSHScratch(w.baseContext, w.sshScratch, event.WriteSysEvent); err != nil {
+		return errors.Wrap(w.baseContext, err, op, errors.WithMsg("error recovering ssh recording scratch"))
+	}
 
 	if err := w.StartControllerConnections(); err != nil {
 		return errors.Wrap(w.baseContext, err, op, errors.WithMsg("error making controller connections"))
