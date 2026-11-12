@@ -9,12 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
+	sshproxy "github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh"
+	"github.com/hashicorp/boundary/internal/daemon/worker/recording/scratch"
 	"github.com/hashicorp/boundary/internal/event"
 	"github.com/hashicorp/boundary/internal/guardrails"
 	"github.com/hashicorp/boundary/internal/masking"
-
-	sshproxy "github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh"
-	"github.com/hashicorp/boundary/internal/daemon/worker/recording/scratch"
 )
 
 const (
