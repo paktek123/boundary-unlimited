@@ -162,6 +162,10 @@ func (s *Sender) body(batch [][]byte) ([]byte, error) {
 		if !json.Valid(e) {
 			return nil, fmt.Errorf("%w: entry is not valid json", ErrDelivery)
 		}
+		// Refuse before copying so one oversized entry is never buffered.
+		if buf.Len()+len(e) > MaxBodyBytes {
+			return nil, fmt.Errorf("%w: batch too large", ErrDelivery)
+		}
 		switch s.format {
 		case FormatHEC:
 			buf.WriteString(`{"event":`)
