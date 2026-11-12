@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/boundary/internal/notify/sender"
 	"io"
 	"net"
 	"os"
@@ -223,10 +222,6 @@ type Config struct {
 
 	// Eventing configuration for the controller
 	Eventing *event.EventerConfig `hcl:"events"`
-
-	// Notifiers are the validated `notifier` destinations. Secrets are only
-	// references (env:// or file://); see parseNotifiers.
-	Notifiers []sender.Destination `hcl:"-"`
 
 	// Plugin-related options
 	Plugins Plugins `hcl:"plugins"`
@@ -1191,8 +1186,13 @@ func Parse(d string) (*Config, error) {
 		return nil, fmt.Errorf(`too many "events" nodes (max 1, got %d)`, len(eventList.Items))
 	}
 
-	if result.Notifiers, err = parseNotifiers(list); err != nil {
+	// Enforcement-first: the access-request service does not consume a
+	// notifier fan-out yet (#262), so a configured stanza would silently send
+	// nothing. Reject it until that wiring lands; lift this guard there.
+	if dests, err := parseNotifiers(list); err != nil {
 		return nil, fmt.Errorf(`error parsing "notifier": %w`, err)
+	} else if len(dests) > 0 {
+		return nil, errors.New(`notifier: not yet supported (the access-request service does not send notifications yet, see #262)`)
 	}
 
 	if result.Plugins.ExecutionDir != "" {

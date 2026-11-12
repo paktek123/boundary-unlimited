@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/boundary/internal/notify/sender"
+	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,19 +21,41 @@ func notifierHCL(body string) string {
 	return fmt.Sprintf("notifier \"ops\" {\n%s\n}\n", body)
 }
 
+// parseNotifiersFrom parses the stanza without the Parse-level guard.
+func parseNotifiersFrom(t *testing.T, src string) ([]sender.Destination, error) {
+	t.Helper()
+	obj, err := hcl.Parse(src)
+	require.NoError(t, err)
+	return parseNotifiers(obj.Node.(*ast.ObjectList))
+}
+
 func TestParseNotifier_Valid(t *testing.T) {
-	c, err := Parse(notifierHCL(`type = "slack"
-url = "` + canaryURL + `"
+	dests, err := parseNotifiersFrom(t, notifierHCL(`type = "slack"
+url = "`+canaryURL+`"
 secret = "env://NOTIFY_SECRET"`))
 	require.NoError(t, err)
-	require.Len(t, c.Notifiers, 1)
-	assert.Equal(t, "ops", c.Notifiers[0].Name)
-	assert.NotContains(t, fmt.Sprintf("%v %+v %#v", c.Notifiers[0], c.Notifiers, c.Notifiers[0]), "CANARYPATH")
-	assert.NotContains(t, fmt.Sprintf("%v", c.Notifiers[0]), "NOTIFY_SECRET")
+	require.Len(t, dests, 1)
+	assert.Equal(t, "ops", dests[0].Name)
+	assert.NotContains(t, fmt.Sprintf("%v %+v %#v", dests[0], dests, dests[0]), "CANARYPATH")
+	assert.NotContains(t, fmt.Sprintf("%v", dests[0]), "NOTIFY_SECRET")
 
-	c, err = Parse(`controller { name = "c" }`)
+	dests, err = parseNotifiersFrom(t, `controller { name = "c" }`)
 	require.NoError(t, err)
-	assert.Empty(t, c.Notifiers)
+	assert.Empty(t, dests)
+}
+
+// Until the access-request service consumes the fan-out (#262), Parse rejects
+// any notifier stanza instead of accepting one that would send nothing.
+func TestParse_NotifierNotYetSupported(t *testing.T) {
+	_, err := Parse(notifierHCL(`type = "slack"
+url = "` + canaryURL + `"
+secret = "env://NOTIFY_SECRET"`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not yet supported")
+	assert.NotContains(t, err.Error(), "CANARYPATH")
+
+	_, err = Parse(`controller { name = "c" }`)
+	require.NoError(t, err, "no stanza: unchanged behaviour")
 }
 
 func TestParseNotifier_Rejected(t *testing.T) {
@@ -48,15 +74,15 @@ func TestParseNotifier_Rejected(t *testing.T) {
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := Parse(notifierHCL(body))
+			_, err := parseNotifiersFrom(t, notifierHCL(body))
 			require.Error(t, err)
 			for _, leak := range []string{"CANARYPATH", "CANARYSECRETVALUE", "user:pw"} {
 				assert.NotContains(t, err.Error(), leak)
 			}
 		})
 	}
-	_, err := Parse(`notifier { type = "webhook" }`)
+	_, err := parseNotifiersFrom(t, `notifier { type = "webhook" }`)
 	require.Error(t, err, "unlabelled block")
-	_, err = Parse(notifierHCL(`type = "slack"`+"\n"+`url = "`+canaryURL+`"`+"\n"+`secret = "env://X"`) + notifierHCL(`type = "slack"`+"\n"+`url = "`+canaryURL+`"`+"\n"+`secret = "env://X"`))
+	_, err = parseNotifiersFrom(t, notifierHCL(`type = "slack"`+"\n"+`url = "`+canaryURL+`"`+"\n"+`secret = "env://X"`)+notifierHCL(`type = "slack"`+"\n"+`url = "`+canaryURL+`"`+"\n"+`secret = "env://X"`))
 	require.Error(t, err, "duplicate name")
 }

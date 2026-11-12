@@ -22,6 +22,8 @@ The controller refuses to start (error text never contains the URL or secret) wh
 Senders use the guarded dialer: destinations resolving to loopback, private,
 link-local or metadata addresses are refused at dial time.
 
-Status: the configuration is parsed and validated (`sender.BuildFanOut`), but
-the controller does not yet hand the fan-out to the access-request service
-(that wiring is tracked in #262), so no notification is sent yet.
+Status: **currently rejected at load.** The stanza is parsed and validated
+(`sender.BuildFanOut`), but the controller does not yet hand the fan-out to the
+access-request service, so `Parse` fails with "notifier: not yet supported"
+rather than accept a setting that would send nothing. The guard is lifted in
+the change that wires the fan-out into the service (#262).
