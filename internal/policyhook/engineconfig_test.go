@@ -6,7 +6,6 @@ package policyhook
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,10 +23,6 @@ const cfgSecret = "fake-secret-0123456789abcdef"
 func goodCfg() EngineConfig {
 	return EngineConfig{AuthorizerID: "opa", URL: "https://pdp.example.com/CANARYPATH", SecretRef: "env://PDP_SECRET", Timeout: time.Second}
 }
-
-type memEmitter struct{}
-
-func (memEmitter) Emit(context.Context, Event) error { return nil }
 
 func TestEngineConfigValidate(t *testing.T) {
 	require.NoError(t, goodCfg().Validate())
@@ -63,21 +58,20 @@ func TestBuild(t *testing.T) {
 	res := func(v string, err error) func(string) ([]byte, error) {
 		return func(string) ([]byte, error) { return []byte(v), err }
 	}
-	h, err := Build(goodCfg(), BuildDeps{Emitter: memEmitter{}, Resolve: res(cfgSecret, nil)})
+	h, err := Build(goodCfg(), BuildDeps{Emitter: nopEmitter{}, Resolve: res(cfgSecret, nil)})
 	require.NoError(t, err)
 	assert.NotNil(t, h)
 
 	_, err = Build(goodCfg(), BuildDeps{Resolve: res(cfgSecret, nil)})
 	require.Error(t, err, "missing emitter")
-	_, err = Build(goodCfg(), BuildDeps{Emitter: memEmitter{}, Resolve: res("short", nil)})
+	_, err = Build(goodCfg(), BuildDeps{Emitter: nopEmitter{}, Resolve: res("short", nil)})
 	require.Error(t, err, "short secret")
-	_, err = Build(goodCfg(), BuildDeps{Emitter: memEmitter{}, Resolve: res("", ErrSecretUnavailable)})
+	_, err = Build(goodCfg(), BuildDeps{Emitter: nopEmitter{}, Resolve: res("", ErrSecretUnavailable)})
 	require.ErrorIs(t, err, ErrSecretUnavailable)
 	bad := goodCfg()
 	bad.URL = "http://x"
-	_, err = Build(bad, BuildDeps{Emitter: memEmitter{}, Resolve: res(cfgSecret, nil)})
+	_, err = Build(bad, BuildDeps{Emitter: nopEmitter{}, Resolve: res(cfgSecret, nil)})
 	require.Error(t, err)
-	_ = netip.Addr{}
 }
 
 func TestResolveSecret(t *testing.T) {
@@ -105,7 +99,7 @@ func TestResolveSecret(t *testing.T) {
 func TestBuild_LoopbackDenied(t *testing.T) {
 	c := goodCfg()
 	c.URL = "https://127.0.0.1:1/x"
-	h, err := Build(c, BuildDeps{Emitter: memEmitter{}, Resolve: func(string) ([]byte, error) { return []byte(cfgSecret), nil }})
+	h, err := Build(c, BuildDeps{Emitter: nopEmitter{}, Resolve: func(string) ([]byte, error) { return []byte(cfgSecret), nil }})
 	require.NoError(t, err)
 	d, r := h.Authorize(context.Background(), "req", true, Input{PrincipalID: "u_1", TargetID: "tssh_1"})
 	assert.Equal(t, Deny, d)

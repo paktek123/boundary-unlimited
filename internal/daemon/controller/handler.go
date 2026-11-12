@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/boundary/internal/policyhook"
 	"io"
 	"net/http"
 	"net/textproto"
@@ -53,6 +52,7 @@ import (
 	"github.com/hashicorp/boundary/internal/gen/controller/api/services"
 	authpb "github.com/hashicorp/boundary/internal/gen/controller/auth"
 	opsservices "github.com/hashicorp/boundary/internal/gen/ops/services"
+	"github.com/hashicorp/boundary/internal/policyhook"
 	"github.com/hashicorp/boundary/internal/ratelimit"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-secure-stdlib/listenerutil"
@@ -280,14 +280,12 @@ func (c *Controller) registerGrpcServices(s *grpc.Server) error {
 		if err != nil {
 			return fmt.Errorf("failed to create target handler service: %w", err)
 		}
-		if pe := c.conf.RawConfig.PolicyEngine; pe != nil {
-			// Fail closed: a configured policy engine that cannot be built
-			// stops the controller instead of silently running without it.
-			hook, err := policyhook.Build(*pe, policyhook.BuildDeps{Emitter: policyhook.AuditEmitter{}})
-			if err != nil {
-				return fmt.Errorf("failed to create policy engine hook: %w", err)
-			}
-			ts = ts.WithSessionAuthorizer(hook)
+		authz, err := buildPolicyAuthorizer(c.conf.RawConfig.PolicyEngine, policyhook.BuildDeps{Emitter: policyhook.AuditEmitter{}})
+		if err != nil {
+			return err
+		}
+		if authz != nil {
+			ts = ts.WithSessionAuthorizer(authz)
 		}
 		services.RegisterTargetServiceServer(s, ts)
 	}
@@ -826,4 +824,19 @@ func wrapHandlerWithCsp(h http.Handler, props HandlerProperties, isUiRequest fun
 		w.Header().Set(cspNonceHeader, nonce)
 		h.ServeHTTP(w, req)
 	})
+}
+
+// buildPolicyAuthorizer builds the external session authorizer from the
+// policy_engine stanza. It returns nil, nil when the stanza is absent. Fail
+// closed: a configured engine that cannot be built is an error, so the
+// controller does not start without it.
+func buildPolicyAuthorizer(pe *policyhook.EngineConfig, deps policyhook.BuildDeps) (targets.SessionAuthorizer, error) {
+	if pe == nil {
+		return nil, nil
+	}
+	hook, err := policyhook.Build(*pe, deps)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create policy engine hook: %w", err)
+	}
+	return hook, nil
 }
