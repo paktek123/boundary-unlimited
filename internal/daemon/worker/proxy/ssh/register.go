@@ -80,6 +80,7 @@ func handleProxy(controlCtx context.Context, dataCtx context.Context, df proxy.D
 			return refuse(errors.Wrap(controlCtx, err, op, errors.WithMsg("guardrails are required but unavailable"), errors.WithCode(errors.InvalidParameter)))
 		}
 		opts = append(opts, gopts...)
+	}
 	if cfg.Masking != nil {
 		// Fail closed: a session that must be masked is never relayed unless
 		// the effective policy compiles and the audit emitter is installed.
