@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/boundary/internal/policyhook"
 	"io"
 	"net"
 	"os"
@@ -222,6 +223,10 @@ type Config struct {
 
 	// Eventing configuration for the controller
 	Eventing *event.EventerConfig `hcl:"events"`
+
+	// PolicyEngine configures the external session authorizer (nil when
+	// absent). The secret is only a reference; see parsePolicyEngine.
+	PolicyEngine *policyhook.EngineConfig `hcl:"-"`
 
 	// Plugin-related options
 	Plugins Plugins `hcl:"plugins"`
@@ -1184,6 +1189,10 @@ func Parse(d string) (*Config, error) {
 		}
 	default:
 		return nil, fmt.Errorf(`too many "events" nodes (max 1, got %d)`, len(eventList.Items))
+	}
+
+	if result.PolicyEngine, err = parsePolicyEngine(list); err != nil {
+		return nil, fmt.Errorf(`error parsing "policy_engine": %w`, err)
 	}
 
 	if result.Plugins.ExecutionDir != "" {

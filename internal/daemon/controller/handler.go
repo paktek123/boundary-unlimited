@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/boundary/internal/policyhook"
 	"io"
 	"net/http"
 	"net/textproto"
@@ -278,6 +279,15 @@ func (c *Controller) registerGrpcServices(s *grpc.Server) error {
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create target handler service: %w", err)
+		}
+		if pe := c.conf.RawConfig.PolicyEngine; pe != nil {
+			// Fail closed: a configured policy engine that cannot be built
+			// stops the controller instead of silently running without it.
+			hook, err := policyhook.Build(*pe, policyhook.BuildDeps{Emitter: policyhook.AuditEmitter{}})
+			if err != nil {
+				return fmt.Errorf("failed to create policy engine hook: %w", err)
+			}
+			ts = ts.WithSessionAuthorizer(hook)
 		}
 		services.RegisterTargetServiceServer(s, ts)
 	}
