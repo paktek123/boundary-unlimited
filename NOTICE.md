@@ -26,6 +26,7 @@ files in:
 - `internal/netguard`
 - `internal/event/syslogfmt`
 - `internal/event/syslogsink`
+- `internal/event/httpsink`
 - `internal/event/sinkqueue`
 - `internal/daemon/worker/recording/{finalize,scratch,upload,bsrfs}`
 - `internal/daemon/worker/proxy/ssh` and `internal/daemon/worker/proxy/kube`
