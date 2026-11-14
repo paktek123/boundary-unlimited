@@ -451,6 +451,12 @@ var resources = map[resource.Type]info{
 			action.List: "List policies",
 		},
 	},
+	resource.Runbook: {
+		scopes: []string{"Global", "Org", "Project"},
+		actionDescOverrides: map[action.Type]string{
+			action.Execute: "Execute a runbook (reserved: never authorized until the runbook executor exists)",
+		},
+	},
 	resource.Role: {
 		scopes: append(iamScopes, infraScope...),
 	},
