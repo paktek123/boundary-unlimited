@@ -20,6 +20,8 @@ var (
 // ListFilter selects requests. Zero fields match everything. States, when
 // non-empty, matches any of them.
 type ListFilter struct {
+	// ScopeId, when set, restricts the result to requests of that scope.
+	ScopeId     string
 	RequesterId string
 	// ApproverId matches requests decided by this user (DecidedBy).
 	ApproverId string
@@ -39,4 +41,16 @@ type Repository interface {
 	// Update replaces the stored request only if r.Version equals the stored
 	// version, and increments the version. ErrVersionConflict otherwise.
 	Update(ctx context.Context, r Request) (Request, error)
+}
+
+// ActiveLister is implemented by repositories that can return the requests
+// that are currently granting access. Both MemRepository and DBRepository
+// implement it; each compares times against one injected clock.
+type ActiveLister interface {
+	// ListActive returns the requests matching f that are approved and not
+	// yet expired according to the repository's clock. A request is expired
+	// when now >= ExpiresAt, so the expiry instant itself is expired. Pending,
+	// denied, cancelled, expired and revoked requests are never returned,
+	// whatever f.States says.
+	ListActive(ctx context.Context, f ListFilter) ([]Request, error)
 }
