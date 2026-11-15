@@ -148,9 +148,9 @@ func (s *Service) Create(ctx context.Context, c Caller, r Request) (runbook.Stor
 	return out, nil
 }
 
-// Get returns a definition. Missing and out-of-scope are indistinguishable
-// from forbidden to avoid leaking existence: both return ErrNotFound only when
-// the caller may read the definition's scope; otherwise ErrForbidden.
+// Get returns a definition. A missing id and a definition the caller may not
+// read both return ErrForbidden, so existence is not leaked; ErrNotFound is
+// never returned here.
 func (s *Service) Get(ctx context.Context, c Caller, id string) (runbook.StoredDefinition, error) {
 	d, err := s.repo.Get(ctx, id)
 	if err != nil {
@@ -206,6 +206,11 @@ func (s *Service) Update(ctx context.Context, c Caller, id string, r Request) (r
 		return runbook.StoredDefinition{}, mapErr(err)
 	}
 	if err := s.audit(ctx, "update", out, c); err != nil {
+		// Best-effort revert: the content is restored but the repository bumps
+		// the version again (cur.Version+2), so a client retrying with the
+		// version it read gets ErrConflict. The revert error is discarded; if
+		// it fails an unaudited change persists. A transactional DB-backed
+		// repository must replace this (follow-up on the DB repository slice).
 		_, _ = s.repo.Update(ctx, withVersion(cur, out.Version))
 		return runbook.StoredDefinition{}, errors.New("runbooks: audit failed")
 	}
@@ -218,7 +223,9 @@ func withVersion(d runbook.StoredDefinition, v uint32) runbook.StoredDefinition 
 }
 
 // Delete removes a definition. The audit event is emitted first; if it
-// fails the definition is kept (fail closed).
+// fails the definition is kept (fail closed). If the delete itself then fails
+// (for example a concurrent delete) the event records a delete that did not
+// happen; that is accepted in favour of failing closed.
 func (s *Service) Delete(ctx context.Context, c Caller, id string) error {
 	cur, err := s.repo.Get(ctx, id)
 	if err != nil {

@@ -188,10 +188,32 @@ func TestAuditFailureFailsClosed(t *testing.T) {
 	require.NoError(t, err)
 
 	em.err = errors.New("sink down")
-	_, err = s.Create(ctx, c, req("echo hi2\n"))
+	second := req("echo hi2\n")
+	second.Definition.Name = "second"
+	_, err = s.Create(ctx, c, second)
 	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrConflict, "must fail at the audit step, not on a name clash")
 	l, _ := repo.List(ctx, scopeA)
 	assert.Len(t, l, 1, "unaudited create must be rolled back")
+
+	// The failed create must leave its name free for a retry.
+	em.err = nil
+	retry, err := s.Create(ctx, c, second)
+	require.NoError(t, err)
+	require.NoError(t, s.Delete(ctx, c, retry.Id))
+
+	r2 := req("echo v2\n")
+	r2.Version = d.Version
+	u, err := s.Update(ctx, c, d.Id, r2)
+	require.NoError(t, err)
+	em.err = errors.New("sink down")
+	r3 := req("echo v3\n")
+	r3.Version = u.Version
+	_, err = s.Update(ctx, c, d.Id, r3)
+	require.Error(t, err)
+	got, err := repo.Get(ctx, d.Id)
+	require.NoError(t, err)
+	assert.Equal(t, u.ScriptSHA256, got.ScriptSHA256, "unaudited update must be reverted")
 
 	require.Error(t, s.Delete(ctx, c, d.Id))
 	_, err = repo.Get(ctx, d.Id)
