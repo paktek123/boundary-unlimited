@@ -305,8 +305,9 @@ func TestDBRepositoryContract(t *testing.T) {
 		now := time.Now().UTC().Truncate(time.Microsecond)
 		clockRepo, err := NewDBRepository(ctx, rw, rw, k, WithClock(func() time.Time { return now }))
 		require.NoError(t, err)
-		org2 := iam.TestOrg(t, iamRepo)
-		user2 := iam.TestUser(t, iamRepo, org.PublicId)
+		// fresh scopes, so rows made by the other subtests do not appear
+		scopeA, scopeB := iam.TestOrg(t, iamRepo), iam.TestOrg(t, iamRepo)
+		user2 := iam.TestUser(t, iamRepo, scopeA.PublicId)
 		create := func(id, scope, requester string) {
 			r := mk(t, id, requester, t0)
 			r.ScopeId = scope
@@ -329,7 +330,7 @@ func TestDBRepositoryContract(t *testing.T) {
 			_, err := rw.Exec(ctx, "update access_request set state = ?, expiry_time = ? where public_id = ?", []any{string(st), exp, id})
 			require.NoError(t, err)
 		}
-		activeContract(t, clockRepo, org.PublicId, org2.PublicId, user.PublicId, user2.PublicId, now, create, setState)
+		activeContract(t, clockRepo, scopeA.PublicId, scopeB.PublicId, user.PublicId, user2.PublicId, now, create, setState)
 	})
 	t.Run("short id rejected by the database", func(t *testing.T) {
 		r := mk(t, "short", user.PublicId, t0)
