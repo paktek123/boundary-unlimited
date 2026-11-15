@@ -30,6 +30,7 @@ project {
     "internal/accessrequest/**",
     "internal/proto/controller/storage/accessrequest/**",
     "internal/runbook/**",
+    "internal/daemon/controller/handlers/runbooks/**",
     "internal/db/schema/migrations/oss/postgres/115/**",
     "internal/db/sqltest/tests/runbook/**",
     "internal/masking/**",
