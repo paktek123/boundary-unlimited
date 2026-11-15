@@ -48,9 +48,10 @@ func (r *dbRow) clone() *dbRow {
 
 // DBRepository is the database-backed Repository, written through the oplog.
 // It implements Create, Get, List and ListActive; Update returns
-// ErrNotImplemented until the next slice of #261 lands. Unlike MemRepository it is strict: Create only
-// stores a pending request, so the database always starts a request in the
-// pending state and the approval fields are only set by a later transition.
+// ErrNotImplemented until the next slice of #261 lands. Unlike MemRepository
+// it is strict: Create only stores a pending request, so the database always
+// starts a request in the pending state and the approval fields are only set
+// by a later transition.
 type DBRepository struct {
 	reader db.Reader
 	writer db.Writer

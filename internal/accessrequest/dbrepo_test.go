@@ -322,6 +322,10 @@ func TestDBRepositoryContract(t *testing.T) {
 		// test database.
 		_, err = rw.Exec(ctx, "alter table access_request disable trigger access_request_enforce_transition", nil)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			_, err := rw.Exec(ctx, "alter table access_request enable trigger access_request_enforce_transition", nil)
+			require.NoError(t, err)
+		})
 		setState := func(id string, st State, expiry time.Time) {
 			var exp any
 			if !expiry.IsZero() {
