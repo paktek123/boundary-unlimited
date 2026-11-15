@@ -313,6 +313,14 @@ func TestDBRepositoryContract(t *testing.T) {
 			_, err := clockRepo.Create(ctx, r)
 			require.NoError(t, err)
 		}
+		// The transition trigger cannot currently be passed by any update to a
+		// terminal state (the version-bump trigger issues a nested update that
+		// the transition trigger then rejects; see the note on #271), and the
+		// repository has no transition API yet. This test only needs rows in
+		// each state, so it disables that one trigger on its own throwaway
+		// test database.
+		_, err = rw.Exec(ctx, "alter table access_request disable trigger access_request_enforce_transition", nil)
+		require.NoError(t, err)
 		setState := func(id string, st State, expiry time.Time) {
 			var exp any
 			if !expiry.IsZero() {
