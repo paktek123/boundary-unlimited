@@ -5,6 +5,7 @@ package accessrequest
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -46,20 +47,35 @@ func (r *dbRow) clone() *dbRow {
 }
 
 // DBRepository is the database-backed Repository, written through the oplog.
-// It implements Create and Get; List and Update return ErrNotImplemented until
-// the next slices of #261 land. Unlike MemRepository it is strict: Create only
-// stores a pending request, so the database always starts a request in the
-// pending state and the approval fields are only set by a later transition.
+// It implements Create, Get, List and ListActive; Update returns
+// ErrNotImplemented until the next slice of #261 lands. Unlike MemRepository
+// it is strict: Create only stores a pending request, so the database always
+// starts a request in the pending state and the approval fields are only set
+// by a later transition.
 type DBRepository struct {
 	reader db.Reader
 	writer db.Writer
 	kms    *kms.Kms
+	clock  func() time.Time
 }
 
-var _ Repository = (*DBRepository)(nil)
+var (
+	_ Repository   = (*DBRepository)(nil)
+	_ ActiveLister = (*DBRepository)(nil)
+)
+
+// DBOption configures a DBRepository.
+type DBOption func(*DBRepository)
+
+// WithClock sets the clock used by ListActive. It is the only source of time
+// for expiry decisions: the database's now() is never consulted. A nil clock
+// is ignored and time.Now is used.
+func WithClock(clock func() time.Time) DBOption {
+	return func(d *DBRepository) { d.clock = clock }
+}
 
 // NewDBRepository returns a DBRepository. All arguments are required.
-func NewDBRepository(ctx context.Context, r db.Reader, w db.Writer, k *kms.Kms) (*DBRepository, error) {
+func NewDBRepository(ctx context.Context, r db.Reader, w db.Writer, k *kms.Kms, opts ...DBOption) (*DBRepository, error) {
 	switch {
 	case r == nil:
 		return nil, fmt.Errorf("%w: nil db reader", ErrInvalidInput)
@@ -68,7 +84,11 @@ func NewDBRepository(ctx context.Context, r db.Reader, w db.Writer, k *kms.Kms) 
 	case k == nil:
 		return nil, fmt.Errorf("%w: nil kms", ErrInvalidInput)
 	}
-	return &DBRepository{reader: r, writer: w, kms: k}, nil
+	d := &DBRepository{reader: r, writer: w, kms: k}
+	for _, o := range opts {
+		o(d)
+	}
+	return d, nil
 }
 
 // Create implements Repository. The request must be pending with no decision
@@ -169,9 +189,119 @@ func (d *DBRepository) Get(ctx context.Context, id string) (Request, error) {
 	return fromRow(row)
 }
 
-// List implements Repository. Not implemented until slice 2 of #261.
+// List implements Repository. Results are ordered by creation time then id.
+// DecidedBy and DecidedAt of an approved or denied request come from its
+// latest matching access_request_approval row; they are zero when no such row
+// exists, which makes the overlay drop an approved request as malformed.
 func (d *DBRepository) List(ctx context.Context, f ListFilter) ([]Request, error) {
-	return nil, ErrNotImplemented
+	return d.list(ctx, f, nil)
+}
+
+// ListActive implements ActiveLister. The expiry comparison is made against
+// the repository's clock, passed to the query as a parameter, never now().
+func (d *DBRepository) ListActive(ctx context.Context, f ListFilter) ([]Request, error) {
+	f.States = intersectApproved(f.States)
+	if f.States == nil {
+		return nil, ctx.Err()
+	}
+	now := time.Now()
+	if d.clock != nil {
+		now = d.clock()
+	}
+	return d.list(ctx, f, &now)
+}
+
+const listSelect = `
+select r.public_id, r.scope_id, r.requester_id, r.grants::text, r.grant_hash,
+       r.justification, r.state, r.ttl_seconds, r.create_time, r.expiry_time,
+       r.version, a.approver_id, a.create_time
+  from access_request r
+  left join lateral (
+        select approver_id, create_time
+          from access_request_approval
+         where request_id = r.public_id and decision = r.state
+         order by create_time desc, approver_id desc
+         limit 1) a on true`
+
+func (d *DBRepository) list(ctx context.Context, f ListFilter, activeAt *time.Time) ([]Request, error) {
+	const op = "accessrequest.(DBRepository).List"
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var where []string
+	var args []any
+	if f.ScopeId != "" {
+		where = append(where, "r.scope_id = ?")
+		args = append(args, f.ScopeId)
+	}
+	if f.RequesterId != "" {
+		where = append(where, "r.requester_id = ?")
+		args = append(args, f.RequesterId)
+	}
+	if f.ApproverId != "" {
+		where = append(where, "a.approver_id = ?")
+		args = append(args, f.ApproverId)
+	}
+	if len(f.States) > 0 {
+		ph := make([]string, 0, len(f.States))
+		for _, s := range f.States {
+			if !s.valid() {
+				return nil, fmt.Errorf("%w: unknown state %q", ErrInvalidState, string(s))
+			}
+			ph = append(ph, "?")
+			args = append(args, string(s))
+		}
+		where = append(where, "r.state in ("+strings.Join(ph, ",")+")")
+	}
+	if activeAt != nil {
+		where = append(where, "r.state = 'approved'", "r.expiry_time is not null", "r.expiry_time > ?")
+		args = append(args, activeAt.UTC())
+	}
+	q := listSelect
+	if len(where) > 0 {
+		q += "\n where " + strings.Join(where, " and ")
+	}
+	q += "\n order by r.create_time, r.public_id"
+
+	rows, err := d.reader.Query(ctx, q, args)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer rows.Close()
+	var out []Request
+	for rows.Next() {
+		var (
+			row                 = allocRow()
+			grants              string
+			requester, approver sql.NullString
+			created             time.Time
+			expiry, decided     sql.NullTime
+		)
+		if err := rows.Scan(&row.PublicId, &row.ScopeId, &requester, &grants, &row.GrantHash,
+			&row.Justification, &row.State, &row.TtlSeconds, &created, &expiry,
+			&row.Version, &approver, &decided); err != nil {
+			return nil, fmt.Errorf("%s: scan: %w", op, err)
+		}
+		row.RequesterId = requester.String
+		row.Grants = grants
+		r, err := fromRow(row)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		r.CreatedAt = created
+		if expiry.Valid {
+			r.ExpiresAt = expiry.Time
+		}
+		r.DecidedBy = approver.String
+		if decided.Valid {
+			r.DecidedAt = decided.Time
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return out, nil
 }
 
 // Update implements Repository. Not implemented until slice 3 of #261.
