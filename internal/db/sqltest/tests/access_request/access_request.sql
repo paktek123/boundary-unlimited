@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: BUSL-1.1
 
 begin;
-  select plan(26);
+  select plan(40);
 
   select wtt_load('widgets', 'iam', 'kms');
 
@@ -120,6 +120,74 @@ begin;
   prepare terminal_change as
   update access_request set justification = 'changed' where public_id = 'ar_______01';
   select throws_ok('terminal_change', null, null, 'update of a terminal request succeeded');
+  select is(version, 3::bigint) from access_request where public_id = 'ar_______01';
+
+  -- every terminal state is reachable (migration 116) and then frozen
+  insert into access_request
+    (public_id, scope_id, requester_id, grants, grant_hash, justification, ttl_seconds)
+  values
+    ('ar_______03', 'p____bwidget', 'u_____walter', array['a'], repeat('a', 64), 'x', 60),
+    ('ar_______04', 'p____bwidget', 'u_____walter', array['a'], repeat('a', 64), 'x', 60),
+    ('ar_______05', 'p____bwidget', 'u_____walter', array['a'], repeat('a', 64), 'x', 60),
+    ('ar_______06', 'p____bwidget', 'u_____walter', array['a'], repeat('a', 64), 'x', 60);
+  update access_request set state = 'denied' where public_id = 'ar_______02';
+  update access_request set state = 'cancelled' where public_id = 'ar_______03';
+  update access_request set state = 'expired' where public_id = 'ar_______04';
+  update access_request set state = 'approved', expiry_time = now() + interval '1 hour' where public_id = 'ar_______05';
+  update access_request set state = 'expired' where public_id = 'ar_______05';
+  select is(state, 'denied') from access_request where public_id = 'ar_______02';
+  select is(state, 'cancelled') from access_request where public_id = 'ar_______03';
+  select is(state, 'expired') from access_request where public_id = 'ar_______04';
+  select is(state, 'expired') from access_request where public_id = 'ar_______05';
+
+  prepare denied_change as
+  update access_request set justification = 'changed' where public_id = 'ar_______02';
+  select throws_ok('denied_change', null, null, 'update of a denied request succeeded');
+  prepare cancelled_change as
+  update access_request set justification = 'changed' where public_id = 'ar_______03';
+  select throws_ok('cancelled_change', null, null, 'update of a cancelled request succeeded');
+  prepare expired_change as
+  update access_request set justification = 'changed' where public_id = 'ar_______04';
+  select throws_ok('expired_change', null, null, 'update of an expired request succeeded');
+  prepare terminal_state_change as
+  update access_request set state = 'approved', expiry_time = now() where public_id = 'ar_______02';
+  select throws_ok('terminal_state_change', null, null, 'state change of a terminal request succeeded');
+  prepare terminal_expiry_change as
+  update access_request set expiry_time = now() + interval '1 day' where public_id = 'ar_______05';
+  select throws_ok('terminal_expiry_change', null, null, 'expiry change of a terminal request succeeded');
+
+  -- a direct (depth 1) update touching only version on a terminal row fails
+  prepare terminal_version_only as
+  update access_request set version = version + 1 where public_id = 'ar_______02';
+  select throws_ok('terminal_version_only', null, null, 'direct version bump of a terminal request succeeded');
+
+  -- invalid transition from pending
+  prepare pending_to_revoked as
+  update access_request set state = 'revoked' where public_id = 'ar_______06';
+  select throws_ok('pending_to_revoked', null, null, 'pending -> revoked succeeded');
+
+  -- nested (depth > 1) updates on a terminal row: only a pure version bump passes
+  create function ar_test_nested_evil() returns trigger as $$
+  begin
+    update access_request set version = version + 1, justification = 'evil' where public_id = 'ar_______02';
+    return new;
+  end;
+  $$ language plpgsql;
+  create function ar_test_nested_version() returns trigger as $$
+  begin
+    update access_request set version = version + 1 where public_id = 'ar_______02';
+    return new;
+  end;
+  $$ language plpgsql;
+  create temporary table ar_test_nested (id int);
+  create trigger ar_test_nested_evil after insert on ar_test_nested
+    for each row when (new.id = 1) execute function ar_test_nested_evil();
+  create trigger ar_test_nested_version after insert on ar_test_nested
+    for each row when (new.id = 2) execute function ar_test_nested_version();
+  prepare nested_evil as insert into ar_test_nested values (1);
+  select throws_ok('nested_evil', null, null, 'nested update changing a column of a terminal request succeeded');
+  insert into ar_test_nested values (2);
+  select is(version, 3::bigint) from access_request where public_id = 'ar_______02';
 
   -- deleting a requester cascades to their requests and the approvals on them
   delete from iam_user where public_id = 'u_____walter';
