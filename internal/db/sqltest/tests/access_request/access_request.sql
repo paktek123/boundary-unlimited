@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: BUSL-1.1
 
 begin;
-  select plan(40);
+  select plan(46);
 
   select wtt_load('widgets', 'iam', 'kms');
 
@@ -155,6 +155,26 @@ begin;
   prepare terminal_expiry_change as
   update access_request set expiry_time = now() + interval '1 day' where public_id = 'ar_______05';
   select throws_ok('terminal_expiry_change', null, null, 'expiry change of a terminal request succeeded');
+
+  -- revoked (ar_______01 went approved -> revoked above) is reached and frozen
+  select is(state, 'revoked') from access_request where public_id = 'ar_______01';
+  prepare revoked_state_change as
+  update access_request set state = 'approved' where public_id = 'ar_______01';
+  select throws_ok('revoked_state_change', null, null, 'state change of a revoked request succeeded');
+  prepare revoked_expiry_change as
+  update access_request set expiry_time = now() + interval '1 day' where public_id = 'ar_______01';
+  select throws_ok('revoked_expiry_change', null, null, 'expiry change of a revoked request succeeded');
+
+  -- grants, grant_hash and requester of terminal requests cannot change
+  prepare terminal_grants_change as
+  update access_request set grants = array['ids=*;type=*;actions=*'] where public_id = 'ar_______02';
+  select throws_ok('terminal_grants_change', null, null, 'grants change of a denied request succeeded');
+  prepare terminal_hash_change as
+  update access_request set grant_hash = repeat('b', 64) where public_id = 'ar_______03';
+  select throws_ok('terminal_hash_change', null, null, 'grant_hash change of a cancelled request succeeded');
+  prepare terminal_requester_change as
+  update access_request set requester_id = 'u_____warren' where public_id = 'ar_______04';
+  select throws_ok('terminal_requester_change', null, null, 'requester change of an expired request succeeded');
 
   -- a direct (depth 1) update touching only version on a terminal row fails
   prepare terminal_version_only as
