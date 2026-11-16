@@ -237,6 +237,12 @@ func TestControllerNewListenerConfig(t *testing.T) {
 }
 
 func TestController_NewPluginsConfig(t *testing.T) {
+	// The embedded host plugins only exist after `make build-plugins`. Without
+	// them the controller cannot register the built-in plugins, which says
+	// nothing about the code under test, so skip rather than fail.
+	if _, err := os.Stat("../../../plugins/boundary/assets/boundary-plugin-aws.gz"); err != nil {
+		t.Skip("embedded host plugins are not built; run `make build-plugins` to run this test")
+	}
 	require := require.New(t)
 	testCtx := context.Background()
 	ctx, cancel := context.WithCancel(context.Background())
