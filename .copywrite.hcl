@@ -28,7 +28,9 @@ project {
     # written for Boundary Unlimited and licensed under MIT (see NOTICE.md);
     # copywrite would otherwise rewrite these headers to the upstream license.
     "internal/accessrequest/**",
+    "internal/proto/controller/storage/accessrequest/**",
     "internal/runbook/**",
+    "internal/daemon/controller/handlers/runbooks/**",
     "internal/db/schema/migrations/oss/postgres/115/**",
     "internal/db/sqltest/tests/runbook/**",
     "internal/masking/**",
@@ -38,6 +40,7 @@ project {
     "internal/netguard/**",
     "internal/event/syslogfmt/**",
     "internal/event/syslogsink/**",
+    "internal/event/httpsink/**",
     "internal/event/sinkqueue/**",
     "internal/daemon/worker/recording/finalize/**",
     "internal/daemon/worker/recording/scratch/**",

@@ -238,6 +238,12 @@ func (a ACL) Allowed(r Resource, aType action.Type, userId string, opt ...Option
 	// Now, go through and check whether grants match
 	for _, grant := range grants {
 		var outputFieldsOnly bool
+		// Runbooks are opt-in: a wildcard type grant (type=*) never covers
+		// them, and the execute action is never authorized until the runbook
+		// executor exists (enforcement-first, fail closed).
+		if r.Type == resource.Runbook && (grant.Type == resource.All || aType == action.Execute) {
+			continue
+		}
 		switch {
 		case len(grant.ActionSet) == 0:
 			// Continue with the next grant, unless we have output fields
@@ -565,6 +571,10 @@ func (a ACL) buildPermission(
 	for _, grant := range grants {
 		// This grant doesn't match what we're looking for, ignore.
 		if grant.Type != requestedType && grant.Type != resource.All && globals.ResourceInfoFromPrefix(grant.Id).Type != requestedType {
+			continue
+		}
+		// Runbooks are opt-in: wildcard type grants never cover them.
+		if requestedType == resource.Runbook && grant.Type == resource.All {
 			continue
 		}
 

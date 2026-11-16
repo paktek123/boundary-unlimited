@@ -1,0 +1,64 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.storage.accessrequest.store.v1;
+
+import "controller/storage/timestamp/v1/timestamp.proto";
+
+option go_package = "github.com/hashicorp/boundary/internal/accessrequest/store;store";
+
+// AccessRequest is the storage representation of a row in the access_request
+// table (migration 114).
+message AccessRequest {
+  // public_id is the id of the request.
+  // @inject_tag: gorm:"primary_key"
+  string public_id = 1;
+
+  // scope_id is the owning scope.
+  // @inject_tag: `gorm:"not_null"`
+  string scope_id = 2;
+
+  // requester_id is the user who made the request.
+  // @inject_tag: `gorm:"default:null"`
+  string requester_id = 3;
+
+  // grants is the postgres text[] array literal of the requested grant
+  // strings. It is encoded and decoded by the accessrequest package, never
+  // by callers.
+  // @inject_tag: `gorm:"not_null"`
+  string grants = 4;
+
+  // grant_hash is the hex sha-256 of the normalised grants.
+  // @inject_tag: `gorm:"not_null"`
+  string grant_hash = 5;
+
+  // justification is why access is needed.
+  // @inject_tag: `gorm:"not_null"`
+  string justification = 6;
+
+  // state is the lifecycle state; the database default is pending.
+  // @inject_tag: `gorm:"default:null"`
+  string state = 7;
+
+  // ttl_seconds is the requested access duration in seconds.
+  // @inject_tag: `gorm:"not_null"`
+  int32 ttl_seconds = 8;
+
+  // create_time from the RDBMS
+  // @inject_tag: `gorm:"default:current_timestamp"`
+  timestamp.v1.Timestamp create_time = 9;
+
+  // update_time from the RDBMS
+  // @inject_tag: `gorm:"default:current_timestamp"`
+  timestamp.v1.Timestamp update_time = 10;
+
+  // expiry_time is set when the request is approved.
+  // @inject_tag: `gorm:"default:null"`
+  timestamp.v1.Timestamp expiry_time = 11;
+
+  // version allows optimistic locking of the resource.
+  // @inject_tag: `gorm:"default:null"`
+  uint32 version = 12;
+}

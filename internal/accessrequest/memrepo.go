@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 )
 
 // MemRepository is a concurrency-safe in-memory Repository for tests. It is
@@ -16,8 +17,9 @@ import (
 // the state-machine functions, and a database-backed Repository must not
 // inherit this gap silently: it should validate both.
 type MemRepository struct {
-	mu   sync.Mutex
-	reqs map[string]Request
+	mu    sync.Mutex
+	reqs  map[string]Request
+	clock func() time.Time
 }
 
 // NewMemRepository returns an empty MemRepository.
@@ -25,7 +27,18 @@ func NewMemRepository() *MemRepository {
 	return &MemRepository{reqs: map[string]Request{}}
 }
 
-var _ Repository = (*MemRepository)(nil)
+// NewMemRepositoryWithClock returns an empty MemRepository whose ListActive
+// uses clock as its only source of time. A nil clock means time.Now.
+func NewMemRepositoryWithClock(clock func() time.Time) *MemRepository {
+	m := NewMemRepository()
+	m.clock = clock
+	return m
+}
+
+var (
+	_ Repository   = (*MemRepository)(nil)
+	_ ActiveLister = (*MemRepository)(nil)
+)
 
 func clone(r Request) Request {
 	r.Grants = append([]string(nil), r.Grants...)
@@ -74,6 +87,9 @@ func (m *MemRepository) List(ctx context.Context, f ListFilter) ([]Request, erro
 	defer m.mu.Unlock()
 	var out []Request
 	for _, r := range m.reqs {
+		if f.ScopeId != "" && r.ScopeId != f.ScopeId {
+			continue
+		}
 		if f.RequesterId != "" && r.RequesterId != f.RequesterId {
 			continue
 		}
@@ -121,4 +137,46 @@ func (m *MemRepository) Update(ctx context.Context, r Request) (Request, error) 
 	r.Version = cur.Version + 1
 	m.reqs[r.Id] = r
 	return clone(r), nil
+}
+
+// ListActive implements ActiveLister.
+func (m *MemRepository) ListActive(ctx context.Context, f ListFilter) ([]Request, error) {
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock()
+	}
+	f.States = intersectApproved(f.States)
+	if f.States == nil {
+		return nil, ctx.Err()
+	}
+	all, err := m.List(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	var out []Request
+	for _, r := range all {
+		if isActive(r, now) {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
+// intersectApproved narrows a state filter to approved only. It returns nil
+// when the filter excludes approved.
+func intersectApproved(states []State) []State {
+	if len(states) == 0 {
+		return []State{StateApproved}
+	}
+	for _, s := range states {
+		if s == StateApproved {
+			return []State{StateApproved}
+		}
+	}
+	return nil
+}
+
+// isActive reports whether r is approved with an expiry strictly after now.
+func isActive(r Request, now time.Time) bool {
+	return r.State == StateApproved && !r.ExpiresAt.IsZero() && now.Before(r.ExpiresAt)
 }

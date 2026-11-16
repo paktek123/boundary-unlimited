@@ -19,6 +19,7 @@ files in:
 
 - `internal/accessrequest`
 - `internal/runbook` (including `source` and `approval`), its migration `internal/db/schema/migrations/oss/postgres/115` and its sqltest `internal/db/sqltest/tests/runbook`
+- `internal/daemon/controller/handlers/runbooks`
 - `internal/masking`
 - `internal/guardrails`
 - `internal/policyhook`
@@ -26,6 +27,7 @@ files in:
 - `internal/netguard`
 - `internal/event/syslogfmt`
 - `internal/event/syslogsink`
+- `internal/event/httpsink`
 - `internal/event/sinkqueue`
 - `internal/daemon/worker/recording/{finalize,scratch,upload,bsrfs}`
 - `internal/daemon/worker/proxy/ssh` and `internal/daemon/worker/proxy/kube`
