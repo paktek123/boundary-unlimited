@@ -32,6 +32,7 @@ project {
     "internal/runbook/**",
     "internal/daemon/controller/handlers/runbooks/**",
     "internal/db/schema/migrations/oss/postgres/115/**",
+    "internal/db/schema/migrations/oss/postgres/116/**",
     "internal/db/sqltest/tests/runbook/**",
     "internal/masking/**",
     "internal/guardrails/**",

@@ -19,6 +19,7 @@ files in:
 
 - `internal/accessrequest`
 - `internal/runbook` (including `source` and `approval`), its migration `internal/db/schema/migrations/oss/postgres/115` and its sqltest `internal/db/sqltest/tests/runbook`
+- `internal/db/schema/migrations/oss/postgres/116` (access request terminal-state fix, replaces a function from upstream-headed migration 114)
 - `internal/daemon/controller/handlers/runbooks`
 - `internal/masking`
 - `internal/guardrails`
