@@ -40,14 +40,39 @@ octet-counted frame for TCP and TLS.
 | TLS options on `udp`/`tcp` | rejected as invalid configuration |
 | Timeouts | dial and write default to 5s; negative values are invalid |
 
-## Planned configuration rules (from the security decision on #55)
+## Delivery semantics: best-effort only
 
-These are requirements for the wiring slice, not current behaviour:
+Network sinks are **best-effort** and can never satisfy `delivery_guarantee =
+enforced`; only the file sink keeps that guarantee. The queue in front of a
+network sink (`internal/event/sinkqueue`) is bounded in entries and bytes:
 
-- the syslog default network is `tls`; `tcp` and `udp` need an explicit
-  `insecure_plaintext = true`;
-- client key material and CA bundles are `file://` references only, tokens are
-  `env://` or `file://` references only, never inline;
-- delivery is best-effort and must not block or fail the request path;
-- until the wiring and its tests merge, the sink types stay rejected
-  (enforcement-first).
+- a best-effort producer is never blocked; when the queue is full the oldest
+  entries are dropped and counted (`Dropped`), and a batch whose retries are
+  exhausted is dropped and counted;
+- an `enforced` queue instead returns `ErrQueueFull` and becomes permanently
+  failed when retries are exhausted, so the caller can stop rather than lose
+  audit events silently (this mode is not used for network sinks);
+- `Close` returns an error wrapping `ErrDropped` when anything was ever lost.
+
+## Configuration rules (validated, but the sinks are still refused)
+
+`event.SinkConfig` now parses `type = "http"` / `type = "syslog"` with an
+`http { ... }` or `syslog { ... }` block and validates it strictly, then
+refuses it with "not yet supported" because nothing delivers events yet:
+
+- `http`: `url` (https only, no userinfo), `token` as `env://NAME` or an
+  absolute `file://` reference (inline tokens are refused), `format` of `hec`
+  or `json`;
+- `syslog`: `address` as `host:port`; `network` defaults to `tls`; `tcp` and
+  `udp` need `insecure_plaintext = true`; `ca_file`, `client_cert_file` and
+  `client_key_file` are absolute `file://` references and only valid with `tls`;
+- both: `allow_private_cidrs` is the explicit per-sink allow-list for private
+  destinations (default empty; `0.0.0.0/0` and `::/0` are refused),
+  `delivery_guarantee = enforced` is refused, unknown keys such as
+  `skip_verify` fail the load, and errors never contain the URL, address or
+  secret reference.
+
+Remaining before a network sink can be turned on: hooking the pipeline into the
+eventer, failing startup on an unresolvable secret, and the rate-limited
+counts-only system event for drops. Until that merges the sink types stay
+rejected (enforcement-first).
