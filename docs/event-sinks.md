@@ -3,9 +3,9 @@
 Refs #54, #55, #56.
 
 Two transport libraries exist for streaming audit events to a SIEM. **Neither
-can be enabled by configuration yet**: the event system has no `http` or
-`syslog` sink type and the controller config parser accepts no option for them.
-A configuration naming such a sink fails validation as an unknown sink type, so
+can be enabled by configuration yet**: a configuration naming an `http` or
+`syslog` sink is refused at load (as an unknown sink type, or with "not yet
+supported" once the sink-type validation described below is present), so
 nothing can silently send (or silently not send) audit data. The delivery
 wiring lands in a later slice; this page documents what the libraries enforce so
 that slice and operators can rely on it.
