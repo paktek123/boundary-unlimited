@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -109,8 +111,10 @@ func TestWriteNeverBlocksOrFails(t *testing.T) {
 }
 
 func TestNewDispatch(t *testing.T) {
-	_, err := New(&event.SinkConfig{Type: event.SyslogSink}, Deps{})
+	_, err := New(&event.SinkConfig{Type: event.StderrSink}, Deps{})
 	require.ErrorIs(t, err, ErrUnsupported)
+	_, err = New(&event.SinkConfig{Type: event.SyslogSink}, Deps{})
+	require.ErrorIs(t, err, ErrBuild)
 	_, err = New(nil, Deps{})
 	require.ErrorIs(t, err, ErrBuild)
 	_, err = New(&event.SinkConfig{Type: event.HTTPSink}, Deps{})
@@ -123,4 +127,85 @@ type nxResolver struct{}
 
 func (nxResolver) LookupNetIP(context.Context, string, string) ([]netip.Addr, error) {
 	return []netip.Addr{netip.MustParseAddr("192.0.2.1")}, nil
+}
+
+func TestNewSyslogDeliversFramedEntry(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+	got := make(chan string, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		b, _ := io.ReadAll(c)
+		got <- string(b)
+	}()
+	s, err := NewSyslog(&event.SyslogSinkTypeConfig{
+		Network: event.SyslogNetworkTCP, InsecurePlaintext: true, Address: ln.Addr().String(),
+		AllowPrivateCIDRs: []string{"127.0.0.0/8"},
+	}, Deps{})
+	require.NoError(t, err)
+	_, err = s.Write([]byte(`{"id":"e1"}`))
+	require.NoError(t, err)
+	require.NoError(t, s.Close(context.Background()))
+	select {
+	case frame := <-got:
+		assert.Contains(t, frame, `{"id":"e1"}`)
+		assert.Contains(t, frame, " boundary ")
+		assert.Regexp(t, `^\d+ <134>1 `, frame, "octet-counted, local0.info")
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing received")
+	}
+	assert.EqualValues(t, 0, s.Dropped())
+}
+
+func TestNewSyslogFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	notPEM := dir + "/ca.pem"
+	require.NoError(t, os.WriteFile(notPEM, []byte("not a certificate "+canary), 0o600))
+	base := func() *event.SyslogSinkTypeConfig {
+		return &event.SyslogSinkTypeConfig{Address: "logs.example.com:6514"}
+	}
+	bad := map[string]*event.SyslogSinkTypeConfig{
+		"nil":                      nil,
+		"plaintext without opt-in": {Network: event.SyslogNetworkTCP, Address: "logs.example.com:514"},
+	}
+	m := base()
+	m.CAFile = "file://" + dir + "/missing.pem"
+	bad["missing ca"] = m
+	n := base()
+	n.CAFile = "file://" + notPEM
+	bad["ca without certificates"] = n
+	k := base()
+	k.ClientCertFile, k.ClientKeyFile = "file://"+notPEM, "file://"+notPEM
+	bad["invalid client pair"] = k
+	for name, cfg := range bad {
+		t.Run(name, func(t *testing.T) {
+			s, err := NewSyslog(cfg, Deps{})
+			require.Error(t, err)
+			require.Nil(t, s)
+			require.ErrorIs(t, err, ErrBuild)
+			assert.NotContains(t, err.Error(), canary)
+			assert.NotContains(t, err.Error(), "logs.example.com")
+			assert.NotContains(t, err.Error(), dir)
+		})
+	}
+}
+
+func TestSyslogUnframeableEntryIsCounted(t *testing.T) {
+	s, err := NewSyslog(&event.SyslogSinkTypeConfig{
+		Network: event.SyslogNetworkUDP, InsecurePlaintext: true, Address: "127.0.0.1:9",
+		AllowPrivateCIDRs: []string{"127.0.0.0/8"},
+	}, Deps{})
+	require.NoError(t, err)
+	n, err := s.Write(make([]byte, 10_000)) // larger than a UDP datagram
+	require.NoError(t, err)
+	assert.Equal(t, 10_000, n)
+	assert.EqualValues(t, 1, s.Dropped())
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	_ = s.Close(ctx)
 }

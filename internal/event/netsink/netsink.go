@@ -10,22 +10,29 @@
 // still refuses http and syslog sinks as not yet supported, so no configuration
 // can reach it. It exists so the final wiring slice is a small change.
 //
-// Only the http sink type is built here; syslog returns ErrUnsupported. Network
+// Both http and syslog sinks are built here. Network
 // sinks are always best-effort: Write never blocks the producer, drops the
 // oldest entries when the queue is full and counts every drop.
 package netsink
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
+	"os"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/boundary/internal/event"
 	"github.com/hashicorp/boundary/internal/event/httpsink"
 	"github.com/hashicorp/boundary/internal/event/sinkqueue"
+	"github.com/hashicorp/boundary/internal/event/syslogfmt"
+	"github.com/hashicorp/boundary/internal/event/syslogsink"
 	"github.com/hashicorp/boundary/internal/netguard"
 	"github.com/hashicorp/boundary/internal/notify/sender"
 )
@@ -43,7 +50,7 @@ const (
 
 // Errors. They never carry the url, token or entries.
 var (
-	ErrUnsupported = errors.New("netsink: sink type is not supported by the builder")
+	ErrUnsupported = errors.New("netsink: sink type is not a network sink")
 	ErrBuild       = errors.New("netsink: could not build the sink")
 )
 
@@ -59,7 +66,9 @@ type Deps struct {
 
 // Sink is a running network sink.
 type Sink struct {
-	b *sinkqueue.Batcher
+	b        *sinkqueue.Batcher
+	frame    func([]byte) ([]byte, error) // nil for http
+	rejected atomic.Uint64                // entries that could not be framed
 }
 
 // String never prints anything about the destination.
@@ -68,12 +77,20 @@ func (*Sink) String() string { return "netsink.Sink{redacted}" }
 // Write queues one already formatted event. It never blocks and never returns
 // an error to the producer: a full queue drops the oldest entry and counts it.
 func (s *Sink) Write(p []byte) (int, error) {
-	_ = s.b.Enqueue(append([]byte(nil), p...))
+	entry := append([]byte(nil), p...)
+	if s.frame != nil {
+		var err error
+		if entry, err = s.frame(p); err != nil {
+			s.rejected.Add(1)
+			return len(p), nil
+		}
+	}
+	_ = s.b.Enqueue(entry)
 	return len(p), nil
 }
 
 // Dropped is the number of entries lost so far.
-func (s *Sink) Dropped() uint64 { return s.b.Dropped() }
+func (s *Sink) Dropped() uint64 { return s.b.Dropped() + s.rejected.Load() }
 
 // Sent is the number of entries delivered so far.
 func (s *Sink) Sent() uint64 { return s.b.Sent() }
@@ -118,15 +135,118 @@ func NewHTTP(cfg *event.HTTPSinkTypeConfig, deps Deps) (*Sink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: http transport", ErrBuild)
 	}
+	b, err := newQueue(hs)
+	if err != nil {
+		return nil, err
+	}
+	return &Sink{b: b}, nil
+}
+
+func newQueue(snd sinkqueue.Sender) (*sinkqueue.Batcher, error) {
 	b, err := sinkqueue.New(sinkqueue.Config{
-		Sender: hs, MaxEntries: QueueMaxEntries, MaxBytes: QueueMaxBytes, BatchSize: BatchSize,
+		Sender: snd, MaxEntries: QueueMaxEntries, MaxBytes: QueueMaxBytes, BatchSize: BatchSize,
 		FlushInterval: FlushInterval, MaxAttempts: MaxAttempts, BaseBackoff: BaseBackoff, MaxBackoff: MaxBackoff,
 		Guarantee: event.BestEffort,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: queue", ErrBuild)
 	}
-	return &Sink{b: b}, nil
+	return b, nil
+}
+
+const maxFileRefLen = 64 << 10
+
+// readFileRef reads an absolute file:// reference, capped at maxFileRefLen.
+func readFileRef(ref string) ([]byte, error) {
+	f, err := os.Open(strings.TrimPrefix(ref, "file://"))
+	if err != nil {
+		return nil, ErrBuild
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxFileRefLen+1))
+	if err != nil || len(b) > maxFileRefLen {
+		return nil, ErrBuild
+	}
+	return b, nil
+}
+
+// NewSyslog builds the pipeline for a syslog sink. Each entry is wrapped in an
+// RFC 5424 message (local0, info, app "boundary", msgid "event"). An entry
+// that cannot be framed (for example too large for a UDP datagram) is counted
+// as dropped.
+func NewSyslog(cfg *event.SyslogSinkTypeConfig, deps Deps) (*Sink, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("%w: missing syslog config", ErrBuild)
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: invalid syslog config", ErrBuild)
+	}
+	network := syslogsink.Network(cfg.Network)
+	if cfg.Network == "" {
+		network = syslogsink.TLS
+	}
+	prefixes := make([]netip.Prefix, 0, len(cfg.AllowPrivateCIDRs))
+	for _, c := range cfg.AllowPrivateCIDRs {
+		p, perr := netip.ParsePrefix(c)
+		if perr != nil {
+			return nil, fmt.Errorf("%w: allow_private_cidrs", ErrBuild)
+		}
+		prefixes = append(prefixes, p)
+	}
+	sc := syslogsink.Config{Network: network, Address: cfg.Address, Resolver: deps.Resolver, AllowedCIDRs: prefixes}
+	if cfg.CAFile != "" {
+		pem, err := readFileRef(cfg.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("%w: ca_file unavailable", ErrBuild)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("%w: ca_file has no certificates", ErrBuild)
+		}
+		sc.RootCAs = pool
+	}
+	if cfg.ClientCertFile != "" {
+		certPEM, err1 := readFileRef(cfg.ClientCertFile)
+		keyPEM, err2 := readFileRef(cfg.ClientKeyFile)
+		if err1 != nil || err2 != nil {
+			return nil, fmt.Errorf("%w: client certificate unavailable", ErrBuild)
+		}
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("%w: client certificate invalid", ErrBuild)
+		}
+		sc.ClientCert = &cert
+	}
+	if deps.RootCAs != nil {
+		sc.RootCAs = deps.RootCAs
+	}
+	snd, err := syslogsink.New(sc)
+	if err != nil {
+		return nil, fmt.Errorf("%w: syslog transport", ErrBuild)
+	}
+	b, err := newQueue(snd)
+	if err != nil {
+		return nil, err
+	}
+	host, _ := os.Hostname()
+	return &Sink{b: b, frame: func(p []byte) ([]byte, error) {
+		return snd.Frame(syslogfmt.Message{
+			Facility: syslogfmt.FacilityLocal0, Severity: syslogfmt.SevInfo,
+			Timestamp: time.Now().UTC(), Hostname: safeHost(host),
+			AppName: "boundary", MsgID: "event", Msg: string(p),
+		})
+	}}, nil
+}
+
+// safeHost keeps only printable ASCII and falls back to the NILVALUE.
+func safeHost(h string) string {
+	var out []byte
+	for i := 0; i < len(h) && len(out) < syslogfmt.MaxHostnameLen; i++ {
+		if h[i] > 32 && h[i] < 127 {
+			out = append(out, h[i])
+		}
+	}
+	return string(out)
 }
 
 // New builds the pipeline for sc, which must be an http sink.
@@ -137,6 +257,8 @@ func New(sc *event.SinkConfig, deps Deps) (*Sink, error) {
 	switch sc.Type {
 	case event.HTTPSink:
 		return NewHTTP(sc.HTTPConfig, deps)
+	case event.SyslogSink:
+		return NewSyslog(sc.SyslogConfig, deps)
 	default:
 		return nil, ErrUnsupported
 	}
