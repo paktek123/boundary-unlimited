@@ -299,6 +299,9 @@ func (d *DBRepository) list(ctx context.Context, f ListFilter, activeAt *time.Ti
 	return out, nil
 }
 
+// errLostRace aborts the transaction when the versioned update matched no row.
+var errLostRace = errors.New("accessrequest: lost update race")
+
 // transitionOK lists the forward transitions the repository accepts. It
 // mirrors the access_request_enforce_transition trigger (migration 116), which
 // stays the last line of defence.
@@ -321,8 +324,10 @@ func transitionOK(from, to State) bool {
 // a terminal state), and the scope, requester, grants, grant hash,
 // justification and duration cannot change. A decision by the requester is
 // ErrSelfApproval. Approving or denying also records the decision in
-// access_request_approval in the same transaction. Errors carry no grants or
-// justification text.
+// access_request_approval in the same transaction. Revoke and expire record
+// no actor beyond the oplog entry, and the bounds of ExpiresAt (not after now,
+// at most Duration ahead) are owned by the domain layer (Approve), not checked
+// here. Errors carry no grants or justification text.
 func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
 	const op = "accessrequest.(DBRepository).Update"
 	if err := ctx.Err(); err != nil {
@@ -366,7 +371,7 @@ func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
 			return Request{}, ErrNotRequester
 		}
 	}
-	if r.State != StateApproved && !r.ExpiresAt.IsZero() && r.State != StateExpired && r.State != StateRevoked {
+	if (r.State == StateDenied || r.State == StateCancelled) && !r.ExpiresAt.IsZero() {
 		return Request{}, fmt.Errorf("%w: unexpected expiry", ErrInvalidInput)
 	}
 
@@ -400,7 +405,16 @@ func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
 		}
 		var uerr error
 		updated, uerr = w.Update(ctx, row.clone(), mask, nil, db.WithOplog(wrapper, metadata), db.WithVersion(&version))
-		return uerr
+		if uerr != nil {
+			return uerr
+		}
+		if updated == 0 {
+			// Another writer moved the request. Return an error so the
+			// transaction rolls back, including the approval row inserted
+			// above; a nil return here would commit it.
+			return errLostRace
+		}
+		return nil
 	})
 	if err != nil || updated == 0 {
 		// Whatever failed, report a lost race as a conflict: another writer
@@ -410,7 +424,7 @@ func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
 			return Request{}, ErrVersionConflict
 		}
 		switch {
-		case err == nil:
+		case err == nil, errors.Is(err, errLostRace), strings.Contains(err.Error(), errLostRace.Error()):
 			return Request{}, ErrVersionConflict
 		case strings.Contains(err.Error(), "23601"), strings.Contains(err.Error(), "terminal state"):
 			return Request{}, fmt.Errorf("%w: request %s is in a terminal state", ErrInvalidTransition, r.Id)

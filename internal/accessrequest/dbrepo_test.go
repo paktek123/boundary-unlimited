@@ -472,6 +472,19 @@ func TestDBRepositoryContract(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, final.State.Terminal() || final.State == StateApproved)
 		assert.EqualValues(t, 2, final.Version)
+		// the losers' decisions must leave no approval row behind
+		var approvals int
+		rows, err := rw.Query(ctx, "select count(*) from access_request_approval where request_id = ?", []any{r.Id})
+		require.NoError(t, err)
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Scan(&approvals))
+		require.NoError(t, rows.Close())
+		switch final.State {
+		case StateApproved, StateDenied:
+			assert.Equal(t, 1, approvals)
+		default:
+			assert.Equal(t, 0, approvals)
+		}
 
 		require.NoError(t, db.TestVerifyOplog(t, rw, "ar_trans_00001", db.WithOperation(oplog.OpType_OP_TYPE_UPDATE), db.WithCreateNotBefore(time.Minute)))
 	})
