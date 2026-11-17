@@ -3,12 +3,11 @@
 Refs #54, #55, #56.
 
 Two transport libraries exist for streaming audit events to a SIEM. **Neither
-can be enabled by configuration yet**: a configuration naming an `http` or
-`syslog` sink is refused at load (as an unknown sink type, or with "not yet
-supported" once the sink-type validation described below is present), so
-nothing can silently send (or silently not send) audit data. The delivery
-wiring lands in a later slice; this page documents what the libraries enforce so
-that slice and operators can rely on it.
+can be enabled by configuration yet**: the event system has no `http` or
+`syslog` sink type, so a configuration naming one fails at load with "is not a
+valid sink type" and nothing can silently send (or silently not send) audit
+data. The delivery wiring lands in a later slice; this page documents what the
+libraries enforce so that slice and operators can rely on it.
 
 Both implement `sinkqueue.Sender` and deliver best-effort batches. Errors never
 contain entry contents, URLs, tokens or response bodies.
@@ -54,25 +53,27 @@ network sink (`internal/event/sinkqueue`) is bounded in entries and bytes:
   audit events silently (this mode is not used for network sinks);
 - `Close` returns an error wrapping `ErrDropped` when anything was ever lost.
 
-## Configuration rules (validated, but the sinks are still refused)
+## Planned configuration rules (not implemented on this base)
 
-`event.SinkConfig` now parses `type = "http"` / `type = "syslog"` with an
-`http { ... }` or `syslog { ... }` block and validates it strictly, then
-refuses it with "not yet supported" because nothing delivers events yet:
+None of the following is enforced today: `internal/event` has no `http` or
+`syslog` sink type, block or keys. A config naming such a sink fails with "is
+not a valid sink type". The sink-type slice of #55/#56 will parse and validate
+`type = "http"` / `type = "syslog"` with an `http { ... }` or `syslog { ... }`
+block and, until delivery is wired, refuse even valid ones with "not yet
+supported". The rules it must implement (security decision on #55):
 
 - `http`: `url` (https only, no userinfo), `token` as `env://NAME` or an
-  absolute `file://` reference (inline tokens are refused), `format` of `hec`
-  or `json`;
+  absolute `file://` reference (inline tokens refused), `format` of `hec` or
+  `json`;
 - `syslog`: `address` as `host:port`; `network` defaults to `tls`; `tcp` and
   `udp` need `insecure_plaintext = true`; `ca_file`, `client_cert_file` and
-  `client_key_file` are absolute `file://` references and only valid with `tls`;
+  `client_key_file` are absolute `file://` references, valid only with `tls`;
 - both: `allow_private_cidrs` is the explicit per-sink allow-list for private
-  destinations (default empty; `0.0.0.0/0` and `::/0` are refused),
-  `delivery_guarantee = enforced` is refused, unknown keys such as
-  `skip_verify` fail the load, and errors never contain the URL, address or
-  secret reference.
+  destinations (default empty; `0.0.0.0/0` and `::/0` refused),
+  `delivery_guarantee = enforced` refused, unknown keys such as `skip_verify`
+  fail the load, and errors never contain the URL, address or secret
+  reference.
 
-Remaining before a network sink can be turned on: hooking the pipeline into the
-eventer, failing startup on an unresolvable secret, and the rate-limited
-counts-only system event for drops. Until that merges the sink types stay
-rejected (enforcement-first).
+Also still to come: hooking the pipeline into the eventer, failing startup on
+an unresolvable secret, and the rate-limited counts-only system event for
+drops. Until that merges the sink types stay rejected (enforcement-first).
