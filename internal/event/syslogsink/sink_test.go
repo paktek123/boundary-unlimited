@@ -15,6 +15,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,6 +29,9 @@ import (
 )
 
 var _ sinkqueue.Sender = (*syslogsink.Sender)(nil)
+
+// loopback opts the test listeners into the egress guard's allowlist.
+var loopback = []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}
 
 func msg(text string) syslogfmt.Message {
 	return syslogfmt.Message{
@@ -101,7 +105,7 @@ func TestTCP(t *testing.T) {
 		f, err := readOctetCounted(bufio.NewReader(c), 2)
 		got <- result{f, err}
 	}()
-	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, Address: ln.Addr().String()})
+	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, AllowedCIDRs: loopback, Address: ln.Addr().String()})
 	require.NoError(t, err)
 	f1, err := s.Frame(msg("one"))
 	require.NoError(t, err)
@@ -126,7 +130,7 @@ func TestUDP(t *testing.T) {
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer pc.Close()
-	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.UDP, Address: pc.LocalAddr().String()})
+	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.UDP, AllowedCIDRs: loopback, Address: pc.LocalAddr().String()})
 	require.NoError(t, err)
 	f, err := s.Frame(msg("dgram"))
 	require.NoError(t, err)
@@ -144,7 +148,7 @@ func TestSendFailures(t *testing.T) {
 	require.NoError(t, err)
 	addr := ln.Addr().String()
 	ln.Close() // nothing listens any more
-	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, Address: addr, DialTimeout: time.Second})
+	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, AllowedCIDRs: loopback, Address: addr, DialTimeout: time.Second})
 	require.NoError(t, err)
 	err = s.Send(context.Background(), [][]byte{[]byte("x")})
 	require.ErrorIs(t, err, syslogsink.ErrDelivery)
@@ -209,7 +213,7 @@ func TestTLS(t *testing.T) {
 		got <- result{frame: f[0]}
 	}()
 
-	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, Address: ln.Addr().String(), RootCAs: pool, ServerName: "collector.test"})
+	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, AllowedCIDRs: loopback, Address: ln.Addr().String(), RootCAs: pool, ServerName: "collector.test"})
 	require.NoError(t, err)
 	f, err := s.Frame(msg("secure"))
 	require.NoError(t, err)
@@ -235,7 +239,7 @@ func TestTLSRefusals(t *testing.T) {
 				c.Close()
 			}
 		}()
-		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, Address: ln.Addr().String(), ServerName: "collector.test", DialTimeout: 2 * time.Second})
+		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, AllowedCIDRs: loopback, Address: ln.Addr().String(), ServerName: "collector.test", DialTimeout: 2 * time.Second})
 		require.NoError(t, err)
 		require.ErrorIs(t, s.Send(context.Background(), [][]byte{[]byte("x")}), syslogsink.ErrDelivery)
 	})
@@ -248,7 +252,7 @@ func TestTLSRefusals(t *testing.T) {
 				c.Close()
 			}
 		}()
-		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, Address: ln.Addr().String(), RootCAs: pool, ServerName: "other.test", DialTimeout: 2 * time.Second})
+		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, AllowedCIDRs: loopback, Address: ln.Addr().String(), RootCAs: pool, ServerName: "other.test", DialTimeout: 2 * time.Second})
 		require.NoError(t, err)
 		require.ErrorIs(t, s.Send(context.Background(), [][]byte{[]byte("x")}), syslogsink.ErrDelivery)
 	})
@@ -261,8 +265,71 @@ func TestTLSRefusals(t *testing.T) {
 				c.Close()
 			}
 		}()
-		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, Address: ln.Addr().String(), RootCAs: pool, ServerName: "collector.test", DialTimeout: 2 * time.Second})
+		s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TLS, AllowedCIDRs: loopback, Address: ln.Addr().String(), RootCAs: pool, ServerName: "collector.test", DialTimeout: 2 * time.Second})
 		require.NoError(t, err)
 		require.ErrorIs(t, s.Send(context.Background(), [][]byte{[]byte("x")}), syslogsink.ErrDelivery)
 	})
+}
+
+type fakeResolver map[string][]netip.Addr
+
+func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
+	return f[host], nil
+}
+
+// The egress guard refuses loopback, private, link-local and metadata
+// destinations (literal or resolved) on every network unless allow-listed, and
+// no connection is attempted.
+func TestEgressGuardRefusals(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+	accepted := make(chan struct{}, 4)
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			accepted <- struct{}{}
+			c.Close()
+		}
+	}()
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+	res := fakeResolver{
+		"loop.test":     {netip.MustParseAddr("127.0.0.1")},
+		"private.test":  {netip.MustParseAddr("10.1.2.3")},
+		"metadata.test": {netip.MustParseAddr("169.254.169.254")},
+		"mixed.test":    {netip.MustParseAddr("8.8.8.8"), netip.MustParseAddr("192.168.1.1")},
+	}
+	for _, network := range []syslogsink.Network{syslogsink.TCP, syslogsink.UDP, syslogsink.TLS} {
+		for _, host := range []string{"127.0.0.1", "10.0.0.1", "169.254.169.254", "[::1]", "loop.test", "private.test", "metadata.test", "mixed.test", "unknown.test"} {
+			s, err := syslogsink.New(syslogsink.Config{Network: network, Address: net.JoinHostPort(strings.Trim(host, "[]"), port), Resolver: res, DialTimeout: time.Second})
+			require.NoError(t, err)
+			err = s.Send(context.Background(), [][]byte{[]byte("x")})
+			require.ErrorIs(t, err, syslogsink.ErrDelivery, "%s %s", network, host)
+		}
+	}
+	select {
+	case <-accepted:
+		t.Fatal("a refused destination was dialled")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// A DNS answer that changes to a private address after configuration is
+// refused, because the check runs on the resolved address at connect time.
+func TestEgressGuardDNSChange(t *testing.T) {
+	res := fakeResolver{"collector.test": {netip.MustParseAddr("8.8.8.8")}}
+	s, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, Address: "collector.test:514", Resolver: res, DialTimeout: 200 * time.Millisecond})
+	require.NoError(t, err)
+	res["collector.test"] = []netip.Addr{netip.MustParseAddr("10.0.0.5")}
+	require.ErrorIs(t, s.Send(context.Background(), [][]byte{[]byte("x")}), syslogsink.ErrDelivery)
+}
+
+func TestAllowedCIDRsValidation(t *testing.T) {
+	for _, p := range []netip.Prefix{{}, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParsePrefix("::/0")} {
+		_, err := syslogsink.New(syslogsink.Config{Network: syslogsink.TCP, Address: "h:1", AllowedCIDRs: []netip.Prefix{p}})
+		require.ErrorIs(t, err, syslogsink.ErrInvalidConfig)
+	}
 }
