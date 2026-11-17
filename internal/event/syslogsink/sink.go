@@ -15,9 +15,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/boundary/internal/event/syslogfmt"
+	"github.com/hashicorp/boundary/internal/netguard"
 )
 
 // Network is the transport.
@@ -57,6 +60,13 @@ type Config struct {
 	// DialTimeout and WriteTimeout default when zero; negative is invalid.
 	DialTimeout  time.Duration
 	WriteTimeout time.Duration
+	// Resolver resolves the collector host; nil uses the system resolver.
+	Resolver netguard.Resolver
+	// AllowedCIDRs is the explicit opt-in allowlist for the egress guard.
+	// Loopback, private, link-local and metadata destinations are refused
+	// unless they fall inside it (checked on the resolved address at connect
+	// time). Wildcard prefixes are invalid.
+	AllowedCIDRs []netip.Prefix
 }
 
 // Sender delivers batches of already-framed entries.
@@ -81,6 +91,14 @@ func New(cfg Config) (*Sender, error) {
 	}
 	if cfg.Network != TLS && (cfg.RootCAs != nil || cfg.ServerName != "" || cfg.ClientCert != nil) {
 		return nil, fmt.Errorf("%w: TLS options require the tls network", ErrInvalidConfig)
+	}
+	for _, p := range cfg.AllowedCIDRs {
+		if !p.IsValid() || p.Bits() == 0 {
+			return nil, fmt.Errorf("%w: allowed cidr", ErrInvalidConfig)
+		}
+	}
+	if cfg.Resolver == nil {
+		cfg.Resolver = net.DefaultResolver
 	}
 	if cfg.DialTimeout == 0 {
 		cfg.DialTimeout = DefaultDialTimeout
@@ -134,13 +152,19 @@ func (s *Sender) Send(ctx context.Context, batch [][]byte) (err error) {
 	return nil
 }
 
+// dial connects only through the netguard egress guard: the destination is
+// resolved here and every address must be allowed before and at connect time.
 func (s *Sender) dial(ctx context.Context) (net.Conn, error) {
-	var d net.Dialer
-	switch s.cfg.Network {
-	case UDP:
-		return d.DialContext(ctx, "udp", s.cfg.Address)
-	case TCP:
-		return d.DialContext(ctx, "tcp", s.cfg.Address)
+	if s.cfg.Network == UDP {
+		return s.dialUDP(ctx)
+	}
+	gd := &netguard.Dialer{
+		Resolver: s.cfg.Resolver,
+		Allow:    append([]netip.Prefix(nil), s.cfg.AllowedCIDRs...),
+		Timeout:  s.cfg.DialTimeout,
+	}
+	if s.cfg.Network == TCP {
+		return gd.DialContext(ctx, "tcp", s.cfg.Address)
 	}
 	host, _, _ := net.SplitHostPort(s.cfg.Address)
 	name := s.cfg.ServerName
@@ -155,6 +179,45 @@ func (s *Sender) dial(ctx context.Context) (net.Conn, error) {
 	if s.cfg.ClientCert != nil {
 		tc.Certificates = []tls.Certificate{*s.cfg.ClientCert}
 	}
-	td := &tls.Dialer{NetDialer: &d, Config: tc}
-	return td.DialContext(ctx, "tcp", s.cfg.Address)
+	raw, err := gd.DialContext(ctx, "tcp", s.cfg.Address)
+	if err != nil {
+		return nil, err
+	}
+	tconn := tls.Client(raw, tc)
+	if err := tconn.HandshakeContext(ctx); err != nil {
+		_ = raw.Close()
+		return nil, err
+	}
+	return tconn, nil
+}
+
+// dialUDP applies the same egress policy to a datagram destination
+// (netguard.Dialer is TCP only).
+func (s *Sender) dialUDP(ctx context.Context) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(s.cfg.Address)
+	if err != nil {
+		return nil, netguard.ErrBlockedDestination
+	}
+	var ips []netip.Addr
+	if ip, perr := netip.ParseAddr(host); perr == nil {
+		ips = []netip.Addr{ip}
+	} else if ips, err = s.cfg.Resolver.LookupNetIP(ctx, "ip", host); err != nil {
+		return nil, ErrDelivery
+	}
+	if len(ips) == 0 {
+		return nil, netguard.ErrBlockedDestination
+	}
+	for _, ip := range ips {
+		if !netguard.AllowedIP(ip, s.cfg.AllowedCIDRs) {
+			return nil, netguard.ErrBlockedDestination
+		}
+	}
+	d := net.Dialer{Timeout: s.cfg.DialTimeout, Control: func(_, address string, _ syscall.RawConn) error {
+		ap, err := netip.ParseAddrPort(address)
+		if err != nil || !netguard.AllowedIP(ap.Addr(), s.cfg.AllowedCIDRs) {
+			return netguard.ErrBlockedDestination
+		}
+		return nil
+	}}
+	return d.DialContext(ctx, "udp", net.JoinHostPort(ips[0].Unmap().String(), port))
 }
