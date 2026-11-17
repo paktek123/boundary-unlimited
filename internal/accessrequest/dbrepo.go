@@ -13,15 +13,12 @@ import (
 
 	"github.com/hashicorp/boundary/internal/accessrequest/store"
 	"github.com/hashicorp/boundary/internal/db"
+	"github.com/hashicorp/boundary/internal/db/timestamp"
 	berrors "github.com/hashicorp/boundary/internal/errors"
 	"github.com/hashicorp/boundary/internal/kms"
 	"github.com/hashicorp/boundary/internal/oplog"
 	"google.golang.org/protobuf/proto"
 )
-
-// ErrNotImplemented is returned by the DBRepository methods that later slices
-// of issue #261 implement. Nothing is stored or changed when it is returned.
-var ErrNotImplemented = errors.New("accessrequest: not implemented")
 
 // dbRow is the gorm and oplog model for the access_request table.
 type dbRow struct {
@@ -47,11 +44,9 @@ func (r *dbRow) clone() *dbRow {
 }
 
 // DBRepository is the database-backed Repository, written through the oplog.
-// It implements Create, Get, List and ListActive; Update returns
-// ErrNotImplemented until the next slice of #261 lands. Unlike MemRepository
-// it is strict: Create only stores a pending request, so the database always
-// starts a request in the pending state and the approval fields are only set
-// by a later transition.
+// It implements Create, Get, List, ListActive and Update. Unlike MemRepository
+// it is strict: Create only stores a pending request, and Update only accepts
+// a valid forward state transition (see Update).
 type DBRepository struct {
 	reader db.Reader
 	writer db.Writer
@@ -304,9 +299,127 @@ func (d *DBRepository) list(ctx context.Context, f ListFilter, activeAt *time.Ti
 	return out, nil
 }
 
-// Update implements Repository. Not implemented until slice 3 of #261.
+// transitionOK lists the forward transitions the repository accepts. It
+// mirrors the access_request_enforce_transition trigger (migration 116), which
+// stays the last line of defence.
+func transitionOK(from, to State) bool {
+	switch from {
+	case StatePending:
+		return to == StateApproved || to == StateDenied || to == StateCancelled || to == StateExpired
+	case StateApproved:
+		return to == StateExpired || to == StateRevoked
+	}
+	return false
+}
+
+// Update implements Repository. r is the request after one of Approve, Deny,
+// Cancel, Revoke or Expire, carrying the Version it was read at. The update is
+// a single transaction written through the oplog with the expected version in
+// the where clause, so of several concurrent decisions on one request exactly
+// one wins and the others get ErrVersionConflict. Only a forward transition is
+// accepted (ErrInvalidTransition otherwise, including for a request already in
+// a terminal state), and the scope, requester, grants, grant hash,
+// justification and duration cannot change. A decision by the requester is
+// ErrSelfApproval. Approving or denying also records the decision in
+// access_request_approval in the same transaction. Errors carry no grants or
+// justification text.
 func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
-	return Request{}, ErrNotImplemented
+	const op = "accessrequest.(DBRepository).Update"
+	if err := ctx.Err(); err != nil {
+		return Request{}, err
+	}
+	if r.Id == "" || r.Version == 0 {
+		return Request{}, fmt.Errorf("%w: id and version required", ErrInvalidInput)
+	}
+	cur, err := d.Get(ctx, r.Id)
+	if err != nil {
+		return Request{}, err
+	}
+	if cur.Version != r.Version {
+		return Request{}, ErrVersionConflict
+	}
+	if cur.ScopeId != r.ScopeId || cur.RequesterId != r.RequesterId || cur.Justification != r.Justification ||
+		cur.Duration != r.Duration || cur.GrantHash != r.GrantHash || GrantHash(r.Grants) != cur.GrantHash {
+		return Request{}, fmt.Errorf("%w: only the state may change", ErrInvalidInput)
+	}
+	if !r.State.valid() {
+		return Request{}, fmt.Errorf("%w: unknown state", ErrInvalidState)
+	}
+	if !transitionOK(cur.State, r.State) {
+		return Request{}, fmt.Errorf("%w: %s -> %s", ErrInvalidTransition, cur.State, r.State)
+	}
+	var recordDecision bool
+	switch r.State {
+	case StateApproved, StateDenied:
+		if r.DecidedBy == "" {
+			return Request{}, fmt.Errorf("%w: decider required", ErrInvalidInput)
+		}
+		if r.DecidedBy == cur.RequesterId {
+			return Request{}, ErrSelfApproval
+		}
+		recordDecision = true
+		if r.State == StateApproved && r.ExpiresAt.IsZero() {
+			return Request{}, fmt.Errorf("%w: approved request needs an expiry", ErrInvalidInput)
+		}
+	case StateCancelled:
+		if r.DecidedBy != cur.RequesterId {
+			return Request{}, ErrNotRequester
+		}
+	}
+	if r.State != StateApproved && !r.ExpiresAt.IsZero() && r.State != StateExpired && r.State != StateRevoked {
+		return Request{}, fmt.Errorf("%w: unexpected expiry", ErrInvalidInput)
+	}
+
+	wrapper, err := d.kms.GetWrapper(ctx, cur.ScopeId, kms.KeyPurposeOplog)
+	if err != nil {
+		return Request{}, fmt.Errorf("%s: unable to get oplog wrapper: %w", op, err)
+	}
+	row := allocRow()
+	row.PublicId = r.Id
+	row.State = string(r.State)
+	mask := []string{"State"}
+	if r.State == StateApproved {
+		row.ExpiryTime = timestamp.New(r.ExpiresAt)
+		mask = append(mask, "ExpiryTime")
+	}
+	metadata := oplog.Metadata{
+		"resource-public-id": []string{r.Id},
+		"resource-type":      []string{"access request"},
+		"op-type":            []string{oplog.OpType_OP_TYPE_UPDATE.String()},
+		"scope-id":           []string{cur.ScopeId},
+	}
+	version := r.Version
+	var updated int
+	_, err = d.writer.DoTx(ctx, db.StdRetryCnt, db.ExpBackoff{}, func(_ db.Reader, w db.Writer) error {
+		if recordDecision {
+			if _, err := w.Exec(ctx,
+				"insert into access_request_approval (request_id, approver_id, decision) values (?, ?, ?)",
+				[]any{r.Id, r.DecidedBy, string(r.State)}); err != nil {
+				return err
+			}
+		}
+		var uerr error
+		updated, uerr = w.Update(ctx, row.clone(), mask, nil, db.WithOplog(wrapper, metadata), db.WithVersion(&version))
+		return uerr
+	})
+	if err != nil || updated == 0 {
+		// Whatever failed, report a lost race as a conflict: another writer
+		// moved the request, and the transaction (including the approval row)
+		// was rolled back.
+		if now, gerr := d.Get(ctx, r.Id); gerr == nil && now.Version != r.Version {
+			return Request{}, ErrVersionConflict
+		}
+		switch {
+		case err == nil:
+			return Request{}, ErrVersionConflict
+		case strings.Contains(err.Error(), "23601"), strings.Contains(err.Error(), "terminal state"):
+			return Request{}, fmt.Errorf("%w: request %s is in a terminal state", ErrInvalidTransition, r.Id)
+		case berrors.IsCheckConstraintError(err), berrors.IsNotNullError(err), berrors.IsUniqueError(err):
+			return Request{}, fmt.Errorf("%w: rejected by the database", ErrInvalidInput)
+		}
+		return Request{}, fmt.Errorf("%s: database error", op)
+	}
+	return d.Get(ctx, r.Id)
 }
 
 func fromRow(row *dbRow) (Request, error) {
