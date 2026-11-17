@@ -273,7 +273,7 @@ func (d *DBRepository) list(ctx context.Context, f ListFilter, activeAt *time.Ti
 			expiry, decided     sql.NullTime
 		)
 		if err := rows.Scan(&row.PublicId, &row.ScopeId, &requester, &grants, &row.GrantHash,
-			&row.Justification, &row.State, &row.TtlSeconds, &created, &expiry,
+			&row.Justification, &row.RequestState, &row.TtlSeconds, &created, &expiry,
 			&row.Version, &approver, &decided); err != nil {
 			return nil, fmt.Errorf("%s: scan: %w", op, err)
 		}
@@ -376,8 +376,8 @@ func (d *DBRepository) Update(ctx context.Context, r Request) (Request, error) {
 	}
 	row := allocRow()
 	row.PublicId = r.Id
-	row.State = string(r.State)
-	mask := []string{"State"}
+	row.RequestState = string(r.State)
+	mask := []string{"RequestState"}
 	if r.State == StateApproved {
 		row.ExpiryTime = timestamp.New(r.ExpiresAt)
 		mask = append(mask, "ExpiryTime")
@@ -427,9 +427,9 @@ func fromRow(row *dbRow) (Request, error) {
 	if err != nil {
 		return Request{}, fmt.Errorf("%w: stored grants: %v", ErrInvalidInput, err)
 	}
-	st := State(row.State)
+	st := State(row.RequestState)
 	if !st.valid() {
-		return Request{}, fmt.Errorf("%w: stored state %q", ErrInvalidState, row.State)
+		return Request{}, fmt.Errorf("%w: stored state %q", ErrInvalidState, row.RequestState)
 	}
 	r := Request{
 		Id:            row.PublicId,
