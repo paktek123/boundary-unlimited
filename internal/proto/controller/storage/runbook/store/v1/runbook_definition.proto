@@ -1,0 +1,67 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.storage.runbook.store.v1;
+
+import "controller/storage/timestamp/v1/timestamp.proto";
+
+option go_package = "github.com/hashicorp/boundary/internal/runbook/store;store";
+
+// RunbookDefinition is the storage representation of a row in the
+// runbook_definition table (migration 115). The script body is never stored:
+// only the pinned commit, the path and the SHA-256 of the exact bytes.
+message RunbookDefinition {
+  // public_id is the id of the definition.
+  // @inject_tag: gorm:"primary_key"
+  string public_id = 1;
+
+  // scope_id is the owning scope.
+  // @inject_tag: `gorm:"not_null"`
+  string scope_id = 2;
+
+  // name is unique within the scope.
+  // @inject_tag: `gorm:"not_null"`
+  string name = 3;
+
+  // description is optional free text.
+  // @inject_tag: `gorm:"default:null"`
+  string description = 4;
+
+  // interpreter is the script interpreter; only "sh" is supported.
+  // @inject_tag: `gorm:"not_null"`
+  string interpreter = 5;
+
+  // source_commit_sha is the full 40-hex commit the script is fetched at.
+  // @inject_tag: `gorm:"not_null"`
+  string source_commit_sha = 6;
+
+  // script_path is the repository relative path of the script.
+  // @inject_tag: `gorm:"not_null"`
+  string script_path = 7;
+
+  // script_sha256 is the hex sha-256 of the exact script bytes.
+  // @inject_tag: `gorm:"not_null"`
+  string script_sha256 = 8;
+
+  // parameters is the JSON array of parameter declarations.
+  // @inject_tag: `gorm:"not_null"`
+  string parameters = 9;
+
+  // target_selector is the JSON object of the target selector.
+  // @inject_tag: `gorm:"not_null"`
+  string target_selector = 10;
+
+  // create_time from the RDBMS
+  // @inject_tag: `gorm:"default:current_timestamp"`
+  timestamp.v1.Timestamp create_time = 11;
+
+  // update_time from the RDBMS
+  // @inject_tag: `gorm:"default:current_timestamp"`
+  timestamp.v1.Timestamp update_time = 12;
+
+  // version allows optimistic locking of the resource.
+  // @inject_tag: `gorm:"default:null"`
+  uint32 version = 13;
+}
