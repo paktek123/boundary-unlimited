@@ -224,7 +224,7 @@ func TestDBRepositoryContract(t *testing.T) {
 
 	t.Run("oplog entries are written", func(t *testing.T) {
 		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_002", db.WithOperation(oplog.OpType_OP_TYPE_CREATE), db.WithCreateNotBefore(time.Minute)))
-		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_002", db.WithOperation(oplog.OpType_OP_TYPE_UPDATE), db.WithCreateNotBefore(time.Minute)))
+		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_001", db.WithOperation(oplog.OpType_OP_TYPE_UPDATE), db.WithCreateNotBefore(time.Minute)))
 	})
 	t.Run("unknown scope", func(t *testing.T) {
 		_, err := repo.Create(ctx, mustStored(t, "rb_unknown_scp1", "o_doesnotexist", "x"))
