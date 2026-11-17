@@ -171,7 +171,8 @@ func newWebhook(cfg WebhookConfig, h hooks) (*WebhookNotifier, error) {
 		return nil, err
 	}
 	for _, p := range cfg.AllowedCIDRs {
-		if !p.IsValid() {
+		// A wildcard prefix would switch the egress guard off.
+		if !p.IsValid() || p.Bits() == 0 {
 			return nil, fmt.Errorf("%w: allowed cidr", ErrInvalidConfig)
 		}
 	}
