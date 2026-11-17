@@ -29,6 +29,7 @@ project {
     # copywrite would otherwise rewrite these headers to the upstream license.
     "internal/accessrequest/**",
     "internal/proto/controller/storage/accessrequest/**",
+    "internal/proto/controller/storage/runbook/**",
     "internal/runbook/**",
     "internal/daemon/controller/handlers/runbooks/**",
     "internal/db/schema/migrations/oss/postgres/115/**",
