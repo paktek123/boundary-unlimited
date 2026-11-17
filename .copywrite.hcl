@@ -29,6 +29,7 @@ project {
     # copywrite would otherwise rewrite these headers to the upstream license.
     "internal/accessrequest/**",
     "internal/proto/controller/storage/accessrequest/**",
+    "internal/proto/controller/storage/runbook/**",
     "internal/runbook/**",
     "internal/daemon/controller/handlers/runbooks/**",
     "internal/db/schema/migrations/oss/postgres/115/**",
@@ -43,6 +44,10 @@ project {
     "internal/event/syslogsink/**",
     "internal/event/httpsink/**",
     "internal/event/sinkqueue/**",
+    "internal/event/sink_network_config.go",
+    "internal/event/sink_network_config_test.go",
+    "internal/cmd/config/sink_network.go",
+    "internal/cmd/config/sink_network_test.go",
     "internal/daemon/worker/recording/finalize/**",
     "internal/daemon/worker/recording/scratch/**",
     "internal/daemon/worker/recording/upload/**",

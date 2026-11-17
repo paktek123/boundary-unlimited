@@ -22,6 +22,8 @@ type SinkConfig struct {
 	Type           SinkType              `hcl:"type"`             // Type defines the type of sink (StderrSink, FileSink, or WriterSink).
 	StderrConfig   *StderrSinkTypeConfig `hcl:"stderr"`           // StderrConfig defines parameters for a stderr output.
 	FileConfig     *FileSinkTypeConfig   `hcl:"file"`             // FileConfig defines parameters for a file output.
+	HTTPConfig     *HTTPSinkTypeConfig   `hcl:"http"`             // HTTPConfig defines parameters for an https output (not yet supported).
+	SyslogConfig   *SyslogSinkTypeConfig `hcl:"syslog"`           // SyslogConfig defines parameters for a syslog output (not yet supported).
 	WriterConfig   *WriterSinkTypeConfig `hcl:"-"`                // WriterConfig defines parameters for an io.Writer output. This is not available via HCL.
 	AuditConfig    *AuditConfig          `hcl:"audit_config"`     // AuditConfig defines optional parameters for audit events (if EventTypes contains audit)
 }
@@ -45,6 +47,12 @@ func (sc *SinkConfig) Validate() error {
 	if sc.WriterConfig != nil {
 		foundSinkTypeConfigs++
 	}
+	if sc.HTTPConfig != nil {
+		foundSinkTypeConfigs++
+	}
+	if sc.SyslogConfig != nil {
+		foundSinkTypeConfigs++
+	}
 	if foundSinkTypeConfigs > 1 {
 		return fmt.Errorf("%s: too many sink type config blocks: %w", op, ErrInvalidParameter)
 	}
@@ -64,6 +72,20 @@ func (sc *SinkConfig) Validate() error {
 		}
 		if sc.FileConfig.FileName == "" {
 			return fmt.Errorf("%s: missing file name: %w", op, ErrInvalidParameter)
+		}
+	case HTTPSink:
+		if sc.HTTPConfig == nil {
+			return fmt.Errorf(`%s: missing "http" block: %w`, op, ErrInvalidParameter)
+		}
+		if err := sc.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+	case SyslogSink:
+		if sc.SyslogConfig == nil {
+			return fmt.Errorf(`%s: missing "syslog" block: %w`, op, ErrInvalidParameter)
+		}
+		if err := sc.SyslogConfig.Validate(); err != nil {
+			return fmt.Errorf("%s: %w", op, err)
 		}
 	case WriterSink:
 		if sc.WriterConfig == nil {
@@ -98,6 +120,12 @@ func (sc *SinkConfig) Validate() error {
 				return fmt.Errorf("%s: invalid audit config: %w", op, err)
 			}
 		}
+	}
+
+	// Enforcement-first: no delivery is wired for network sinks yet, so even a
+	// fully valid configuration is refused instead of silently dropping events.
+	if sc.Type == HTTPSink || sc.Type == SyslogSink {
+		return fmt.Errorf("%s: %w", op, ErrNetworkSinkNotSupported)
 	}
 
 	return nil
