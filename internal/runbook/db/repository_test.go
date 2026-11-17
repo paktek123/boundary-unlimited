@@ -229,8 +229,10 @@ func TestDBRepositoryContract(t *testing.T) {
 		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_001", db.WithOperation(oplog.OpType_OP_TYPE_DELETE), db.WithCreateNotBefore(time.Minute)))
 	})
 	t.Run("unknown scope", func(t *testing.T) {
+		// the scope has no oplog key, so the write stops at the kms lookup with
+		// a fixed error that carries no definition content
 		_, err := repo.Create(ctx, mustStored(t, "rb_unknown_scp1", "o_doesnotexist", "x"))
-		require.ErrorIs(t, err, runbook.ErrInvalidInput)
+		require.EqualError(t, err, "runbook.db.Create: unable to get oplog wrapper")
 	})
 	t.Run("canary script body never stored or leaked", func(t *testing.T) {
 		d := mustStored(t, "rb_canary_0001", org.PublicId, "canary")
