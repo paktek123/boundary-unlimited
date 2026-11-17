@@ -6,6 +6,7 @@ package accessrequest
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -79,10 +80,35 @@ func TestDBRepositoryCreateValidation(t *testing.T) {
 	}
 }
 
-func TestDBRepositoryUpdateNotImplemented(t *testing.T) {
+// TestDBRepositoryUpdateValidation covers the checks made before the database
+// is touched, so it needs none.
+func TestDBRepositoryUpdateValidation(t *testing.T) {
 	d := &DBRepository{}
 	_, err := d.Update(context.Background(), Request{})
-	require.ErrorIs(t, err, ErrNotImplemented)
+	require.ErrorIs(t, err, ErrInvalidInput)
+	_, err = d.Update(context.Background(), Request{Id: "ar_x_00000001"}) // version zero
+	require.ErrorIs(t, err, ErrInvalidInput)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = d.Update(ctx, Request{Id: "ar_x_00000001", Version: 1})
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestTransitionOK(t *testing.T) {
+	all := []State{StatePending, StateApproved, StateDenied, StateCancelled, StateExpired, StateRevoked}
+	want := map[[2]State]bool{
+		{StatePending, StateApproved}:  true,
+		{StatePending, StateDenied}:    true,
+		{StatePending, StateCancelled}: true,
+		{StatePending, StateExpired}:   true,
+		{StateApproved, StateExpired}:  true,
+		{StateApproved, StateRevoked}:  true,
+	}
+	for _, from := range all {
+		for _, to := range all {
+			assert.Equal(t, want[[2]State{from, to}], transitionOK(from, to), "%s -> %s", from, to)
+		}
+	}
 }
 
 // contract is the Create/Get behaviour every Repository must share. ids must
@@ -314,27 +340,153 @@ func TestDBRepositoryContract(t *testing.T) {
 			_, err := clockRepo.Create(ctx, r)
 			require.NoError(t, err)
 		}
-		// The transition trigger cannot currently be passed by any update to a
-		// terminal state (the version-bump trigger issues a nested update that
-		// the transition trigger then rejects; see the note on #271), and the
-		// repository has no transition API yet. This test only needs rows in
-		// each state, so it disables that one trigger on its own throwaway
-		// test database.
-		_, err = rw.Exec(ctx, "alter table access_request disable trigger access_request_enforce_transition", nil)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_, err := rw.Exec(ctx, "alter table access_request enable trigger access_request_enforce_transition", nil)
-			require.NoError(t, err)
-		})
+		approver := iam.TestUser(t, iamRepo, scopeA.PublicId)
+		// Real transitions through Update; the transition trigger stays on.
 		setState := func(id string, st State, expiry time.Time) {
-			var exp any
-			if !expiry.IsZero() {
-				exp = expiry
-			}
-			_, err := rw.Exec(ctx, "update access_request set state = ?, expiry_time = ? where public_id = ?", []any{string(st), exp, id})
+			cur, err := clockRepo.Get(ctx, id)
 			require.NoError(t, err)
+			step := func(to State, by string, exp time.Time) {
+				cur.State, cur.DecidedBy, cur.ExpiresAt = to, by, exp
+				cur, err = clockRepo.Update(ctx, cur)
+				require.NoError(t, err)
+			}
+			switch st {
+			case StateDenied:
+				step(StateDenied, approver.PublicId, time.Time{})
+			case StateCancelled:
+				step(StateCancelled, cur.RequesterId, time.Time{})
+			case StateExpired:
+				step(StateExpired, "", time.Time{})
+			case StateRevoked:
+				step(StateApproved, approver.PublicId, expiry.Add(time.Hour))
+				step(StateRevoked, approver.PublicId, expiry.Add(time.Hour))
+			case StateApproved:
+				step(StateApproved, approver.PublicId, expiry)
+			}
 		}
 		activeContract(t, clockRepo, scopeA.PublicId, scopeB.PublicId, user.PublicId, user2.PublicId, now, create, setState)
+	})
+	t.Run("transitions", func(t *testing.T) {
+		scope := iam.TestOrg(t, iamRepo)
+		requester := iam.TestUser(t, iamRepo, scope.PublicId)
+		approver := iam.TestUser(t, iamRepo, scope.PublicId)
+		other := iam.TestUser(t, iamRepo, scope.PublicId)
+		newReq := func(id string) Request {
+			r := mk(t, id, requester.PublicId, t0)
+			r.ScopeId = scope.PublicId
+			got, err := repo.Create(ctx, r)
+			require.NoError(t, err)
+			return got
+		}
+		exp := time.Now().Add(time.Hour).UTC().Truncate(time.Microsecond)
+
+		// approve, then revoke
+		r := newReq("ar_trans_00001")
+		r.State, r.DecidedBy, r.ExpiresAt = StateApproved, approver.PublicId, exp
+		r, err := repo.Update(ctx, r)
+		require.NoError(t, err)
+		assert.Equal(t, StateApproved, r.State)
+		assert.EqualValues(t, 2, r.Version)
+		assert.WithinDuration(t, exp, r.ExpiresAt, time.Second)
+		decided, err := repo.List(ctx, ListFilter{ScopeId: scope.PublicId, ApproverId: approver.PublicId})
+		require.NoError(t, err)
+		require.Len(t, decided, 1)
+		assert.Equal(t, approver.PublicId, decided[0].DecidedBy)
+		r.State, r.DecidedBy = StateRevoked, approver.PublicId
+		r, err = repo.Update(ctx, r)
+		require.NoError(t, err)
+		assert.Equal(t, StateRevoked, r.State)
+
+		// a terminal request can never change again
+		back := r
+		back.State = StateApproved
+		_, err = repo.Update(ctx, back)
+		require.ErrorIs(t, err, ErrInvalidTransition)
+
+		// self approval and deny are rejected
+		r = newReq("ar_trans_00002")
+		self := r
+		self.State, self.DecidedBy, self.ExpiresAt = StateApproved, requester.PublicId, exp
+		_, err = repo.Update(ctx, self)
+		require.ErrorIs(t, err, ErrSelfApproval)
+		self.State = StateDenied
+		_, err = repo.Update(ctx, self)
+		require.ErrorIs(t, err, ErrSelfApproval)
+		// only the requester may cancel
+		c := r
+		c.State, c.DecidedBy = StateCancelled, other.PublicId
+		_, err = repo.Update(ctx, c)
+		require.ErrorIs(t, err, ErrNotRequester)
+		c.DecidedBy = requester.PublicId
+		c, err = repo.Update(ctx, c)
+		require.NoError(t, err)
+		assert.Equal(t, StateCancelled, c.State)
+
+		// pending -> revoked is invalid; the grants cannot change
+		r = newReq("ar_trans_00003")
+		bad := r
+		bad.State, bad.DecidedBy = StateRevoked, approver.PublicId
+		_, err = repo.Update(ctx, bad)
+		require.ErrorIs(t, err, ErrInvalidTransition)
+		bad = r
+		bad.State, bad.DecidedBy, bad.ExpiresAt, bad.Grants = StateApproved, approver.PublicId, exp, []string{"ids=*;type=*;actions=*"}
+		_, err = repo.Update(ctx, bad)
+		require.ErrorIs(t, err, ErrInvalidInput)
+
+		// stale version is a conflict, not a state change
+		stale := r
+		stale.Version = 7
+		stale.State, stale.DecidedBy = StateDenied, approver.PublicId
+		_, err = repo.Update(ctx, stale)
+		require.ErrorIs(t, err, ErrVersionConflict)
+		still, err := repo.Get(ctx, r.Id)
+		require.NoError(t, err)
+		assert.Equal(t, StatePending, still.State)
+
+		// concurrent decisions: exactly one terminal state wins
+		r = newReq("ar_trans_00004")
+		decisions := []Request{r, r, r}
+		decisions[0].State, decisions[0].DecidedBy, decisions[0].ExpiresAt = StateApproved, approver.PublicId, exp
+		decisions[1].State, decisions[1].DecidedBy = StateDenied, other.PublicId
+		decisions[2].State, decisions[2].DecidedBy = StateCancelled, requester.PublicId
+		errs := make([]error, len(decisions))
+		var wg sync.WaitGroup
+		for i := range decisions {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				_, errs[i] = repo.Update(ctx, decisions[i])
+			}(i)
+		}
+		wg.Wait()
+		wins := 0
+		for _, e := range errs {
+			if e == nil {
+				wins++
+			} else {
+				require.ErrorIs(t, e, ErrVersionConflict)
+			}
+		}
+		assert.Equal(t, 1, wins)
+		final, err := repo.Get(ctx, r.Id)
+		require.NoError(t, err)
+		assert.True(t, final.State.Terminal() || final.State == StateApproved)
+		assert.EqualValues(t, 2, final.Version)
+		// the losers' decisions must leave no approval row behind
+		var approvals int
+		rows, err := rw.Query(ctx, "select count(*) from access_request_approval where request_id = ?", []any{r.Id})
+		require.NoError(t, err)
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Scan(&approvals))
+		require.NoError(t, rows.Close())
+		switch final.State {
+		case StateApproved, StateDenied:
+			assert.Equal(t, 1, approvals)
+		default:
+			assert.Equal(t, 0, approvals)
+		}
+
+		require.NoError(t, db.TestVerifyOplog(t, rw, "ar_trans_00001", db.WithOperation(oplog.OpType_OP_TYPE_UPDATE), db.WithCreateNotBefore(time.Minute)))
 	})
 	t.Run("short id rejected by the database", func(t *testing.T) {
 		r := mk(t, "short", user.PublicId, t0)

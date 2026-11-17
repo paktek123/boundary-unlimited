@@ -1312,6 +1312,9 @@ func parseEventing(eventObj *ast.ObjectItem) (*event.EventerConfig, error) {
 	// Go through each sink and decode
 	for i, item := range sinkList.Items {
 		var s event.SinkConfig
+		if err := rejectUnknownNetworkSinkKeys(item.Val); err != nil {
+			return nil, err
+		}
 		if err := hcl.DecodeObject(&s, item.Val); err != nil {
 			return nil, fmt.Errorf("error decoding eventer sink entry %d", i)
 		}

@@ -127,6 +127,8 @@ func TestNew_Rejects(t *testing.T) {
 		"neg timeout":    func(c *Config) { c.Timeout = -1 },
 		"huge timeout":   func(c *Config) { c.Timeout = time.Hour },
 		"bad cidr":       func(c *Config) { c.AllowedCIDRs = []netip.Prefix{{}} },
+		"wildcard cidr4": func(c *Config) { c.AllowedCIDRs = []netip.Prefix{netip.MustParsePrefix("0.0.0.0/0")} },
+		"wildcard cidr6": func(c *Config) { c.AllowedCIDRs = []netip.Prefix{netip.MustParsePrefix("::/0")} },
 	}
 	for name, mut := range tests {
 		t.Run(name, func(t *testing.T) {

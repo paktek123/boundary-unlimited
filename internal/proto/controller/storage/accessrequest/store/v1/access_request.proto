@@ -38,9 +38,12 @@ message AccessRequest {
   // @inject_tag: `gorm:"not_null"`
   string justification = 6;
 
-  // state is the lifecycle state; the database default is pending.
-  // @inject_tag: `gorm:"default:null"`
-  string state = 7;
+  // request_state is the lifecycle state (column "state"; the database
+  // default is pending). The Go field is not called State because go-dbw
+  // matches field mask paths case-insensitively and would also match the
+  // unexported protobuf internals field "state".
+  // @inject_tag: `gorm:"column:state;default:null"`
+  string request_state = 7;
 
   // ttl_seconds is the requested access duration in seconds.
   // @inject_tag: `gorm:"not_null"`
