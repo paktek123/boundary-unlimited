@@ -185,7 +185,7 @@ func repoContract(t *testing.T, repo runbook.Repository, scope, otherScope strin
 	moved := u2
 	moved.ScopeId = otherScope
 	_, err = repo.Update(ctx, moved)
-	require.Error(t, err)
+	require.ErrorIs(t, err, runbook.ErrInvalidInput)
 	// renaming onto a taken name
 	clash := u2
 	clash.Name = "a-runbook"
@@ -225,10 +225,12 @@ func TestDBRepositoryContract(t *testing.T) {
 	t.Run("oplog entries are written", func(t *testing.T) {
 		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_002", db.WithOperation(oplog.OpType_OP_TYPE_CREATE), db.WithCreateNotBefore(time.Minute)))
 		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_001", db.WithOperation(oplog.OpType_OP_TYPE_UPDATE), db.WithCreateNotBefore(time.Minute)))
+		// rb_contract_001 is deleted at the end of the contract sequence
+		require.NoError(t, db.TestVerifyOplog(t, rw, "rb_contract_001", db.WithOperation(oplog.OpType_OP_TYPE_DELETE), db.WithCreateNotBefore(time.Minute)))
 	})
 	t.Run("unknown scope", func(t *testing.T) {
 		_, err := repo.Create(ctx, mustStored(t, "rb_unknown_scp1", "o_doesnotexist", "x"))
-		require.Error(t, err)
+		require.ErrorIs(t, err, runbook.ErrInvalidInput)
 	})
 	t.Run("canary script body never stored or leaked", func(t *testing.T) {
 		d := mustStored(t, "rb_canary_0001", org.PublicId, "canary")
