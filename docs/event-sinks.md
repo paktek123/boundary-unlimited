@@ -57,14 +57,12 @@ network sink (`internal/event/sinkqueue`) is bounded in entries and bytes:
   audit events silently (this mode is not used for network sinks);
 - `Close` returns an error wrapping `ErrDropped` when anything was ever lost.
 
-## Planned configuration rules (not implemented on this base)
+## Configuration rules (validated, then rejected until delivery is wired)
 
-None of the following is enforced today: `internal/event` has no `http` or
-`syslog` sink type, block or keys. A config naming such a sink fails with "is
-not a valid sink type". The sink-type slice of #55/#56 will parse and validate
-`type = "http"` / `type = "syslog"` with an `http { ... }` or `syslog { ... }`
-block and, until delivery is wired, refuse even valid ones with "not yet
-supported". The rules it must implement (security decision on #55):
+`internal/event` parses `type = "http"` / `type = "syslog"` with an `http { ... }`
+or `syslog { ... }` block and validates it strictly (`sink_network_config.go`).
+Even a valid block is then refused with "not yet supported" until delivery is
+wired. The rules it applies (security decision on #55):
 
 - `http`: `url` (https only, no userinfo), `token` as `env://NAME` or an
   absolute `file://` reference (inline tokens refused), `format` of `hec` or
@@ -78,6 +76,6 @@ supported". The rules it must implement (security decision on #55):
   fail the load, and errors never contain the URL, address or secret
   reference.
 
-Also still to come: hooking the pipeline into the eventer, failing startup on
+Still to come: hooking the pipeline into the eventer, failing startup on
 an unresolvable secret, and the rate-limited counts-only system event for
 drops. Until that merges the sink types stay rejected (enforcement-first).
