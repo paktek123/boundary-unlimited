@@ -28,6 +28,10 @@ project {
     # written for Boundary Unlimited and licensed under MIT (see NOTICE.md);
     # copywrite would otherwise rewrite these headers to the upstream license.
     "internal/accessrequest/**",
+    "internal/proto/controller/api/resources/accessrequests/**",
+    "internal/proto/controller/api/services/v1/access_request_service.proto",
+    "sdk/pbs/controller/api/resources/accessrequests/**",
+    "internal/gen/controller/api/services/access_request_service*.go",
     "internal/proto/controller/storage/accessrequest/**",
     "internal/proto/controller/storage/runbook/**",
     "internal/runbook/**",
