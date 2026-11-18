@@ -127,6 +127,10 @@
       }
     },
     {
+      "name": "Runbook service",
+      "description": "A runbook is a parameterised script pinned to a full commit. The runbook service manages runbook definitions; running a runbook is not yet supported."
+    },
+    {
       "name": "Scope service",
       "description": "A scope acts as a permission Boundary modeled using the concept of a container. It creates a hierarchical structure that lets you organize your resources and manage access control within Boundary. The scope service provides endpoints to let you manage scopes in Boundary.",
       "externalDocs": {
@@ -3861,6 +3865,198 @@
         ]
       }
     },
+    "/v1/runbooks": {
+      "get": {
+        "summary": "Gets a list of Runbooks.",
+        "operationId": "RunbookService_ListRunbooks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.ListRunbooksResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "scope_id",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "recursive",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "filter",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "list_token",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "post": {
+        "summary": "Creates a Runbook",
+        "operationId": "RunbookService_CreateRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      }
+    },
+    "/v1/runbooks/{id}": {
+      "get": {
+        "summary": "Gets a single Runbook.",
+        "operationId": "RunbookService_GetRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "delete": {
+        "summary": "Deletes a Runbook",
+        "operationId": "RunbookService_DeleteRunbook",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.DeleteRunbookResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "patch": {
+        "summary": "Updates a Runbook",
+        "operationId": "RunbookService_UpdateRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      }
+    },
     "/v1/scopes": {
       "get": {
         "summary": "Lists all Scopes within the Scope provided in the request.",
@@ -7554,6 +7750,143 @@
       },
       "title": "Role contains all fields related to a Role resource"
     },
+    "controller.api.resources.runbooks.v1.Runbook": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Output only. The ID of the runbook.",
+          "readOnly": true
+        },
+        "scope_id": {
+          "type": "string",
+          "description": "The ID of the Scope this runbook belongs to."
+        },
+        "scope": {
+          "$ref": "#/definitions/controller.api.resources.scopes.v1.ScopeInfo",
+          "description": "Output only. Scope information for this resource.",
+          "readOnly": true
+        },
+        "name": {
+          "type": "string",
+          "title": ""
+        },
+        "description": {
+          "type": "string",
+          "title": ""
+        },
+        "interpreter": {
+          "type": "string",
+          "title": ""
+        },
+        "commit_sha": {
+          "type": "string",
+          "description": "The full 40 hex character commit the script is fetched at. Branches, tags\nand abbreviated commits are rejected."
+        },
+        "script_path": {
+          "type": "string",
+          "description": "The path of the script inside the source repository."
+        },
+        "script_sha256": {
+          "type": "string",
+          "description": "Output only. The SHA-256 of the pinned script bytes.",
+          "readOnly": true
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.runbooks.v1.RunbookParameter"
+          }
+        },
+        "selector": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.RunbookTargetSelector"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Output only. The version of the runbook, required for updates.",
+          "readOnly": true
+        }
+      },
+      "description": "Runbook is a parameterised script definition pinned to a full commit. The\nscript body is never returned: only its path, pinned commit and SHA-256."
+    },
+    "controller.api.resources.runbooks.v1.RunbookParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The parameter name. It must not be reserved and must be declared before\nthe script uses it."
+        },
+        "type": {
+          "type": "string",
+          "description": "One of \"string\", \"int\", \"enum\" or \"bool\"."
+        },
+        "regex": {
+          "type": "string",
+          "description": "RE2 expression a string value must match in full. Required for \"string\"."
+        },
+        "allowed_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The allowed values. Required for \"enum\"."
+        },
+        "min": {
+          "type": "string",
+          "format": "int64",
+          "description": "Inclusive bounds for \"int\" values. Both are required for \"int\"."
+        },
+        "max": {
+          "type": "string",
+          "format": "int64",
+          "title": ""
+        },
+        "max_length": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Maximum value length in bytes. Zero selects the default."
+        },
+        "required": {
+          "type": "boolean",
+          "title": ""
+        },
+        "default": {
+          "type": "string",
+          "description": "The default value, used only when has_default is true."
+        },
+        "has_default": {
+          "type": "boolean",
+          "title": ""
+        }
+      },
+      "description": "RunbookParameter declares one parameter of a runbook."
+    },
+    "controller.api.resources.runbooks.v1.RunbookTargetSelector": {
+      "type": "object",
+      "properties": {
+        "all_targets": {
+          "type": "boolean",
+          "title": ""
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "scope_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        }
+      },
+      "description": "RunbookTargetSelector says which targets a runbook may run against. The\nempty selector selects nothing."
+    },
     "controller.api.resources.scopes.v1.Key": {
       "type": "object",
       "properties": {
@@ -9838,6 +10171,18 @@
         }
       }
     },
+    "controller.api.services.v1.CreateRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "title": ""
+        },
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+        }
+      }
+    },
     "controller.api.services.v1.CreateScopeResponse": {
       "type": "object",
       "properties": {
@@ -9938,6 +10283,9 @@
       "type": "object"
     },
     "controller.api.services.v1.DeleteRoleResponse": {
+      "type": "object"
+    },
+    "controller.api.services.v1.DeleteRunbookResponse": {
       "type": "object"
     },
     "controller.api.services.v1.DeleteScopeResponse": {
@@ -10122,6 +10470,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.roles.v1.Role"
+        }
+      }
+    },
+    "controller.api.services.v1.GetRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
         }
       }
     },
@@ -10992,6 +11348,46 @@
           "type": "integer",
           "format": "int64",
           "description": "An estimate at the total items available. This may change during pagination."
+        }
+      }
+    },
+    "controller.api.services.v1.ListRunbooksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+          }
+        },
+        "response_type": {
+          "type": "string",
+          "title": ""
+        },
+        "list_token": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_by": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_dir": {
+          "type": "string",
+          "title": ""
+        },
+        "removed_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "est_item_count": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
         }
       }
     },
@@ -11945,6 +12341,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.roles.v1.Role"
+        }
+      }
+    },
+    "controller.api.services.v1.UpdateRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
         }
       }
     },
