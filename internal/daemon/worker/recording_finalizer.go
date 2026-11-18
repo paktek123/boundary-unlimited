@@ -80,6 +80,13 @@ func (u storageUploader) Upload(ctx context.Context, rec upload.Recording) (err 
 			return oerr
 		}
 		defer f.Close()
+		// A file swapped for a symlink between the walk and the open is not
+		// the entry that was checked: refuse it.
+		li, lerr := os.Lstat(p)
+		fi, ferr := f.Stat()
+		if lerr != nil || ferr != nil || !os.SameFile(li, fi) || !fi.Mode().IsRegular() {
+			return errors.New("file changed during upload")
+		}
 		return bs.Put(ctx, filepath.ToSlash(rel), f)
 	})
 	if walkErr != nil {

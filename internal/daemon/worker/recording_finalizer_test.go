@@ -13,7 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/boundary/internal/bsr"
+	"github.com/hashicorp/boundary/internal/bsr/kms"
+	bsrssh "github.com/hashicorp/boundary/internal/bsr/ssh"
+	"github.com/hashicorp/boundary/internal/bsr/ssh/recorder"
+	"github.com/hashicorp/boundary/internal/daemon/worker/recording/bsrfs"
+	"github.com/hashicorp/boundary/internal/daemon/worker/recording/scratch"
 	"github.com/hashicorp/boundary/internal/daemon/worker/recording/upload"
+	"github.com/hashicorp/boundary/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -148,4 +155,73 @@ func TestNewRecordingFinalizerFailsClosed(t *testing.T) {
 	require.ErrorIs(t, err, ErrRecordingUpload)
 	_, err = newRecordingFinalizer(recordingFinalizerDeps{Buckets: &memBucket{}})
 	require.ErrorIs(t, err, ErrRecordingUpload)
+}
+
+// writeRealBSR records an empty-but-valid BSR session into a real scratch
+// store and finishes it, so bsrValidator runs against the production adapter.
+func writeRealBSR(t *testing.T, sid string) (*scratch.Store, *kms.Keys) {
+	t.Helper()
+	ctx := context.Background()
+	store, err := scratch.New(t.TempDir(), 8<<20)
+	require.NoError(t, err)
+	require.NoError(t, store.Reserve(sid, 4<<20))
+	fs, err := bsrfs.New(store, sid)
+	require.NoError(t, err)
+	keys, err := kms.CreateKeys(ctx, kms.TestWrapper(t), sid)
+	require.NoError(t, err)
+	sess, err := bsr.NewSession(ctx, bsr.TestSessionRecordingMeta(sid, bsrssh.Protocol), bsr.TestSessionMeta(sid), fs, keys, bsr.WithSupportsMultiplex(true))
+	require.NoError(t, err)
+	rec, err := recorder.NewRecorder(ctx, sess, "cr_1234567890")
+	require.NoError(t, err)
+	require.NoError(t, rec.Close())
+	require.NoError(t, sess.Close(ctx))
+	require.NoError(t, store.Finish(sid))
+	return store, keys
+}
+
+func unwrapWith(keys *kms.Keys) kms.KeyUnwrapCallbackFunc {
+	return func(kms.WrappedKeys) (kms.UnwrappedKeys, error) {
+		return kms.UnwrappedKeys{BsrKey: keys.BsrKey, PrivKey: keys.PrivKey}, nil
+	}
+}
+
+func TestBSRValidator(t *testing.T) {
+	ctx := context.Background()
+	const sid = "s_1234567890"
+	store, keys := writeRealBSR(t, sid)
+	dir, err := store.Path(sid)
+	require.NoError(t, err)
+	rec := upload.Recording{SessionID: sid, Dir: dir}
+	realFS := func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }
+
+	t.Run("openFS error", func(t *testing.T) {
+		v := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return nil, errors.New("boom " + canaryCred) }, unwrap: unwrapWith(keys)}
+		err := v.Validate(ctx, rec)
+		require.ErrorIs(t, err, ErrRecordingValidation)
+		assert.NotContains(t, err.Error(), canaryCred)
+	})
+	t.Run("nil fs without error", func(t *testing.T) {
+		v := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return nil, nil }, unwrap: unwrapWith(keys)}
+		require.ErrorIs(t, v.Validate(ctx, rec), ErrRecordingValidation)
+	})
+	t.Run("missing recording id", func(t *testing.T) {
+		require.ErrorIs(t, bsrValidator{openFS: realFS, unwrap: unwrapWith(keys)}.Validate(ctx, upload.Recording{Dir: dir}), ErrRecordingValidation)
+	})
+}
+
+func TestFinalizerWithRealValidatorBlocksUploadOfUnvalidatableRecording(t *testing.T) {
+	const sid = "s_1234567890"
+	store, keys := writeRealBSR(t, sid)
+	dir, err := store.Path(sid)
+	require.NoError(t, err)
+	// bsr.Validate cannot read a recording produced through bsrfs today (its
+	// summary file stays empty), so the real validator fails closed.
+	b := &memBucket{files: map[string][]byte{}}
+	sc := &memScratch{dir: dir}
+	val := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
+	res, err := newFin(t, sc, b, val, &nopEvents{})
+	require.Error(t, err)
+	assert.Equal(t, upload.StatusInvalid, res.Status)
+	assert.Empty(t, b.files, "nothing is uploaded")
+	assert.False(t, sc.marked || sc.discarded)
 }
