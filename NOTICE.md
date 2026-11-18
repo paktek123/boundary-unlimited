@@ -30,6 +30,7 @@ files in:
 - `internal/event/syslogsink`
 - `internal/event/httpsink`
 - `internal/event/sinkqueue`
+- `internal/event/netsink`
 - in `internal/event`: `sink_network_config*.go`; in `internal/cmd/config`: `sink_network*.go`
 - `internal/daemon/worker/recording/{finalize,scratch,upload,bsrfs}`
 - `internal/daemon/worker/proxy/ssh` and `internal/daemon/worker/proxy/kube`

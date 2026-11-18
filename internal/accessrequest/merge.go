@@ -46,10 +46,12 @@ func (s RepositorySource) OverlayRequests(ctx context.Context, userId, reqScopeI
 	if s.Repo == nil || userId == "" || reqScopeId == "" {
 		return nil, ErrInvalidInput
 	}
-	all, err := s.Repo.List(ctx, ListFilter{RequesterId: userId, States: []State{StateApproved}})
+	all, err := s.Repo.List(ctx, ListFilter{RequesterId: userId, ScopeId: reqScopeId, States: []State{StateApproved}})
 	if err != nil {
 		return nil, err
 	}
+	// The scope is part of the query; the in-memory check stays as defence in
+	// depth so a repository that ignores the filter cannot widen the overlay.
 	var out []Request
 	for _, r := range all {
 		if r.ScopeId == reqScopeId {
