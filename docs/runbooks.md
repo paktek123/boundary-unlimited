@@ -17,7 +17,7 @@ Tracking: epic #89, issues #260 and #279. Design: [docs/rfc/runbooks.md](rfc/run
 | Binding-only renderer (parameters delivered as environment values, namespaced variables) | `internal/runbook/render.go` |
 | Pinned source fetching by commit and script hash | `internal/runbook/source` |
 | Approval binding to the exact reviewed script | `internal/runbook/approval` |
-| Runner skeleton that refuses to run | `internal/runbook/run` |
+| Run orchestration (verifies the pinned script, parameters and approval before any Executor call); no Executor exists and nothing imports it | `internal/runbook/run` |
 | Oplog-backed repository over migration 115 (no script body is stored; only commit, path and SHA-256) | `internal/runbook/db` |
 | Definition service (create, get, list, update, delete) with audit events | `internal/daemon/controller/handlers/runbooks` |
 | `runbooks:*` grants | `internal/perms` |
