@@ -317,6 +317,20 @@ fork, which is independent of HashiCorp.
 * runbooks: Add `internal/runbook/db`, an oplog-backed `runbook.Repository` over migration 115 (create/get/list/update/delete, scope-scoped `List`, version-checked `Update` returning `ErrVersionConflict`, fixed errors that never echo database values; no script body is stored). Migration 117 registers the `runbook_definition` oplog ticket and `runbook_definition` gets a storage proto/`store` package. Not registered in the controller and no API or CLI is added. DB-backed tests need Postgres and skip otherwise. Refs #278, #89.
 * docs: Add `docs/access-requests.md`, which states that just-in-time access requests have no API or CLI yet, lists the merged libraries and the fail-closed, audit and grant-narrowing rules the feature keeps. Documentation only; no behaviour change. Refs #18.
 
+* docs: Add `docs/kubernetes-target.md`, which states that the `kubernetes` target type is not registered or usable yet and lists the merged, inert building blocks and the TLS and kubeconfig properties the feature must keep. Documentation only; no behaviour change. Refs #27.
+
+* docs: Add `docs/ssh-credential-injection.md`, which states that SSH credential injection is not available yet (`ssh` targets still accept only the `brokered` purpose), lists the merged library pieces and the properties the feature must keep. Documentation only; no behaviour change. Refs #9.
+
+* docs: Add `docs/ssh-session-recording.md`, which states that SSH session recording is not available yet, lists the merged library building blocks, the fail-closed and key-handling properties the feature keeps, and the warning that recordings capture typed secrets. Documentation only; no behaviour change. Refs #14.
+
+* access requests: The controller now configures the grant overlay on the target service from the database-backed access request repository (`internal/daemon/controller/accessrequest_wiring.go`), so approved, unexpired requests authorize exactly their approved grants for `authorize-session`; the overlay stays fail closed (a repository, clock or audit failure gives base grants only) and every overlay grant is audited as a controller system event. No request creation, API or CLI is added: requests still cannot be created through any endpoint. Refs #262, #3.
+
+* access requests: `RepositorySource.OverlayRequests` now sends the scope in the repository query instead of filtering all of a user's approved requests in memory (the in-memory scope check stays as defence in depth) (Refs #262).
+* recording: Add the worker recording finalizer (`internal/daemon/worker/recording_finalizer.go`): `bsr.Validate` runs before upload (an invalid recording is never uploaded), files are copied to the session's storage bucket through a `RecordingBucketSource` whose credentials are held in memory only, symlinks are refused, and scratch is discarded only after the bucket accepted every file. Errors are fixed classes with no credentials, names or paths. Not installed in the worker and no config option added; binding the bucket source to the storage plugin is a later slice. Refs #290, #259.
+
+* recording: Add the worker `recordingSpecProvider` (`internal/daemon/worker/recording_spec.go`), an `ssh` `SpecProvider` that builds the BSR meta from the controller-authorised session and creates fresh per-session keys with the worker's `bsr` KMS wrapper; every missing dependency or key-creation failure refuses the session with fixed errors. `kms.Keys` now prints as `kms.Keys{redacted}` for every format verb. Not installed in the worker yet and no config field added. Refs #289, #259.
+
+* event sinks: Add `internal/event/netsink`, which builds an `http` sink's pipeline (secret reference resolved, `httpsink` over the netguard guard, bounded best-effort `sinkqueue`; `Write` never blocks or errors). Syslog entries are wrapped as RFC 5424 messages; CA and client key material come from `file://` references. Not called by the event system: `http` and `syslog` sinks are still refused as not yet supported. Refs #55, #56.
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
