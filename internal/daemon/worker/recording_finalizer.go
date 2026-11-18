@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/hashicorp/boundary/internal/bsr"
 	"github.com/hashicorp/boundary/internal/bsr/kms"
@@ -41,6 +42,20 @@ type RecordingBucketSource interface {
 	Open(ctx context.Context, sessionId string) (RecordingBucketSession, error)
 }
 
+// isNilSession reports a nil interface and also an interface holding a nil
+// pointer, which `== nil` misses.
+func isNilSession(bs RecordingBucketSession) bool {
+	if bs == nil {
+		return true
+	}
+	v := reflect.ValueOf(bs)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface:
+		return v.IsNil()
+	}
+	return false
+}
+
 // storageUploader implements upload.Uploader: it copies the finished
 // recording directory to the storage bucket and returns nil only after every
 // file was stored. It never touches the scratch data.
@@ -50,7 +65,7 @@ var _ upload.Uploader = storageUploader{}
 
 func (u storageUploader) Upload(ctx context.Context, rec upload.Recording) (err error) {
 	bs, err := u.src.Open(ctx, rec.SessionID)
-	if err != nil || bs == nil {
+	if err != nil || isNilSession(bs) {
 		return fmt.Errorf("%w: bucket unavailable", ErrRecordingUpload)
 	}
 	defer func() {

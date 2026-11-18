@@ -294,3 +294,15 @@ func TestFinalizerWithRealValidator(t *testing.T) {
 		assert.False(t, sc.marked || sc.discarded, "scratch is kept")
 	})
 }
+
+type typedNilSource struct{}
+
+func (typedNilSource) Open(context.Context, string) (RecordingBucketSession, error) {
+	var b *memBucket
+	return b, nil
+}
+
+func TestStorageUploaderTypedNilBucketSessionFailsClosed(t *testing.T) {
+	err := storageUploader{src: typedNilSource{}}.Upload(context.Background(), upload.Recording{SessionID: "s_1", Dir: t.TempDir()})
+	require.ErrorIs(t, err, ErrRecordingUpload)
+}
