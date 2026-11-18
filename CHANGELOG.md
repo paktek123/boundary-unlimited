@@ -317,6 +317,7 @@ fork, which is independent of HashiCorp.
 * runbooks: Add `internal/runbook/db`, an oplog-backed `runbook.Repository` over migration 115 (create/get/list/update/delete, scope-scoped `List`, version-checked `Update` returning `ErrVersionConflict`, fixed errors that never echo database values; no script body is stored). Migration 117 registers the `runbook_definition` oplog ticket and `runbook_definition` gets a storage proto/`store` package. Not registered in the controller and no API or CLI is added. DB-backed tests need Postgres and skip otherwise. Refs #278, #89.
 * recording: Add the worker `recordingSpecProvider` (`internal/daemon/worker/recording_spec.go`), an `ssh` `SpecProvider` that builds the BSR meta from the controller-authorised session and creates fresh per-session keys with the worker's `bsr` KMS wrapper; every missing dependency or key-creation failure refuses the session with fixed errors. `kms.Keys` now prints as `kms.Keys{redacted}` for every format verb. Not installed in the worker yet and no config field added. Refs #289, #259.
 
+* event sinks: Add `internal/event/netsink`, which builds an `http` sink's pipeline (secret reference resolved, `httpsink` over the netguard guard, bounded best-effort `sinkqueue`; `Write` never blocks or errors). Syslog entries are wrapped as RFC 5424 messages; CA and client key material come from `file://` references. Not called by the event system: `http` and `syslog` sinks are still refused as not yet supported. Refs #55, #56.
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved
