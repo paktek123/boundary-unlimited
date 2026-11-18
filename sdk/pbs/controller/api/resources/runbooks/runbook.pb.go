@@ -30,22 +30,22 @@ type RunbookParameter struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The parameter name. It must not be reserved and must be declared before
 	// the script uses it.
-	Name string `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty"` // @gotags: `class:"public"`
+	Name string `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty" class:"public"` // @gotags: `class:"public"`
 	// One of "string", "int", "enum" or "bool".
-	Type string `protobuf:"bytes,20,opt,name=type,proto3" json:"type,omitempty"` // @gotags: `class:"public"`
+	Type string `protobuf:"bytes,20,opt,name=type,proto3" json:"type,omitempty" class:"public"` // @gotags: `class:"public"`
 	// RE2 expression a string value must match in full. Required for "string".
-	Regex string `protobuf:"bytes,30,opt,name=regex,proto3" json:"regex,omitempty"` // @gotags: `class:"public"`
+	Regex string `protobuf:"bytes,30,opt,name=regex,proto3" json:"regex,omitempty" class:"public"` // @gotags: `class:"public"`
 	// The allowed values. Required for "enum".
-	AllowedValues []string `protobuf:"bytes,40,rep,name=allowed_values,proto3" json:"allowed_values,omitempty"` // @gotags: `class:"public"`
+	AllowedValues []string `protobuf:"bytes,40,rep,name=allowed_values,proto3" json:"allowed_values,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Inclusive bounds for "int" values. Both are required for "int".
-	Min *int64 `protobuf:"varint,50,opt,name=min,proto3,oneof" json:"min,omitempty"` // @gotags: `class:"public"`
-	Max *int64 `protobuf:"varint,51,opt,name=max,proto3,oneof" json:"max,omitempty"` // @gotags: `class:"public"`
+	Min *int64 `protobuf:"varint,50,opt,name=min,proto3,oneof" json:"min,omitempty" class:"public"` // @gotags: `class:"public"`
+	Max *int64 `protobuf:"varint,51,opt,name=max,proto3,oneof" json:"max,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Maximum value length in bytes. Zero selects the default.
-	MaxLength uint32 `protobuf:"varint,60,opt,name=max_length,proto3" json:"max_length,omitempty"` // @gotags: `class:"public"`
-	Required  bool   `protobuf:"varint,70,opt,name=required,proto3" json:"required,omitempty"`     // @gotags: `class:"public"`
+	MaxLength uint32 `protobuf:"varint,60,opt,name=max_length,proto3" json:"max_length,omitempty" class:"public"` // @gotags: `class:"public"`
+	Required  bool   `protobuf:"varint,70,opt,name=required,proto3" json:"required,omitempty" class:"public"`     // @gotags: `class:"public"`
 	// The default value, used only when has_default is true.
-	Default       string `protobuf:"bytes,80,opt,name=default,proto3" json:"default,omitempty"`          // @gotags: `class:"secret"`
-	HasDefault    bool   `protobuf:"varint,81,opt,name=has_default,proto3" json:"has_default,omitempty"` // @gotags: `class:"public"`
+	Default       string `protobuf:"bytes,80,opt,name=default,proto3" json:"default,omitempty" class:"secret"`          // @gotags: `class:"secret"`
+	HasDefault    bool   `protobuf:"varint,81,opt,name=has_default,proto3" json:"has_default,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -154,9 +154,9 @@ func (x *RunbookParameter) GetHasDefault() bool {
 // empty selector selects nothing.
 type RunbookTargetSelector struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AllTargets    bool                   `protobuf:"varint,10,opt,name=all_targets,proto3" json:"all_targets,omitempty"` // @gotags: `class:"public"`
-	TargetIds     []string               `protobuf:"bytes,20,rep,name=target_ids,proto3" json:"target_ids,omitempty"`    // @gotags: `class:"public"`
-	ScopeIds      []string               `protobuf:"bytes,30,rep,name=scope_ids,proto3" json:"scope_ids,omitempty"`      // @gotags: `class:"public"`
+	AllTargets    bool                   `protobuf:"varint,10,opt,name=all_targets,proto3" json:"all_targets,omitempty" class:"public"` // @gotags: `class:"public"`
+	TargetIds     []string               `protobuf:"bytes,20,rep,name=target_ids,proto3" json:"target_ids,omitempty" class:"public"`    // @gotags: `class:"public"`
+	ScopeIds      []string               `protobuf:"bytes,30,rep,name=scope_ids,proto3" json:"scope_ids,omitempty" class:"public"`      // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -217,25 +217,25 @@ func (x *RunbookTargetSelector) GetScopeIds() []string {
 type Runbook struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Output only. The ID of the runbook.
-	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	// The ID of the Scope this runbook belongs to.
-	ScopeId string `protobuf:"bytes,20,opt,name=scope_id,proto3" json:"scope_id,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	ScopeId string `protobuf:"bytes,20,opt,name=scope_id,proto3" json:"scope_id,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	// Output only. Scope information for this resource.
 	Scope       *scopes.ScopeInfo `protobuf:"bytes,30,opt,name=scope,proto3" json:"scope,omitempty"`
-	Name        string            `protobuf:"bytes,40,opt,name=name,proto3" json:"name,omitempty"`               // @gotags: `class:"public"`
-	Description string            `protobuf:"bytes,50,opt,name=description,proto3" json:"description,omitempty"` // @gotags: `class:"public"`
-	Interpreter string            `protobuf:"bytes,60,opt,name=interpreter,proto3" json:"interpreter,omitempty"` // @gotags: `class:"public"`
+	Name        string            `protobuf:"bytes,40,opt,name=name,proto3" json:"name,omitempty" class:"public"`               // @gotags: `class:"public"`
+	Description string            `protobuf:"bytes,50,opt,name=description,proto3" json:"description,omitempty" class:"public"` // @gotags: `class:"public"`
+	Interpreter string            `protobuf:"bytes,60,opt,name=interpreter,proto3" json:"interpreter,omitempty" class:"public"` // @gotags: `class:"public"`
 	// The full 40 hex character commit the script is fetched at. Branches, tags
 	// and abbreviated commits are rejected.
-	CommitSha string `protobuf:"bytes,70,opt,name=commit_sha,proto3" json:"commit_sha,omitempty"` // @gotags: `class:"public"`
+	CommitSha string `protobuf:"bytes,70,opt,name=commit_sha,proto3" json:"commit_sha,omitempty" class:"public"` // @gotags: `class:"public"`
 	// The path of the script inside the source repository.
-	ScriptPath string `protobuf:"bytes,80,opt,name=script_path,proto3" json:"script_path,omitempty"` // @gotags: `class:"public"`
+	ScriptPath string `protobuf:"bytes,80,opt,name=script_path,proto3" json:"script_path,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Output only. The SHA-256 of the pinned script bytes.
-	ScriptSha256 string                 `protobuf:"bytes,90,opt,name=script_sha256,proto3" json:"script_sha256,omitempty"` // @gotags: `class:"public"`
+	ScriptSha256 string                 `protobuf:"bytes,90,opt,name=script_sha256,proto3" json:"script_sha256,omitempty" class:"public"` // @gotags: `class:"public"`
 	Parameters   []*RunbookParameter    `protobuf:"bytes,100,rep,name=parameters,proto3" json:"parameters,omitempty"`
 	Selector     *RunbookTargetSelector `protobuf:"bytes,110,opt,name=selector,proto3" json:"selector,omitempty"`
 	// Output only. The version of the runbook, required for updates.
-	Version       uint32 `protobuf:"varint,120,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Version       uint32 `protobuf:"varint,120,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
