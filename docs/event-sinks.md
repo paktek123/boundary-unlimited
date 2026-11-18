@@ -3,11 +3,15 @@
 Refs #54, #55, #56.
 
 Two transport libraries exist for streaming audit events to a SIEM. **Neither
-can be enabled by configuration yet**: the event system has no `http` or
-`syslog` sink type, so a configuration naming one fails at load with "is not a
-valid sink type" and nothing can silently send (or silently not send) audit
-data. The delivery wiring lands in a later slice; this page documents what the
-libraries enforce so that slice and operators can rely on it.
+can be enabled by configuration yet**: the `http` and `syslog` sink types are
+recognised by the config parser and validated strictly, but every valid network
+sink is then rejected at load with "network event sinks (http, syslog) are not
+yet supported: no delivery is wired" (`event.ErrNetworkSinkNotSupported`), so
+nothing can silently send (or silently not send) audit data. A builder that
+turns a validated config into a bounded, best-effort delivery pipeline is in
+review and is not wired to the event system either. The delivery wiring lands in
+a later slice; this page documents what the libraries enforce so that slice and
+operators can rely on it.
 
 Both implement `sinkqueue.Sender` and deliver best-effort batches. Errors never
 contain entry contents, URLs, tokens or response bodies.
