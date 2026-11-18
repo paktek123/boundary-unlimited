@@ -8,8 +8,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -158,7 +160,7 @@ func TestNewRecordingFinalizerFailsClosed(t *testing.T) {
 }
 
 // writeRealBSR records an empty-but-valid BSR session into a real scratch
-// store and finishes it, so bsrValidator runs against the production adapter.
+// store, writes the session summary and finishes it, so bsrValidator runs against the production adapter.
 func writeRealBSR(t *testing.T, sid string) (*scratch.Store, *kms.Keys) {
 	t.Helper()
 	ctx := context.Background()
@@ -174,6 +176,7 @@ func writeRealBSR(t *testing.T, sid string) (*scratch.Store, *kms.Keys) {
 	rec, err := recorder.NewRecorder(ctx, sess, "cr_1234567890")
 	require.NoError(t, err)
 	require.NoError(t, rec.Close())
+	require.NoError(t, sess.EncodeSummary(ctx, &bsr.BaseSessionSummary{Id: sid, ConnectionCount: 1}))
 	require.NoError(t, sess.Close(ctx))
 	require.NoError(t, store.Finish(sid))
 	return store, keys
@@ -209,19 +212,85 @@ func TestBSRValidator(t *testing.T) {
 	})
 }
 
-func TestFinalizerWithRealValidatorBlocksUploadOfUnvalidatableRecording(t *testing.T) {
-	const sid = "s_1234567890"
-	store, keys := writeRealBSR(t, sid)
-	dir, err := store.Path(sid)
+// tamper appends a byte to the first regular file in dir whose name contains
+// part, so the recording no longer matches its checksums.
+func tamper(t *testing.T, dir, part string) {
+	t.Helper()
+	var hit string
+	require.NoError(t, filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && hit == "" && d.Type().IsRegular() && strings.Contains(d.Name(), part) {
+			hit = p
+		}
+		return err
+	}))
+	require.NotEmpty(t, hit, "no file matching %q", part)
+	f, err := os.OpenFile(hit, os.O_APPEND|os.O_WRONLY, 0o600)
 	require.NoError(t, err)
-	// bsr.Validate cannot read a recording produced through bsrfs today (its
-	// summary file stays empty), so the real validator fails closed.
-	b := &memBucket{files: map[string][]byte{}}
-	sc := &memScratch{dir: dir}
-	val := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
-	res, err := newFin(t, sc, b, val, &nopEvents{})
-	require.Error(t, err)
-	assert.Equal(t, upload.StatusInvalid, res.Status)
-	assert.Empty(t, b.files, "nothing is uploaded")
-	assert.False(t, sc.marked || sc.discarded)
+	_, err = f.WriteString("x")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+}
+
+func TestBSRValidatorRealRecording(t *testing.T) {
+	ctx := context.Background()
+	const sid = "s_1234567890"
+
+	t.Run("valid recording", func(t *testing.T) {
+		store, keys := writeRealBSR(t, sid)
+		dir, err := store.Path(sid)
+		require.NoError(t, err)
+		v := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
+		require.NoError(t, v.Validate(ctx, upload.Recording{SessionID: sid, Dir: dir}))
+	})
+	t.Run("tampered file", func(t *testing.T) {
+		store, keys := writeRealBSR(t, sid)
+		dir, err := store.Path(sid)
+		require.NoError(t, err)
+		tamper(t, dir, "summary")
+		v := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
+		require.ErrorIs(t, v.Validate(ctx, upload.Recording{SessionID: sid, Dir: dir}), ErrRecordingValidation)
+	})
+	t.Run("unwrap error", func(t *testing.T) {
+		store, _ := writeRealBSR(t, sid)
+		dir, err := store.Path(sid)
+		require.NoError(t, err)
+		unwrap := func(kms.WrappedKeys) (kms.UnwrappedKeys, error) {
+			return kms.UnwrappedKeys{}, errors.New("unwrap " + canaryCred)
+		}
+		v := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrap}
+		err = v.Validate(ctx, upload.Recording{SessionID: sid, Dir: dir})
+		require.ErrorIs(t, err, ErrRecordingValidation)
+		assert.NotContains(t, err.Error(), canaryCred)
+	})
+}
+
+func TestFinalizerWithRealValidator(t *testing.T) {
+	const sid = "s_1234567890"
+	run := func(t *testing.T, tamperPart string) (upload.Result, error, *memBucket, *memScratch) {
+		store, keys := writeRealBSR(t, sid)
+		dir, err := store.Path(sid)
+		require.NoError(t, err)
+		if tamperPart != "" {
+			tamper(t, dir, tamperPart)
+		}
+		b := &memBucket{files: map[string][]byte{}}
+		sc := &memScratch{dir: dir}
+		val := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
+		res, err := newFin(t, sc, b, val, &nopEvents{})
+		return res, err, b, sc
+	}
+	t.Run("valid recording is uploaded", func(t *testing.T) {
+		res, err, b, sc := run(t, "")
+		require.NoError(t, err)
+		assert.Equal(t, upload.StatusUploaded, res.Status)
+		assert.NotEmpty(t, b.files)
+		assert.True(t, sc.marked && sc.discarded)
+	})
+	t.Run("tampered recording is not uploaded", func(t *testing.T) {
+		res, err, b, sc := run(t, "summary")
+		require.Error(t, err)
+		assert.Equal(t, upload.StatusInvalid, res.Status)
+		assert.Empty(t, b.files, "nothing is uploaded")
+		assert.False(t, sc.marked || sc.discarded, "scratch is kept")
+	})
 }
