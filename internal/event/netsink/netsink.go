@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -171,7 +172,11 @@ const maxFileRefLen = 64 << 10
 
 // readFileRef reads an absolute file:// reference, capped at maxFileRefLen.
 func readFileRef(ref string) ([]byte, error) {
-	f, err := os.Open(strings.TrimPrefix(ref, "file://"))
+	path := strings.TrimPrefix(ref, "file://")
+	if !filepath.IsAbs(path) {
+		return nil, ErrBuild
+	}
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, ErrBuild
 	}

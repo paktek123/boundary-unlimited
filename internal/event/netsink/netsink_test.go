@@ -228,3 +228,18 @@ func TestWriteAfterCloseIsCountedAsDropped(t *testing.T) {
 	assert.Equal(t, 7, n)
 	assert.Equal(t, before+1, s.Dropped())
 }
+
+func TestReadFileRefRequiresAbsolutePath(t *testing.T) {
+	dir := t.TempDir()
+	p := dir + "/ref.txt"
+	require.NoError(t, os.WriteFile(p, []byte("x"), 0o600))
+
+	b, err := readFileRef("file://" + p)
+	require.NoError(t, err)
+	assert.Equal(t, "x", string(b))
+
+	for _, ref := range []string{"file://ref.txt", "file://./ref.txt", "file://../ref.txt", "file://"} {
+		_, err := readFileRef(ref)
+		assert.ErrorIs(t, err, ErrBuild, ref)
+	}
+}
