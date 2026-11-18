@@ -10,9 +10,9 @@
 // still refuses http and syslog sinks as not yet supported, so no configuration
 // can reach it. It exists so the final wiring slice is a small change.
 //
-// Both http and syslog sinks are built here. Network
-// sinks are always best-effort: Write never blocks the producer, drops the
-// oldest entries when the queue is full and counts every drop.
+// Both http and syslog sinks are built here. Network sinks are always
+// best-effort: Write never blocks the producer, drops the oldest entries when
+// the queue is full and counts every drop.
 package netsink
 
 import (
@@ -85,7 +85,10 @@ func (s *Sink) Write(p []byte) (int, error) {
 			return len(p), nil
 		}
 	}
-	_ = s.b.Enqueue(entry)
+	if err := s.b.Enqueue(entry); err != nil {
+		// Write after Close or an oversized entry: count it as dropped.
+		s.rejected.Add(1)
+	}
 	return len(p), nil
 }
 
@@ -116,13 +119,9 @@ func NewHTTP(cfg *event.HTTPSinkTypeConfig, deps Deps) (*Sink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: token unavailable", ErrBuild)
 	}
-	prefixes := make([]netip.Prefix, 0, len(cfg.AllowPrivateCIDRs))
-	for _, c := range cfg.AllowPrivateCIDRs {
-		p, perr := netip.ParsePrefix(c)
-		if perr != nil {
-			return nil, fmt.Errorf("%w: allow_private_cidrs", ErrBuild)
-		}
-		prefixes = append(prefixes, p)
+	prefixes, err := parseCIDRs(cfg.AllowPrivateCIDRs)
+	if err != nil {
+		return nil, err
 	}
 	hs, err := httpsink.New(httpsink.Config{
 		Format:       httpsink.Format(cfg.Format),
@@ -152,6 +151,20 @@ func newQueue(snd sinkqueue.Sender) (*sinkqueue.Batcher, error) {
 		return nil, fmt.Errorf("%w: queue", ErrBuild)
 	}
 	return b, nil
+}
+
+// parseCIDRs parses the allow_private_cidrs list. Wildcard prefixes are
+// rejected again by the transports; this only reports unparsable values.
+func parseCIDRs(in []string) ([]netip.Prefix, error) {
+	out := make([]netip.Prefix, 0, len(in))
+	for _, c := range in {
+		p, err := netip.ParsePrefix(c)
+		if err != nil {
+			return nil, fmt.Errorf("%w: allow_private_cidrs", ErrBuild)
+		}
+		out = append(out, p)
+	}
+	return out, nil
 }
 
 const maxFileRefLen = 64 << 10
@@ -185,13 +198,9 @@ func NewSyslog(cfg *event.SyslogSinkTypeConfig, deps Deps) (*Sink, error) {
 	if cfg.Network == "" {
 		network = syslogsink.TLS
 	}
-	prefixes := make([]netip.Prefix, 0, len(cfg.AllowPrivateCIDRs))
-	for _, c := range cfg.AllowPrivateCIDRs {
-		p, perr := netip.ParsePrefix(c)
-		if perr != nil {
-			return nil, fmt.Errorf("%w: allow_private_cidrs", ErrBuild)
-		}
-		prefixes = append(prefixes, p)
+	prefixes, err := parseCIDRs(cfg.AllowPrivateCIDRs)
+	if err != nil {
+		return nil, err
 	}
 	sc := syslogsink.Config{Network: network, Address: cfg.Address, Resolver: deps.Resolver, AllowedCIDRs: prefixes}
 	if cfg.CAFile != "" {
@@ -249,7 +258,7 @@ func safeHost(h string) string {
 	return string(out)
 }
 
-// New builds the pipeline for sc, which must be an http sink.
+// New builds the pipeline for sc, which must be an http or syslog sink.
 func New(sc *event.SinkConfig, deps Deps) (*Sink, error) {
 	if sc == nil {
 		return nil, fmt.Errorf("%w: missing sink config", ErrBuild)

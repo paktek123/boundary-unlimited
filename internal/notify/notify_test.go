@@ -187,6 +187,8 @@ func TestConfigValidation(t *testing.T) {
 		{"body above max", func(c *WebhookConfig) { c.MaxBodyBytes = HardMaxBodyBytes + 1 }},
 		{"response above max", func(c *WebhookConfig) { c.MaxResponseBytes = HardMaxResponseBytes + 1 }},
 		{"invalid cidr", func(c *WebhookConfig) { c.AllowedCIDRs = []netip.Prefix{{}} }},
+		{"wildcard cidr v4", func(c *WebhookConfig) { c.AllowedCIDRs = []netip.Prefix{netip.MustParsePrefix("0.0.0.0/0")} }},
+		{"wildcard cidr v6", func(c *WebhookConfig) { c.AllowedCIDRs = []netip.Prefix{netip.MustParsePrefix("::/0")} }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

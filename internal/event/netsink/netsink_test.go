@@ -182,6 +182,12 @@ func TestNewSyslogFailsClosed(t *testing.T) {
 	k := base()
 	k.ClientCertFile, k.ClientKeyFile = "file://"+notPEM, "file://"+notPEM
 	bad["invalid client pair"] = k
+	c := base()
+	c.AllowPrivateCIDRs = []string{"not-a-cidr"}
+	bad["non-numeric cidr"] = c
+	w := base()
+	w.ClientCertFile = "file://" + notPEM
+	bad["client cert without key"] = w
 	for name, cfg := range bad {
 		t.Run(name, func(t *testing.T) {
 			s, err := NewSyslog(cfg, Deps{})
@@ -208,4 +214,17 @@ func TestSyslogUnframeableEntryIsCounted(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	_ = s.Close(ctx)
+}
+
+func TestWriteAfterCloseIsCountedAsDropped(t *testing.T) {
+	s, err := NewHTTP(httpCfg("https://logs.example.com/ingest"), Deps{ResolveSecret: okSecret})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = s.Close(ctx)
+	before := s.Dropped()
+	n, err := s.Write([]byte(`{"a":1}`))
+	require.NoError(t, err)
+	assert.Equal(t, 7, n)
+	assert.Equal(t, before+1, s.Dropped())
 }
