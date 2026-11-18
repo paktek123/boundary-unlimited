@@ -21,6 +21,11 @@ var (
 	// the tcp handler), so registering it enables nothing by itself.
 	SshHandlerName = "ssh"
 
+	// KubernetesHandlerName is the name the kubernetes proxy handler registers
+	// under. The worker does not select it for any session yet, so registering
+	// it enables nothing by itself.
+	KubernetesHandlerName = "kubernetes"
+
 	// handlers is the map of registered handlers
 	handlers *sync.Map = new(sync.Map)
 
