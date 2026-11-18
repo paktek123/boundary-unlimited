@@ -30,7 +30,7 @@ const (
 
 type GetAccessRequestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -118,11 +118,11 @@ func (x *GetAccessRequestResponse) GetItem() *accessrequests.AccessRequest {
 
 type ListAccessRequestsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScopeId       string                 `protobuf:"bytes,1,opt,name=scope_id,proto3" json:"scope_id,omitempty"`      // @gotags: `class:"public" eventstream:"observation"`
-	Recursive     bool                   `protobuf:"varint,20,opt,name=recursive,proto3" json:"recursive,omitempty"`  // @gotags: `class:"public" eventstream:"observation"`
-	Filter        string                 `protobuf:"bytes,30,opt,name=filter,proto3" json:"filter,omitempty"`         // @gotags: `class:"public"`
-	ListToken     string                 `protobuf:"bytes,40,opt,name=list_token,proto3" json:"list_token,omitempty"` // @gotags: `class:"public"`
-	PageSize      uint32                 `protobuf:"varint,50,opt,name=page_size,proto3" json:"page_size,omitempty"`  // @gotags: `class:"public"`
+	ScopeId       string                 `protobuf:"bytes,1,opt,name=scope_id,proto3" json:"scope_id,omitempty" class:"public" eventstream:"observation"`      // @gotags: `class:"public" eventstream:"observation"`
+	Recursive     bool                   `protobuf:"varint,20,opt,name=recursive,proto3" json:"recursive,omitempty" class:"public" eventstream:"observation"`  // @gotags: `class:"public" eventstream:"observation"`
+	Filter        string                 `protobuf:"bytes,30,opt,name=filter,proto3" json:"filter,omitempty" class:"public"`         // @gotags: `class:"public"`
+	ListToken     string                 `protobuf:"bytes,40,opt,name=list_token,proto3" json:"list_token,omitempty" class:"public"` // @gotags: `class:"public"`
+	PageSize      uint32                 `protobuf:"varint,50,opt,name=page_size,proto3" json:"page_size,omitempty" class:"public"`  // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,12 +195,12 @@ func (x *ListAccessRequestsRequest) GetPageSize() uint32 {
 type ListAccessRequestsResponse struct {
 	state         protoimpl.MessageState          `protogen:"open.v1"`
 	Items         []*accessrequests.AccessRequest `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	ResponseType  string                          `protobuf:"bytes,2,opt,name=response_type,proto3" json:"response_type,omitempty"`    // @gotags: `class:"public"`
-	ListToken     string                          `protobuf:"bytes,3,opt,name=list_token,proto3" json:"list_token,omitempty"`          // @gotags: `class:"public"`
-	SortBy        string                          `protobuf:"bytes,4,opt,name=sort_by,proto3" json:"sort_by,omitempty"`                // @gotags: `class:"public"`
-	SortDir       string                          `protobuf:"bytes,5,opt,name=sort_dir,proto3" json:"sort_dir,omitempty"`              // @gotags: `class:"public"`
-	RemovedIds    []string                        `protobuf:"bytes,6,rep,name=removed_ids,proto3" json:"removed_ids,omitempty"`        // @gotags: `class:"public"`
-	EstItemCount  uint32                          `protobuf:"varint,7,opt,name=est_item_count,proto3" json:"est_item_count,omitempty"` // @gotags: `class:"public"`
+	ResponseType  string                          `protobuf:"bytes,2,opt,name=response_type,proto3" json:"response_type,omitempty" class:"public"`    // @gotags: `class:"public"`
+	ListToken     string                          `protobuf:"bytes,3,opt,name=list_token,proto3" json:"list_token,omitempty" class:"public"`          // @gotags: `class:"public"`
+	SortBy        string                          `protobuf:"bytes,4,opt,name=sort_by,proto3" json:"sort_by,omitempty" class:"public"`                // @gotags: `class:"public"`
+	SortDir       string                          `protobuf:"bytes,5,opt,name=sort_dir,proto3" json:"sort_dir,omitempty" class:"public"`              // @gotags: `class:"public"`
+	RemovedIds    []string                        `protobuf:"bytes,6,rep,name=removed_ids,proto3" json:"removed_ids,omitempty" class:"public"`        // @gotags: `class:"public"`
+	EstItemCount  uint32                          `protobuf:"varint,7,opt,name=est_item_count,proto3" json:"est_item_count,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -330,7 +330,7 @@ func (x *CreateAccessRequestRequest) GetItem() *accessrequests.AccessRequest {
 
 type CreateAccessRequestResponse struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
-	Uri           string                        `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	Uri           string                        `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	Item          *accessrequests.AccessRequest `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -382,8 +382,8 @@ func (x *CreateAccessRequestResponse) GetItem() *accessrequests.AccessRequest {
 
 type ApproveAccessRequestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`            // @gotags: `class:"public" eventstream:"observation"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"`            // @gotags: `class:"public" eventstream:"observation"`
+	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -478,8 +478,8 @@ func (x *ApproveAccessRequestResponse) GetItem() *accessrequests.AccessRequest {
 
 type DenyAccessRequestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`            // @gotags: `class:"public" eventstream:"observation"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"`            // @gotags: `class:"public" eventstream:"observation"`
+	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -574,8 +574,8 @@ func (x *DenyAccessRequestResponse) GetItem() *accessrequests.AccessRequest {
 
 type CancelAccessRequestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`            // @gotags: `class:"public" eventstream:"observation"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"`            // @gotags: `class:"public" eventstream:"observation"`
+	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -670,8 +670,8 @@ func (x *CancelAccessRequestResponse) GetItem() *accessrequests.AccessRequest {
 
 type RevokeAccessRequestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`            // @gotags: `class:"public" eventstream:"observation"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"`            // @gotags: `class:"public" eventstream:"observation"`
+	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

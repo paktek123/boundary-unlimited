@@ -31,31 +31,31 @@ const (
 type AccessRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Output only. The ID of the access request.
-	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	// The ID of the Scope the grants apply to.
-	ScopeId string `protobuf:"bytes,20,opt,name=scope_id,proto3" json:"scope_id,omitempty"` // @gotags: `class:"public" eventstream:"observation"`
+	ScopeId string `protobuf:"bytes,20,opt,name=scope_id,proto3" json:"scope_id,omitempty" class:"public" eventstream:"observation"` // @gotags: `class:"public" eventstream:"observation"`
 	// Output only. Scope information for this resource.
 	Scope *scopes.ScopeInfo `protobuf:"bytes,30,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Output only. The ID of the user who made the request.
-	RequesterId string `protobuf:"bytes,40,opt,name=requester_id,proto3" json:"requester_id,omitempty"` // @gotags: `class:"public"`
+	RequesterId string `protobuf:"bytes,40,opt,name=requester_id,proto3" json:"requester_id,omitempty" class:"public"` // @gotags: `class:"public"`
 	// The requested grant strings.
-	Grants []string `protobuf:"bytes,50,rep,name=grants,proto3" json:"grants,omitempty"` // @gotags: `class:"public"`
+	Grants []string `protobuf:"bytes,50,rep,name=grants,proto3" json:"grants,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Why access is needed. Bounded in length.
-	Justification string `protobuf:"bytes,60,opt,name=justification,proto3" json:"justification,omitempty"` // @gotags: `class:"sensitive"`
+	Justification string `protobuf:"bytes,60,opt,name=justification,proto3" json:"justification,omitempty" class:"sensitive"` // @gotags: `class:"sensitive"`
 	// How long access lasts once approved, in seconds.
-	DurationSeconds uint32 `protobuf:"varint,70,opt,name=duration_seconds,proto3" json:"duration_seconds,omitempty"` // @gotags: `class:"public"`
+	DurationSeconds uint32 `protobuf:"varint,70,opt,name=duration_seconds,proto3" json:"duration_seconds,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Output only. One of pending, approved, denied, cancelled, expired or revoked.
-	State string `protobuf:"bytes,80,opt,name=state,proto3" json:"state,omitempty"` // @gotags: `class:"public"`
+	State string `protobuf:"bytes,80,opt,name=state,proto3" json:"state,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Output only. The time the request was created.
 	CreatedTime *timestamppb.Timestamp `protobuf:"bytes,90,opt,name=created_time,proto3" json:"created_time,omitempty"`
 	// Output only. The time the request was approved, denied, cancelled or revoked.
 	DecidedTime *timestamppb.Timestamp `protobuf:"bytes,100,opt,name=decided_time,proto3" json:"decided_time,omitempty"`
 	// Output only. The ID of the user who decided the request.
-	DecidedBy string `protobuf:"bytes,110,opt,name=decided_by,proto3" json:"decided_by,omitempty"` // @gotags: `class:"public"`
+	DecidedBy string `protobuf:"bytes,110,opt,name=decided_by,proto3" json:"decided_by,omitempty" class:"public"` // @gotags: `class:"public"`
 	// Output only. When approved access ends; unset while pending.
 	ExpirationTime *timestamppb.Timestamp `protobuf:"bytes,120,opt,name=expiration_time,proto3" json:"expiration_time,omitempty"`
 	// Output only. The version of the request, required for decisions.
-	Version       uint32 `protobuf:"varint,130,opt,name=version,proto3" json:"version,omitempty"` // @gotags: `class:"public"`
+	Version       uint32 `protobuf:"varint,130,opt,name=version,proto3" json:"version,omitempty" class:"public"` // @gotags: `class:"public"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -15,6 +15,10 @@
   },
   "tags": [
     {
+      "name": "Access request service",
+      "description": "An access request is a time-bounded request for additional grants that another user must approve. The access request service manages requests and their decisions."
+    },
+    {
       "name": "Account service",
       "description": "The account service exposes endpoints for interacting with accounts in Boundary. Accounts belong to an auth method and are associated with users.",
       "externalDocs": {
@@ -187,6 +191,290 @@
     "application/json"
   ],
   "paths": {
+    "/v1/access-requests": {
+      "get": {
+        "summary": "Gets a list of Access Requests.",
+        "operationId": "AccessRequestService_ListAccessRequests",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.ListAccessRequestsResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "scope_id",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "recursive",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "filter",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "list_token",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      },
+      "post": {
+        "summary": "Creates an Access Request",
+        "operationId": "AccessRequestService_CreateAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}": {
+      "get": {
+        "summary": "Gets a single Access Request.",
+        "operationId": "AccessRequestService_GetAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:approve": {
+      "post": {
+        "summary": "Approves an Access Request",
+        "operationId": "AccessRequestService_ApproveAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.ApproveAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:cancel": {
+      "post": {
+        "summary": "Cancels an Access Request",
+        "operationId": "AccessRequestService_CancelAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.CancelAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:deny": {
+      "post": {
+        "summary": "Denys an Access Request",
+        "operationId": "AccessRequestService_DenyAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.DenyAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:revoke": {
+      "post": {
+        "summary": "Revokes an Access Request",
+        "operationId": "AccessRequestService_RevokeAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.RevokeAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
     "/v1/accounts": {
       "get": {
         "summary": "Lists all accounts in a specific auth method.",
@@ -5986,6 +6274,81 @@
     }
   },
   "definitions": {
+    "controller.api.resources.accessrequests.v1.AccessRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Output only. The ID of the access request.",
+          "readOnly": true
+        },
+        "scope_id": {
+          "type": "string",
+          "description": "The ID of the Scope the grants apply to."
+        },
+        "scope": {
+          "$ref": "#/definitions/controller.api.resources.scopes.v1.ScopeInfo",
+          "description": "Output only. Scope information for this resource.",
+          "readOnly": true
+        },
+        "requester_id": {
+          "type": "string",
+          "description": "Output only. The ID of the user who made the request.",
+          "readOnly": true
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The requested grant strings."
+        },
+        "justification": {
+          "type": "string",
+          "description": "Why access is needed. Bounded in length."
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "format": "int64",
+          "description": "How long access lasts once approved, in seconds."
+        },
+        "state": {
+          "type": "string",
+          "description": "Output only. One of pending, approved, denied, cancelled, expired or revoked.",
+          "readOnly": true
+        },
+        "created_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. The time the request was created.",
+          "readOnly": true
+        },
+        "decided_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. The time the request was approved, denied, cancelled or revoked.",
+          "readOnly": true
+        },
+        "decided_by": {
+          "type": "string",
+          "description": "Output only. The ID of the user who decided the request.",
+          "readOnly": true
+        },
+        "expiration_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. When approved access ends; unset while pending.",
+          "readOnly": true
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Output only. The version of the request, required for decisions.",
+          "readOnly": true
+        }
+      },
+      "description": "AccessRequest is a time-bounded request for additional grants. Approval\nbinds to the exact grants that were reviewed."
+    },
     "controller.api.resources.accounts.v1.Account": {
       "type": "object",
       "properties": {
@@ -9020,6 +9383,46 @@
       },
       "title": "Worker contains all fields related to a Worker resource"
     },
+    "controller.api.services.v1.AccessRequestService.ApproveAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.CancelAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.DenyAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.RevokeAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
     "controller.api.services.v1.AccountService.ChangePasswordBody": {
       "type": "object",
       "properties": {
@@ -9124,6 +9527,14 @@
         }
       }
     },
+    "controller.api.services.v1.ApproveAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
+    },
     "controller.api.services.v1.AttachStoragePolicyResponse": {
       "type": "object",
       "properties": {
@@ -9204,6 +9615,14 @@
         }
       }
     },
+    "controller.api.services.v1.CancelAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
+    },
     "controller.api.services.v1.CancelExportResponse": {
       "type": "object"
     },
@@ -9228,6 +9647,18 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.authmethods.v1.AuthMethod"
+        }
+      }
+    },
+    "controller.api.services.v1.CreateAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "title": ""
+        },
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
@@ -9527,6 +9958,14 @@
     "controller.api.services.v1.DeleteWorkerResponse": {
       "type": "object"
     },
+    "controller.api.services.v1.DenyAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
+    },
     "controller.api.services.v1.DestroyKeyVersionRequest": {
       "type": "object",
       "properties": {
@@ -9554,6 +9993,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.scopes.v1.Scope"
+        }
+      }
+    },
+    "controller.api.services.v1.GetAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
@@ -9834,6 +10281,46 @@
             "type": "string"
           },
           "description": "A list of Host IDs which will be set on this Host Set. Each Host referenced here must be a child of the same Host Catalog of which this Host Set is a child."
+        }
+      }
+    },
+    "controller.api.services.v1.ListAccessRequestsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+          }
+        },
+        "response_type": {
+          "type": "string",
+          "title": ""
+        },
+        "list_token": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_by": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_dir": {
+          "type": "string",
+          "title": ""
+        },
+        "removed_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "est_item_count": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
         }
       }
     },
@@ -10877,6 +11364,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.workers.v1.Worker"
+        }
+      }
+    },
+    "controller.api.services.v1.RevokeAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
