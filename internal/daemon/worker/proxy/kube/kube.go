@@ -3,8 +3,9 @@
 
 // Package kube relays an already-authorized client connection to a Kubernetes
 // API server over mandatory, verified TLS. It takes all of its inputs as plain
-// values, is not registered as a worker proxy handler and enables nothing by
-// itself.
+// values. register.go registers a worker proxy handler that refuses every
+// session until a session input decoder is installed, so it enables nothing
+// by itself.
 package kube
 
 import (
