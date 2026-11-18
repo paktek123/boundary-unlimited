@@ -1,0 +1,65 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.api.resources.runbooks.v1;
+
+import "controller/api/resources/scopes/v1/scope.proto";
+
+option go_package = "github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/runbooks;runbooks";
+
+// RunbookParameter declares one parameter of a runbook.
+message RunbookParameter {
+  // The parameter name. It must not be reserved and must be declared before
+  // the script uses it.
+  string name = 10; // @gotags: `class:"public"`
+  // One of "string", "int", "enum" or "bool".
+  string type = 20; // @gotags: `class:"public"`
+  // RE2 expression a string value must match in full. Required for "string".
+  string regex = 30; // @gotags: `class:"public"`
+  // The allowed values. Required for "enum".
+  repeated string allowed_values = 40 [json_name = "allowed_values"]; // @gotags: `class:"public"`
+  // Inclusive bounds for "int" values. Both are required for "int".
+  optional int64 min = 50; // @gotags: `class:"public"`
+  optional int64 max = 51; // @gotags: `class:"public"`
+  // Maximum value length in bytes. Zero selects the default.
+  uint32 max_length = 60 [json_name = "max_length"]; // @gotags: `class:"public"`
+  bool required = 70; // @gotags: `class:"public"`
+  // The default value, used only when has_default is true.
+  string default = 80; // @gotags: `class:"secret"`
+  bool has_default = 81 [json_name = "has_default"]; // @gotags: `class:"public"`
+}
+
+// RunbookTargetSelector says which targets a runbook may run against. The
+// empty selector selects nothing.
+message RunbookTargetSelector {
+  bool all_targets = 10 [json_name = "all_targets"]; // @gotags: `class:"public"`
+  repeated string target_ids = 20 [json_name = "target_ids"]; // @gotags: `class:"public"`
+  repeated string scope_ids = 30 [json_name = "scope_ids"]; // @gotags: `class:"public"`
+}
+
+// Runbook is a parameterised script definition pinned to a full commit. The
+// script body is never returned: only its path, pinned commit and SHA-256.
+message Runbook {
+  // Output only. The ID of the runbook.
+  string id = 10; // @gotags: `class:"public" eventstream:"observation"`
+  // The ID of the Scope this runbook belongs to.
+  string scope_id = 20 [json_name = "scope_id"]; // @gotags: `class:"public" eventstream:"observation"`
+  // Output only. Scope information for this resource.
+  resources.scopes.v1.ScopeInfo scope = 30;
+  string name = 40; // @gotags: `class:"public"`
+  string description = 50; // @gotags: `class:"public"`
+  string interpreter = 60; // @gotags: `class:"public"`
+  // The full 40 hex character commit the script is fetched at. Branches, tags
+  // and abbreviated commits are rejected.
+  string commit_sha = 70 [json_name = "commit_sha"]; // @gotags: `class:"public"`
+  // The path of the script inside the source repository.
+  string script_path = 80 [json_name = "script_path"]; // @gotags: `class:"public"`
+  // Output only. The SHA-256 of the pinned script bytes.
+  string script_sha256 = 90 [json_name = "script_sha256"]; // @gotags: `class:"public"`
+  repeated RunbookParameter parameters = 100;
+  RunbookTargetSelector selector = 110;
+  // Output only. The version of the runbook, required for updates.
+  uint32 version = 120; // @gotags: `class:"public"`
+}

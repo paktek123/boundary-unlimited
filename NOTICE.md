@@ -21,6 +21,7 @@ files in:
 - `internal/runbook` (including `source` and `approval`), its migration `internal/db/schema/migrations/oss/postgres/115` and its sqltest `internal/db/sqltest/tests/runbook`
 - `internal/db/schema/migrations/oss/postgres/116` (access request terminal-state fix, replaces a function from upstream-headed migration 114)
 - `internal/daemon/controller/handlers/runbooks`
+- the runbook API protos (`internal/proto/controller/api/resources/runbooks`, `internal/proto/controller/api/services/v1/runbook_service.proto`) and their generated code (`sdk/pbs/controller/api/resources/runbooks`, `internal/gen/controller/api/services/runbook_service*.go`)
 - `internal/masking`
 - `internal/guardrails`
 - `internal/policyhook`
