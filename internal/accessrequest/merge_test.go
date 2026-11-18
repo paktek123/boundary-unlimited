@@ -141,3 +141,32 @@ func TestRepositorySource(t *testing.T) {
 	_, err = MergeOverlay(ctx, baseGrants, "u_1", "p_1234567890", RepositorySource{}, mergeClock{t0})
 	require.ErrorIs(t, err, ErrOverlayUnavailable)
 }
+
+// scopeSpyRepo records the filter RepositorySource sends and returns rows from
+// two scopes whatever the filter says, like a repository that ignores it.
+type scopeSpyRepo struct {
+	Repository
+	got  ListFilter
+	rows []Request
+}
+
+func (s *scopeSpyRepo) List(_ context.Context, f ListFilter) ([]Request, error) {
+	s.got = f
+	return s.rows, nil
+}
+
+func TestRepositorySourcePushesScopeIntoQuery(t *testing.T) {
+	mine := approved("ar_1", "ids=*;type=target;actions=read")
+	mine.ScopeId = "p_1234567890"
+	other := approved("ar_2", "ids=*;type=target;actions=read")
+	other.ScopeId = "p_0987654321"
+	spy := &scopeSpyRepo{rows: []Request{mine, other}}
+
+	got, err := RepositorySource{Repo: spy}.OverlayRequests(context.Background(), "u_1", "p_1234567890")
+	require.NoError(t, err)
+	assert.Equal(t, "p_1234567890", spy.got.ScopeId, "scope is part of the query")
+	assert.Equal(t, "u_1", spy.got.RequesterId)
+	assert.Equal(t, []State{StateApproved}, spy.got.States)
+	require.Len(t, got, 1, "rows of another scope are dropped even if the repository returns them")
+	assert.Equal(t, "ar_1", got[0].Id)
+}

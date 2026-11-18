@@ -48,6 +48,7 @@ import (
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers/users"
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers/workers"
 	"github.com/hashicorp/boundary/internal/daemon/controller/internal/metric"
+	"github.com/hashicorp/boundary/internal/db"
 	"github.com/hashicorp/boundary/internal/event"
 	"github.com/hashicorp/boundary/internal/gen/controller/api/services"
 	authpb "github.com/hashicorp/boundary/internal/gen/controller/auth"
@@ -286,6 +287,9 @@ func (c *Controller) registerGrpcServices(s *grpc.Server) error {
 		}
 		if authz != nil {
 			ts = ts.WithSessionAuthorizer(authz)
+		}
+		if p := buildAccessRequestOverlay(c.baseContext, db.New(c.conf.Database), c.kms); p != nil {
+			ts = ts.WithGrantOverlay(p)
 		}
 		services.RegisterTargetServiceServer(s, ts)
 	}

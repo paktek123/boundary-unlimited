@@ -48,6 +48,7 @@ project {
     "internal/event/syslogsink/**",
     "internal/event/httpsink/**",
     "internal/event/sinkqueue/**",
+    "internal/event/netsink/**",
     "internal/event/sink_network_config.go",
     "internal/event/sink_network_config_test.go",
     "internal/cmd/config/sink_network.go",
