@@ -16,7 +16,7 @@ func TestKeysFormattingIsRedacted(t *testing.T) {
 	k, err := CreateKeys(context.Background(), TestWrapper(t), "s_1234567890")
 	require.NoError(t, err)
 	for _, out := range []string{
-		fmt.Sprintf("%v", k), fmt.Sprintf("%+v", k), fmt.Sprintf("%s", k), fmt.Sprintf("%#v", k),
+		fmt.Sprintf("%v", k), fmt.Sprintf("%+v", k), k.String(), fmt.Sprintf("%#v", k),
 	} {
 		assert.Equal(t, redacted, out)
 		assert.NotContains(t, out, string(k.BsrKey.Key))
