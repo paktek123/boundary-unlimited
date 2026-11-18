@@ -6,7 +6,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/boundary/internal/accessrequest"
@@ -64,7 +63,13 @@ func buildAccessRequestOverlay(ctx context.Context, rw *db.Db, k *kms.Kms) targe
 	const op = "controller.buildAccessRequestOverlay"
 	repo, err := accessrequest.NewDBRepository(ctx, rw, rw, k)
 	if err != nil {
-		event.WriteSysEvent(ctx, op, "access request overlay not configured", "error", fmt.Sprint(errors.Is(err, accessrequest.ErrInvalidInput)))
+		// Log a fixed reason only: the underlying error is never printed so a
+		// DSN or other detail cannot leak into the event stream.
+		reason := "repository could not be built"
+		if errors.Is(err, accessrequest.ErrInvalidInput) {
+			reason = "invalid repository dependencies"
+		}
+		event.WriteSysEvent(ctx, op, "access request overlay not configured", "reason", reason)
 		return nil
 	}
 	return newAccessRequestOverlay(repo, accessrequest.SystemClock{}, accessRequestSysEmitter{write: event.WriteSysEvent})
