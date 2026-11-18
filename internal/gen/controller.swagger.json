@@ -15,6 +15,10 @@
   },
   "tags": [
     {
+      "name": "Access request service",
+      "description": "An access request is a time-bounded request for additional grants that another user must approve. The access request service manages requests and their decisions."
+    },
+    {
       "name": "Account service",
       "description": "The account service exposes endpoints for interacting with accounts in Boundary. Accounts belong to an auth method and are associated with users.",
       "externalDocs": {
@@ -123,6 +127,10 @@
       }
     },
     {
+      "name": "Runbook service",
+      "description": "A runbook is a parameterised script pinned to a full commit. The runbook service manages runbook definitions; running a runbook is not yet supported."
+    },
+    {
       "name": "Scope service",
       "description": "A scope acts as a permission Boundary modeled using the concept of a container. It creates a hierarchical structure that lets you organize your resources and manage access control within Boundary. The scope service provides endpoints to let you manage scopes in Boundary.",
       "externalDocs": {
@@ -187,6 +195,290 @@
     "application/json"
   ],
   "paths": {
+    "/v1/access-requests": {
+      "get": {
+        "summary": "Gets a list of Access Requests.",
+        "operationId": "AccessRequestService_ListAccessRequests",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.ListAccessRequestsResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "scope_id",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "recursive",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "filter",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "list_token",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      },
+      "post": {
+        "summary": "Creates an Access Request",
+        "operationId": "AccessRequestService_CreateAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}": {
+      "get": {
+        "summary": "Gets a single Access Request.",
+        "operationId": "AccessRequestService_GetAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:approve": {
+      "post": {
+        "summary": "Approves an Access Request",
+        "operationId": "AccessRequestService_ApproveAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.ApproveAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:cancel": {
+      "post": {
+        "summary": "Cancels an Access Request",
+        "operationId": "AccessRequestService_CancelAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.CancelAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:deny": {
+      "post": {
+        "summary": "Denys an Access Request",
+        "operationId": "AccessRequestService_DenyAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.DenyAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
+    "/v1/access-requests/{id}:revoke": {
+      "post": {
+        "summary": "Revokes an Access Request",
+        "operationId": "AccessRequestService_RevokeAccessRequest",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.AccessRequestService.RevokeAccessRequestBody"
+            }
+          }
+        ],
+        "tags": [
+          "Access request service"
+        ]
+      }
+    },
     "/v1/accounts": {
       "get": {
         "summary": "Lists all accounts in a specific auth method.",
@@ -3573,6 +3865,198 @@
         ]
       }
     },
+    "/v1/runbooks": {
+      "get": {
+        "summary": "Gets a list of Runbooks.",
+        "operationId": "RunbookService_ListRunbooks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.ListRunbooksResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "scope_id",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "recursive",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "filter",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "list_token",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "post": {
+        "summary": "Creates a Runbook",
+        "operationId": "RunbookService_CreateRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      }
+    },
+    "/v1/runbooks/{id}": {
+      "get": {
+        "summary": "Gets a single Runbook.",
+        "operationId": "RunbookService_GetRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "delete": {
+        "summary": "Deletes a Runbook",
+        "operationId": "RunbookService_DeleteRunbook",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.services.v1.DeleteRunbookResponse"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      },
+      "patch": {
+        "summary": "Updates a Runbook",
+        "operationId": "RunbookService_UpdateRunbook",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          },
+          "default": {
+            "description": "Returned when there is an error processing the request.",
+            "schema": {
+              "$ref": "#/definitions/controller.api.v1.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "item",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+            }
+          }
+        ],
+        "tags": [
+          "Runbook service"
+        ]
+      }
+    },
     "/v1/scopes": {
       "get": {
         "summary": "Lists all Scopes within the Scope provided in the request.",
@@ -5986,6 +6470,81 @@
     }
   },
   "definitions": {
+    "controller.api.resources.accessrequests.v1.AccessRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Output only. The ID of the access request.",
+          "readOnly": true
+        },
+        "scope_id": {
+          "type": "string",
+          "description": "The ID of the Scope the grants apply to."
+        },
+        "scope": {
+          "$ref": "#/definitions/controller.api.resources.scopes.v1.ScopeInfo",
+          "description": "Output only. Scope information for this resource.",
+          "readOnly": true
+        },
+        "requester_id": {
+          "type": "string",
+          "description": "Output only. The ID of the user who made the request.",
+          "readOnly": true
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The requested grant strings."
+        },
+        "justification": {
+          "type": "string",
+          "description": "Why access is needed. Bounded in length."
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "format": "int64",
+          "description": "How long access lasts once approved, in seconds."
+        },
+        "state": {
+          "type": "string",
+          "description": "Output only. One of pending, approved, denied, cancelled, expired or revoked.",
+          "readOnly": true
+        },
+        "created_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. The time the request was created.",
+          "readOnly": true
+        },
+        "decided_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. The time the request was approved, denied, cancelled or revoked.",
+          "readOnly": true
+        },
+        "decided_by": {
+          "type": "string",
+          "description": "Output only. The ID of the user who decided the request.",
+          "readOnly": true
+        },
+        "expiration_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Output only. When approved access ends; unset while pending.",
+          "readOnly": true
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Output only. The version of the request, required for decisions.",
+          "readOnly": true
+        }
+      },
+      "description": "AccessRequest is a time-bounded request for additional grants. Approval\nbinds to the exact grants that were reviewed."
+    },
     "controller.api.resources.accounts.v1.Account": {
       "type": "object",
       "properties": {
@@ -7190,6 +7749,143 @@
         }
       },
       "title": "Role contains all fields related to a Role resource"
+    },
+    "controller.api.resources.runbooks.v1.Runbook": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Output only. The ID of the runbook.",
+          "readOnly": true
+        },
+        "scope_id": {
+          "type": "string",
+          "description": "The ID of the Scope this runbook belongs to."
+        },
+        "scope": {
+          "$ref": "#/definitions/controller.api.resources.scopes.v1.ScopeInfo",
+          "description": "Output only. Scope information for this resource.",
+          "readOnly": true
+        },
+        "name": {
+          "type": "string",
+          "title": ""
+        },
+        "description": {
+          "type": "string",
+          "title": ""
+        },
+        "interpreter": {
+          "type": "string",
+          "title": ""
+        },
+        "commit_sha": {
+          "type": "string",
+          "description": "The full 40 hex character commit the script is fetched at. Branches, tags\nand abbreviated commits are rejected."
+        },
+        "script_path": {
+          "type": "string",
+          "description": "The path of the script inside the source repository."
+        },
+        "script_sha256": {
+          "type": "string",
+          "description": "Output only. The SHA-256 of the pinned script bytes.",
+          "readOnly": true
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.runbooks.v1.RunbookParameter"
+          }
+        },
+        "selector": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.RunbookTargetSelector"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Output only. The version of the runbook, required for updates.",
+          "readOnly": true
+        }
+      },
+      "description": "Runbook is a parameterised script definition pinned to a full commit. The\nscript body is never returned: only its path, pinned commit and SHA-256."
+    },
+    "controller.api.resources.runbooks.v1.RunbookParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The parameter name. It must not be reserved and must be declared before\nthe script uses it."
+        },
+        "type": {
+          "type": "string",
+          "description": "One of \"string\", \"int\", \"enum\" or \"bool\"."
+        },
+        "regex": {
+          "type": "string",
+          "description": "RE2 expression a string value must match in full. Required for \"string\"."
+        },
+        "allowed_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The allowed values. Required for \"enum\"."
+        },
+        "min": {
+          "type": "string",
+          "format": "int64",
+          "description": "Inclusive bounds for \"int\" values. Both are required for \"int\"."
+        },
+        "max": {
+          "type": "string",
+          "format": "int64",
+          "title": ""
+        },
+        "max_length": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Maximum value length in bytes. Zero selects the default."
+        },
+        "required": {
+          "type": "boolean",
+          "title": ""
+        },
+        "default": {
+          "type": "string",
+          "description": "The default value, used only when has_default is true."
+        },
+        "has_default": {
+          "type": "boolean",
+          "title": ""
+        }
+      },
+      "description": "RunbookParameter declares one parameter of a runbook."
+    },
+    "controller.api.resources.runbooks.v1.RunbookTargetSelector": {
+      "type": "object",
+      "properties": {
+        "all_targets": {
+          "type": "boolean",
+          "title": ""
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "scope_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        }
+      },
+      "description": "RunbookTargetSelector says which targets a runbook may run against. The\nempty selector selects nothing."
     },
     "controller.api.resources.scopes.v1.Key": {
       "type": "object",
@@ -9020,6 +9716,46 @@
       },
       "title": "Worker contains all fields related to a Worker resource"
     },
+    "controller.api.services.v1.AccessRequestService.ApproveAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.CancelAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.DenyAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
+    "controller.api.services.v1.AccessRequestService.RevokeAccessRequestBody": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
     "controller.api.services.v1.AccountService.ChangePasswordBody": {
       "type": "object",
       "properties": {
@@ -9124,6 +9860,14 @@
         }
       }
     },
+    "controller.api.services.v1.ApproveAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
+    },
     "controller.api.services.v1.AttachStoragePolicyResponse": {
       "type": "object",
       "properties": {
@@ -9204,6 +9948,14 @@
         }
       }
     },
+    "controller.api.services.v1.CancelAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
+    },
     "controller.api.services.v1.CancelExportResponse": {
       "type": "object"
     },
@@ -9228,6 +9980,18 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.authmethods.v1.AuthMethod"
+        }
+      }
+    },
+    "controller.api.services.v1.CreateAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "title": ""
+        },
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
@@ -9407,6 +10171,18 @@
         }
       }
     },
+    "controller.api.services.v1.CreateRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "title": ""
+        },
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+        }
+      }
+    },
     "controller.api.services.v1.CreateScopeResponse": {
       "type": "object",
       "properties": {
@@ -9509,6 +10285,9 @@
     "controller.api.services.v1.DeleteRoleResponse": {
       "type": "object"
     },
+    "controller.api.services.v1.DeleteRunbookResponse": {
+      "type": "object"
+    },
     "controller.api.services.v1.DeleteScopeResponse": {
       "type": "object"
     },
@@ -9526,6 +10305,14 @@
     },
     "controller.api.services.v1.DeleteWorkerResponse": {
       "type": "object"
+    },
+    "controller.api.services.v1.DenyAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+        }
+      }
     },
     "controller.api.services.v1.DestroyKeyVersionRequest": {
       "type": "object",
@@ -9554,6 +10341,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.scopes.v1.Scope"
+        }
+      }
+    },
+    "controller.api.services.v1.GetAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
@@ -9675,6 +10470,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.roles.v1.Role"
+        }
+      }
+    },
+    "controller.api.services.v1.GetRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
         }
       }
     },
@@ -9834,6 +10637,46 @@
             "type": "string"
           },
           "description": "A list of Host IDs which will be set on this Host Set. Each Host referenced here must be a child of the same Host Catalog of which this Host Set is a child."
+        }
+      }
+    },
+    "controller.api.services.v1.ListAccessRequestsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
+          }
+        },
+        "response_type": {
+          "type": "string",
+          "title": ""
+        },
+        "list_token": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_by": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_dir": {
+          "type": "string",
+          "title": ""
+        },
+        "removed_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "est_item_count": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
         }
       }
     },
@@ -10508,6 +11351,46 @@
         }
       }
     },
+    "controller.api.services.v1.ListRunbooksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
+          }
+        },
+        "response_type": {
+          "type": "string",
+          "title": ""
+        },
+        "list_token": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_by": {
+          "type": "string",
+          "title": ""
+        },
+        "sort_dir": {
+          "type": "string",
+          "title": ""
+        },
+        "removed_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": ""
+        },
+        "est_item_count": {
+          "type": "integer",
+          "format": "int64",
+          "title": ""
+        }
+      }
+    },
     "controller.api.services.v1.ListScopesResponse": {
       "type": "object",
       "properties": {
@@ -10877,6 +11760,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.workers.v1.Worker"
+        }
+      }
+    },
+    "controller.api.services.v1.RevokeAccessRequestResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.accessrequests.v1.AccessRequest"
         }
       }
     },
@@ -11450,6 +12341,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/controller.api.resources.roles.v1.Role"
+        }
+      }
+    },
+    "controller.api.services.v1.UpdateRunbookResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/controller.api.resources.runbooks.v1.Runbook"
         }
       }
     },

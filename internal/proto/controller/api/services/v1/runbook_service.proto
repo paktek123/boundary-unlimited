@@ -1,0 +1,116 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.api.services.v1;
+
+import "controller/api/resources/runbooks/v1/runbook.proto";
+import "controller/custom_options/v1/options.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/hashicorp/boundary/internal/gen/controller/api/services;services";
+option (custom_options.v1.domain) = "runbooks";
+
+service RunbookService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Runbook service"
+    description:
+      "A runbook is a parameterised script pinned to a full commit. "
+      "The runbook service manages runbook definitions; running a runbook is not yet supported."
+  };
+
+  // GetRunbook returns a stored runbook definition. The script body is never returned.
+  rpc GetRunbook(GetRunbookRequest) returns (GetRunbookResponse) {
+    option (google.api.http) = {
+      get: "/v1/runbooks/{id}"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Gets a single Runbook."};
+  }
+
+  // ListRunbooks returns the runbook definitions in the scope referenced in the request.
+  rpc ListRunbooks(ListRunbooksRequest) returns (ListRunbooksResponse) {
+    option (google.api.http) = {get: "/v1/runbooks"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Gets a list of Runbooks."};
+  }
+
+  // CreateRunbook stores a runbook definition. The pinned commit must be a full commit SHA.
+  rpc CreateRunbook(CreateRunbookRequest) returns (CreateRunbookResponse) {
+    option (google.api.http) = {
+      post: "/v1/runbooks"
+      body: "item"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Creates a Runbook"};
+  }
+
+  // UpdateRunbook updates a runbook definition. The item version is required.
+  rpc UpdateRunbook(UpdateRunbookRequest) returns (UpdateRunbookResponse) {
+    option (google.api.http) = {
+      patch: "/v1/runbooks/{id}"
+      body: "item"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Updates a Runbook"};
+  }
+
+  // DeleteRunbook removes a runbook definition.
+  rpc DeleteRunbook(DeleteRunbookRequest) returns (DeleteRunbookResponse) {
+    option (google.api.http) = {delete: "/v1/runbooks/{id}"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Deletes a Runbook"};
+  }
+}
+
+message GetRunbookRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+}
+
+message GetRunbookResponse {
+  api.resources.runbooks.v1.Runbook item = 1;
+}
+
+message ListRunbooksRequest {
+  string scope_id = 1 [json_name = "scope_id"]; // @gotags: `class:"public" eventstream:"observation"`
+  bool recursive = 20 [json_name = "recursive"]; // @gotags: `class:"public" eventstream:"observation"`
+  string filter = 30 [json_name = "filter"]; // @gotags: `class:"public"`
+  string list_token = 40 [json_name = "list_token"]; // @gotags: `class:"public"`
+  uint32 page_size = 50 [json_name = "page_size"]; // @gotags: `class:"public"`
+}
+
+message ListRunbooksResponse {
+  repeated api.resources.runbooks.v1.Runbook items = 1;
+  string response_type = 2 [json_name = "response_type"]; // @gotags: `class:"public"`
+  string list_token = 3 [json_name = "list_token"]; // @gotags: `class:"public"`
+  string sort_by = 4 [json_name = "sort_by"]; // @gotags: `class:"public"`
+  string sort_dir = 5 [json_name = "sort_dir"]; // @gotags: `class:"public"`
+  repeated string removed_ids = 6 [json_name = "removed_ids"]; // @gotags: `class:"public"`
+  uint32 est_item_count = 7 [json_name = "est_item_count"]; // @gotags: `class:"public"`
+}
+
+message CreateRunbookRequest {
+  api.resources.runbooks.v1.Runbook item = 1;
+}
+
+message CreateRunbookResponse {
+  string uri = 1; // @gotags: `class:"public" eventstream:"observation"`
+  api.resources.runbooks.v1.Runbook item = 2;
+}
+
+message UpdateRunbookRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+  api.resources.runbooks.v1.Runbook item = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateRunbookResponse {
+  api.resources.runbooks.v1.Runbook item = 1;
+}
+
+message DeleteRunbookRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+}
+
+message DeleteRunbookResponse {}
