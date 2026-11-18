@@ -1,0 +1,159 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.api.services.v1;
+
+import "controller/api/resources/accessrequests/v1/access_request.proto";
+import "controller/custom_options/v1/options.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/hashicorp/boundary/internal/gen/controller/api/services;services";
+option (custom_options.v1.domain) = "access_requests";
+
+service AccessRequestService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Access request service"
+    description:
+      "An access request is a time-bounded request for additional grants that another user must approve. "
+      "The access request service manages requests and their decisions."
+  };
+
+  // GetAccessRequest returns a stored access request.
+  rpc GetAccessRequest(GetAccessRequestRequest) returns (GetAccessRequestResponse) {
+    option (google.api.http) = {
+      get: "/v1/access-requests/{id}"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Gets a single Access Request."};
+  }
+
+  // ListAccessRequests returns the access requests in the scope referenced in the request.
+  rpc ListAccessRequests(ListAccessRequestsRequest) returns (ListAccessRequestsResponse) {
+    option (google.api.http) = {get: "/v1/access-requests"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Gets a list of Access Requests."};
+  }
+
+  // CreateAccessRequest creates a pending access request.
+  rpc CreateAccessRequest(CreateAccessRequestRequest) returns (CreateAccessRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/access-requests"
+      body: "item"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Creates an Access Request"};
+  }
+
+  // ApproveAccessRequest: Approves a pending request. A requester cannot approve their own request. The version is required.
+  rpc ApproveAccessRequest(ApproveAccessRequestRequest) returns (ApproveAccessRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/access-requests/{id}:approve"
+      body: "*"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Approves an Access Request"};
+  }
+
+  // DenyAccessRequest: Denies a pending request. The version is required.
+  rpc DenyAccessRequest(DenyAccessRequestRequest) returns (DenyAccessRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/access-requests/{id}:deny"
+      body: "*"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Denys an Access Request"};
+  }
+
+  // CancelAccessRequest: Cancels a pending request. Only the requester can cancel. The version is required.
+  rpc CancelAccessRequest(CancelAccessRequestRequest) returns (CancelAccessRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/access-requests/{id}:cancel"
+      body: "*"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Cancels an Access Request"};
+  }
+
+  // RevokeAccessRequest: Revokes an approved request before it expires. The version is required.
+  rpc RevokeAccessRequest(RevokeAccessRequestRequest) returns (RevokeAccessRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/access-requests/{id}:revoke"
+      body: "*"
+      response_body: "item"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {summary: "Revokes an Access Request"};
+  }
+}
+
+message GetAccessRequestRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+}
+
+message GetAccessRequestResponse {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}
+
+message ListAccessRequestsRequest {
+  string scope_id = 1 [json_name = "scope_id"]; // @gotags: `class:"public" eventstream:"observation"`
+  bool recursive = 20 [json_name = "recursive"]; // @gotags: `class:"public" eventstream:"observation"`
+  string filter = 30 [json_name = "filter"]; // @gotags: `class:"public"`
+  string list_token = 40 [json_name = "list_token"]; // @gotags: `class:"public"`
+  uint32 page_size = 50 [json_name = "page_size"]; // @gotags: `class:"public"`
+}
+
+message ListAccessRequestsResponse {
+  repeated api.resources.accessrequests.v1.AccessRequest items = 1;
+  string response_type = 2 [json_name = "response_type"]; // @gotags: `class:"public"`
+  string list_token = 3 [json_name = "list_token"]; // @gotags: `class:"public"`
+  string sort_by = 4 [json_name = "sort_by"]; // @gotags: `class:"public"`
+  string sort_dir = 5 [json_name = "sort_dir"]; // @gotags: `class:"public"`
+  repeated string removed_ids = 6 [json_name = "removed_ids"]; // @gotags: `class:"public"`
+  uint32 est_item_count = 7 [json_name = "est_item_count"]; // @gotags: `class:"public"`
+}
+
+message CreateAccessRequestRequest {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}
+
+message CreateAccessRequestResponse {
+  string uri = 1; // @gotags: `class:"public" eventstream:"observation"`
+  api.resources.accessrequests.v1.AccessRequest item = 2;
+}
+
+message ApproveAccessRequestRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+  uint32 version = 2; // @gotags: `class:"public"`
+}
+
+message ApproveAccessRequestResponse {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}
+
+message DenyAccessRequestRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+  uint32 version = 2; // @gotags: `class:"public"`
+}
+
+message DenyAccessRequestResponse {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}
+
+message CancelAccessRequestRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+  uint32 version = 2; // @gotags: `class:"public"`
+}
+
+message CancelAccessRequestResponse {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}
+
+message RevokeAccessRequestRequest {
+  string id = 1; // @gotags: `class:"public" eventstream:"observation"`
+  uint32 version = 2; // @gotags: `class:"public"`
+}
+
+message RevokeAccessRequestResponse {
+  api.resources.accessrequests.v1.AccessRequest item = 1;
+}

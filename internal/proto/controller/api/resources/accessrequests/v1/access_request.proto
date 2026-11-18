@@ -1,0 +1,42 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.api.resources.accessrequests.v1;
+
+import "controller/api/resources/scopes/v1/scope.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/accessrequests;accessrequests";
+
+// AccessRequest is a time-bounded request for additional grants. Approval
+// binds to the exact grants that were reviewed.
+message AccessRequest {
+  // Output only. The ID of the access request.
+  string id = 10; // @gotags: `class:"public" eventstream:"observation"`
+  // The ID of the Scope the grants apply to.
+  string scope_id = 20 [json_name = "scope_id"]; // @gotags: `class:"public" eventstream:"observation"`
+  // Output only. Scope information for this resource.
+  resources.scopes.v1.ScopeInfo scope = 30;
+  // Output only. The ID of the user who made the request.
+  string requester_id = 40 [json_name = "requester_id"]; // @gotags: `class:"public"`
+  // The requested grant strings.
+  repeated string grants = 50; // @gotags: `class:"public"`
+  // Why access is needed. Bounded in length.
+  string justification = 60; // @gotags: `class:"sensitive"`
+  // How long access lasts once approved, in seconds.
+  uint32 duration_seconds = 70 [json_name = "duration_seconds"]; // @gotags: `class:"public"`
+  // Output only. One of pending, approved, denied, cancelled, expired or revoked.
+  string state = 80; // @gotags: `class:"public"`
+  // Output only. The time the request was created.
+  google.protobuf.Timestamp created_time = 90 [json_name = "created_time"];
+  // Output only. The time the request was approved, denied, cancelled or revoked.
+  google.protobuf.Timestamp decided_time = 100 [json_name = "decided_time"];
+  // Output only. The ID of the user who decided the request.
+  string decided_by = 110 [json_name = "decided_by"]; // @gotags: `class:"public"`
+  // Output only. When approved access ends; unset while pending.
+  google.protobuf.Timestamp expiration_time = 120 [json_name = "expiration_time"];
+  // Output only. The version of the request, required for decisions.
+  uint32 version = 130; // @gotags: `class:"public"`
+}

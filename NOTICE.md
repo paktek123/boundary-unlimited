@@ -18,6 +18,7 @@ and are licensed under the MIT License. The license text is in
 files in:
 
 - `internal/accessrequest`
+- the access request API protos (`internal/proto/controller/api/resources/accessrequests`, `internal/proto/controller/api/services/v1/access_request_service.proto`) and their generated code (`sdk/pbs/controller/api/resources/accessrequests`, `internal/gen/controller/api/services/access_request_service*.go`)
 - `internal/runbook` (including `source` and `approval`), its migration `internal/db/schema/migrations/oss/postgres/115` and its sqltest `internal/db/sqltest/tests/runbook`
 - `internal/db/schema/migrations/oss/postgres/116` (access request terminal-state fix, replaces a function from upstream-headed migration 114)
 - `internal/daemon/controller/handlers/runbooks`
