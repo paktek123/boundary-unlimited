@@ -266,7 +266,7 @@ func TestBSRValidatorRealRecording(t *testing.T) {
 
 func TestFinalizerWithRealValidator(t *testing.T) {
 	const sid = "s_1234567890"
-	run := func(t *testing.T, tamperPart string) (upload.Result, error, *memBucket, *memScratch) {
+	run := func(t *testing.T, tamperPart string) (upload.Result, *memBucket, *memScratch, error) {
 		store, keys := writeRealBSR(t, sid)
 		dir, err := store.Path(sid)
 		require.NoError(t, err)
@@ -277,17 +277,17 @@ func TestFinalizerWithRealValidator(t *testing.T) {
 		sc := &memScratch{dir: dir}
 		val := bsrValidator{openFS: func(upload.Recording) (storage.FS, error) { return bsrfs.New(store, sid) }, unwrap: unwrapWith(keys)}
 		res, err := newFin(t, sc, b, val, &nopEvents{})
-		return res, err, b, sc
+		return res, b, sc, err
 	}
 	t.Run("valid recording is uploaded", func(t *testing.T) {
-		res, err, b, sc := run(t, "")
+		res, b, sc, err := run(t, "")
 		require.NoError(t, err)
 		assert.Equal(t, upload.StatusUploaded, res.Status)
 		assert.NotEmpty(t, b.files)
 		assert.True(t, sc.marked && sc.discarded)
 	})
 	t.Run("tampered recording is not uploaded", func(t *testing.T) {
-		res, err, b, sc := run(t, "summary")
+		res, b, sc, err := run(t, "summary")
 		require.Error(t, err)
 		assert.Equal(t, upload.StatusInvalid, res.Status)
 		assert.Empty(t, b.files, "nothing is uploaded")
