@@ -124,7 +124,7 @@ func (sc *SinkConfig) Validate() error {
 
 	// Enforcement-first: no delivery is wired for network sinks yet, so even a
 	// fully valid configuration is refused instead of silently dropping events.
-	if sc.Type == HTTPSink || sc.Type == SyslogSink {
+	if (sc.Type == HTTPSink || sc.Type == SyslogSink) && registeredNetworkSinkFactory() == nil {
 		return fmt.Errorf("%s: %w", op, ErrNetworkSinkNotSupported)
 	}
 
