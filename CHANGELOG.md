@@ -332,7 +332,7 @@ fork, which is independent of HashiCorp.
 * event sinks: Add `internal/event/netsink`, which builds an `http` sink's pipeline (secret reference resolved, `httpsink` over the netguard guard, bounded best-effort `sinkqueue`; `Write` never blocks or errors). Syslog entries are wrapped as RFC 5424 messages; CA and client key material come from `file://` references. Not called by the event system: `http` and `syslog` sinks are still refused as not yet supported. Refs #55, #56.
 * event sinks: `http` and `syslog` sinks are now delivered. `event.RegisterNetworkSinkFactory` (registered by `internal/event/netsink` and linked in `cmd/boundary`) builds a bounded, best-effort, non-blocking writer for each network sink and `NewEventer` attaches it as the sink node; without a registered factory (or if building it fails) the configuration is still refused with `ErrNetworkSinkNotSupported`/an error (fail closed). Known limit: there is no shutdown hook yet, so entries still queued when the process exits may be dropped. Refs #55, #56, #54.
 * event sinks: `Eventer.FlushNodes` (called at controller and worker shutdown) now also closes network sink writers, draining their bounded queue (the context bounds the drain; leftovers are counted as dropped), so queued `http`/`syslog` entries are not silently lost at exit. Refs #55, #56.
-* docs: `docs/event-sinks.md` describes `http` and `syslog` event sinks as delivered (fail closed without a registered factory) once the delivery wiring merges. Refs #55, #56.
+* docs: `docs/event-sinks.md` describes `http` and `syslog` event sinks as delivered (fail closed without a registered factory). Refs #55, #56.
 
 ## 0.21.3 (2026/04/28)
 

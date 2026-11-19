@@ -2,10 +2,9 @@
 
 Refs #54, #55, #56.
 
-Two transport libraries stream audit events to a SIEM. Once the delivery
-wiring (PRs #308 and #311) is merged, the `http` and `syslog` sink types are
-delivered: the config parser validates them strictly, `event.NewEventer` builds
-the bounded, best-effort pipeline of `internal/event/netsink` through the
+Two transport libraries stream audit events to a SIEM. The `http` and `syslog`
+sink types are delivered: the config parser validates them strictly,
+`event.NewEventer` builds the bounded, best-effort pipeline of `internal/event/netsink` through the
 registered network sink factory (linked into `cmd/boundary`), and
 `Eventer.FlushNodes` drains the queues at shutdown. The wiring is fail closed:
 if no factory is registered, or building a sink fails (for example the secret
@@ -76,4 +75,6 @@ supported". The rules it applies (security decision on #55):
   fail the load, and errors never contain the URL, address or secret
   reference.
 
-Still to come: the rate-limited counts-only system event for drops.
+Delivery is best-effort: entries still queued when the process is killed
+(rather than shut down normally) are lost. Still to come: the rate-limited
+counts-only system event for drops.
