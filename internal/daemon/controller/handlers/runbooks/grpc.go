@@ -79,6 +79,8 @@ func toPB(d runbook.StoredDefinition) *pb.Runbook {
 		out.Parameters = append(out.Parameters, &pb.RunbookParameter{
 			Name: p.Name, Type: string(p.Type), Regex: p.Regex,
 			AllowedValues: append([]string(nil), p.AllowedValues...), Min: p.Min, Max: p.Max,
+			// MaxLength is an int in the domain type; clamp so a negative value
+			// cannot wrap around when converted to uint32.
 			MaxLength: uint32(max(p.MaxLength, 0)), Required: p.Required,
 			Default: p.Default, HasDefault: p.HasDefault,
 		})
@@ -99,7 +101,8 @@ func (g *GRPCService) GetRunbook(ctx context.Context, req *services.GetRunbookRe
 	return &services.GetRunbookResponse{Item: toPB(d)}, nil
 }
 
-// ListRunbooks lists one scope; recursive listing is not supported.
+// ListRunbooks lists one scope; recursive listing is not supported. The list is
+// not paginated: the response is always "complete".
 func (g *GRPCService) ListRunbooks(ctx context.Context, req *services.ListRunbooksRequest) (*services.ListRunbooksResponse, error) {
 	if req.GetScopeId() == "" || req.GetRecursive() {
 		return nil, status.Error(codes.InvalidArgument, "a single scope id is required")
@@ -119,7 +122,9 @@ func (g *GRPCService) ListRunbooks(ctx context.Context, req *services.ListRunboo
 	return out, nil
 }
 
-// DeleteRunbook implements services.RunbookServiceServer.
+// DeleteRunbook implements services.RunbookServiceServer. DeleteRunbookRequest
+// has no version field, so deletes are unconditional (grants and audit still
+// apply).
 func (g *GRPCService) DeleteRunbook(ctx context.Context, req *services.DeleteRunbookRequest) (*services.DeleteRunbookResponse, error) {
 	c, err := g.caller(ctx)
 	if err != nil {
