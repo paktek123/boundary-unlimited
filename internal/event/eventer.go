@@ -790,7 +790,10 @@ func (e *Eventer) FlushNodes(ctx context.Context) error {
 		}
 	}
 	// Drain network sinks after the nodes above have written everything to
-	// them. The context bounds the drain; anything left is counted as dropped.
+	// them. The context bounds the drain; anything left is counted as dropped
+	// and reported as an error. Callers run this last at shutdown (controller
+	// and worker return the error after every other step), and Close must be
+	// idempotent because FlushNodes may be called more than once.
 	var closeErr error
 	for _, c := range e.sinkClosers {
 		if err := c.Close(ctx); err != nil {
