@@ -122,8 +122,11 @@ func (sc *SinkConfig) Validate() error {
 		}
 	}
 
-	// Enforcement-first: no delivery is wired for network sinks yet, so even a
-	// fully valid configuration is refused instead of silently dropping events.
+	// Enforcement-first: a network sink is only accepted when a delivery
+	// factory has been registered (package netsink registers one from init and
+	// is linked into cmd/boundary). Without it even a fully valid configuration
+	// is refused instead of silently dropping events. Note this makes Validate
+	// depend on process-global registry state.
 	if (sc.Type == HTTPSink || sc.Type == SyslogSink) && registeredNetworkSinkFactory() == nil {
 		return fmt.Errorf("%s: %w", op, ErrNetworkSinkNotSupported)
 	}
