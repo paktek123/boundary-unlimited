@@ -21,12 +21,21 @@ import (
 
 // ActorResolver resolves the authenticated caller and whether it may approve
 // in scopeId. Implementations must derive both from the authenticated
-// request, never from request fields. An error means unauthenticated.
+// request, never from request fields. An error means unauthenticated. An
+// empty scopeId means "authenticate only": it must still fail for an
+// unauthenticated caller (used before looking a request up, so that missing and
+// existing ids are indistinguishable to unauthenticated callers).
 type ActorResolver interface {
 	Actor(ctx context.Context, scopeId string) (accessrequest.Actor, error)
 }
 
 // Service implements pbs.AccessRequestServiceServer.
+//
+// Limits: lists are not paginated (always "complete"), and the client's
+// version for approve, deny and cancel is checked against a separate read
+// before the core service re-reads and applies the decision, so it is not
+// enforced atomically; the state machine bounds the harm, and passing an
+// expected version into accessrequest.Service is a follow-up.
 type Service struct {
 	pbs.UnimplementedAccessRequestServiceServer
 	svc    *accessrequest.Service
@@ -89,6 +98,11 @@ func toPB(r accessrequest.Request) *pb.AccessRequest {
 // load fetches a request and checks visibility and the optimistic version.
 // Invisible requests are reported as not found.
 func (s *Service) load(ctx context.Context, id string, version uint32, checkVersion bool) (accessrequest.Actor, accessrequest.Request, error) {
+	// Authenticate first, so an unauthenticated caller gets the same answer
+	// for existing and missing ids.
+	if _, err := s.actors.Actor(ctx, ""); err != nil {
+		return accessrequest.Actor{}, accessrequest.Request{}, status.Error(codes.Unauthenticated, "unauthenticated")
+	}
 	r, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return accessrequest.Actor{}, r, mapErr(err)

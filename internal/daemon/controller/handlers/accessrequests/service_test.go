@@ -158,3 +158,61 @@ func TestRevokeUnsupported(t *testing.T) {
 	_, err := s.RevokeAccessRequest(as(approver), &pbs.RevokeAccessRequestRequest{Id: "ar_1", Version: 1})
 	assert.Equal(t, codes.Unimplemented, code(err))
 }
+
+func TestUnauthenticatedCannotProbeIds(t *testing.T) {
+	s := newTestService(t)
+	it := create(t, s)
+	for _, id := range []string{it.Id, "ar_missing"} {
+		_, err := s.GetAccessRequest(context.Background(), &pbs.GetAccessRequestRequest{Id: id})
+		assert.Equal(t, codes.Unauthenticated, code(err), id)
+		_, err = s.ApproveAccessRequest(context.Background(), &pbs.ApproveAccessRequestRequest{Id: id, Version: 1})
+		assert.Equal(t, codes.Unauthenticated, code(err), id)
+	}
+	_, err := s.ListAccessRequests(context.Background(), &pbs.ListAccessRequestsRequest{ScopeId: "o_1"})
+	assert.Equal(t, codes.Unauthenticated, code(err))
+}
+
+func TestDecisionsByInvisibleActorAreNotFound(t *testing.T) {
+	s := newTestService(t)
+	it := create(t, s)
+	_, err := s.DenyAccessRequest(as(other), &pbs.DenyAccessRequestRequest{Id: it.Id, Version: it.Version})
+	assert.Equal(t, codes.NotFound, code(err))
+	_, err = s.CancelAccessRequest(as(other), &pbs.CancelAccessRequestRequest{Id: it.Id, Version: it.Version})
+	assert.Equal(t, codes.NotFound, code(err))
+}
+
+func TestApproveAlreadyDecided(t *testing.T) {
+	s := newTestService(t)
+	it := create(t, s)
+	resp, err := s.DenyAccessRequest(as(approver), &pbs.DenyAccessRequestRequest{Id: it.Id, Version: it.Version})
+	require.NoError(t, err)
+	_, err = s.ApproveAccessRequest(as(approver), &pbs.ApproveAccessRequestRequest{Id: it.Id, Version: resp.Item.Version})
+	assert.Equal(t, codes.InvalidArgument, code(err))
+}
+
+func TestMapErr(t *testing.T) {
+	tests := []struct {
+		err  error
+		want codes.Code
+	}{
+		{accessrequest.ErrNotFound, codes.NotFound},
+		{accessrequest.ErrVersionConflict, codes.Aborted},
+		{accessrequest.ErrSelfApproval, codes.PermissionDenied},
+		{accessrequest.ErrNotRequester, codes.PermissionDenied},
+		{accessrequest.ErrApproverNotAuthorized, codes.PermissionDenied},
+		{accessrequest.ErrGrantsNotHeld, codes.PermissionDenied},
+		{accessrequest.ErrWildcardGrant, codes.PermissionDenied},
+		{accessrequest.ErrGrantsChanged, codes.PermissionDenied},
+		{accessrequest.ErrInvalidInput, codes.InvalidArgument},
+		{accessrequest.ErrInvalidState, codes.InvalidArgument},
+		{accessrequest.ErrInvalidTransition, codes.InvalidArgument},
+		{accessrequest.ErrDurationTooLong, codes.InvalidArgument},
+		{accessrequest.ErrPendingExpired, codes.InvalidArgument},
+		{errors.New("boom"), codes.Internal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.err.Error(), func(t *testing.T) {
+			assert.Equal(t, tc.want, code(mapErr(fmt.Errorf("wrapped: %w", tc.err))))
+		})
+	}
+}
