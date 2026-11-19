@@ -5,6 +5,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	sshproxy "github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh"
@@ -39,9 +40,19 @@ func TestInstallSSHRecording_NilWriterOK(t *testing.T) {
 	assert.False(t, ok)
 }
 
+type fakeFactory struct{}
+
+func (fakeFactory) Wrap(context.Context, sshproxy.Authorization, sshproxy.Upstream) (sshproxy.Upstream, error) {
+	return nil, errors.New("not used")
+}
+
 func TestInstallSSHRecording_UninstallsPreviousFactory(t *testing.T) {
 	t.Cleanup(func() { sshproxy.InstallRecordingFactory(nil) })
+	sshproxy.InstallRecordingFactory(fakeFactory{})
+	require.True(t, sshproxy.RecordingFactoryInstalled())
+
 	ok, err := installSSHRecording(context.Background(), sshRecordingDeps{}, nil)
 	require.NoError(t, err)
 	assert.False(t, ok)
+	assert.False(t, sshproxy.RecordingFactoryInstalled(), "missing deps must uninstall the factory")
 }
