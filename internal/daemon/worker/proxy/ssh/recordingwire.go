@@ -28,6 +28,9 @@ func InstallRecordingFactory(f RecordingFactory) {
 	recFactory = f
 }
 
+// RecordingFactoryInstalled reports whether a recording factory is installed.
+func RecordingFactoryInstalled() bool { return installedRecordingFactory() != nil }
+
 func installedRecordingFactory() RecordingFactory {
 	recFactoryMu.RLock()
 	defer recFactoryMu.RUnlock()
