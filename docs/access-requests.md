@@ -18,6 +18,7 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
 | Service composing policy, audit events and notifications | `internal/accessrequest` (`service.go`) |
 | Grant overlay: approved, unexpired requests add exactly their approved grants for `authorize-session` | `internal/accessrequest/merge.go`, `internal/daemon/controller/handlers/targets/overlay_authorizer.go` |
 | Sweeper that audits and then expires overdue requests | `internal/accessrequest` (`sweeper.go`) |
+| gRPC adapter for the generated `AccessRequestServiceServer` (requester from the authenticated actor, visibility limited to requester or scope approver, version required for decisions, revoke refused); **not registered** in the controller | `internal/daemon/controller/handlers/accessrequests` |
 | Notification fan-out and `notifier` config (the stanza is still refused at load) | `internal/notify`, [docs/notifier.md](notifier.md) |
 
 ## Rules the feature keeps
@@ -34,5 +35,5 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
 
 ## Not yet available
 
-API handler and CLI (`boundary access-requests`), request creation, controller
+Registration of the API in the controller (actor and grant resolution), the HTTP gateway, the CLI (`boundary access-requests`), revoke, request creation through any endpoint, controller
 wiring of the notifier, and any UI.
