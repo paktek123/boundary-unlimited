@@ -331,6 +331,7 @@ fork, which is independent of HashiCorp.
 * recording: Add the worker `recordingSpecProvider` (`internal/daemon/worker/recording_spec.go`), an `ssh` `SpecProvider` that builds the BSR meta from the controller-authorised session and creates fresh per-session keys with the worker's `bsr` KMS wrapper; every missing dependency or key-creation failure refuses the session with fixed errors. `kms.Keys` now prints as `kms.Keys{redacted}` for every format verb. Not installed in the worker yet and no config field added. Refs #289, #259.
 * event sinks: Add `internal/event/netsink`, which builds an `http` sink's pipeline (secret reference resolved, `httpsink` over the netguard guard, bounded best-effort `sinkqueue`; `Write` never blocks or errors). Syslog entries are wrapped as RFC 5424 messages; CA and client key material come from `file://` references. Not called by the event system: `http` and `syslog` sinks are still refused as not yet supported. Refs #55, #56.
 * runbooks: Add `GRPCService` (`internal/daemon/controller/handlers/runbooks/grpc.go`), an adapter from the runbook definition service to the generated `RunbookServiceServer` for get, list and delete (script bodies are never returned, a missing runbook looks like forbidden, recursive list is refused). Create and update stay Unimplemented until the script source is decided. Not registered in the controller. Refs #279, #260.
+* docs: `docs/runbooks.md` lists the (unregistered) runbook get/list/delete gRPC adapter and what remains. Refs #279.
 
 ## 0.21.3 (2026/04/28)
 

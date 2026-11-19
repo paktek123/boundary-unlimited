@@ -37,5 +37,5 @@ Tracking: epic #89, issues #260 and #279. Design: [docs/rfc/runbooks.md](rfc/run
 
 ## Not yet available
 
-Proto and HTTP/gRPC API, registration in the controller, the `boundary
+A gRPC adapter for get, list and delete exists (`internal/daemon/controller/handlers/runbooks/grpc.go`) but is not registered; create and update are Unimplemented until the script source is decided (#279). Still missing: the HTTP gateway, registration in the controller (caller and grant resolution, DB repository), the `boundary
 runbooks` CLI, worker execution and approval-gated runs.
