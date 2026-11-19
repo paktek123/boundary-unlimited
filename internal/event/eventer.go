@@ -336,6 +336,23 @@ func NewEventer(log hclog.Logger, serializationLock *sync.Mutex, serverName stri
 				return nil, fmt.Errorf("%s: %w", op, err)
 			}
 			sinkId = eventlogger.NodeID(id)
+		case HTTPSink, SyslogSink:
+			// Fail closed: without a registered delivery factory the sink
+			// would silently drop events.
+			factory := registeredNetworkSinkFactory()
+			if factory == nil {
+				return nil, fmt.Errorf("%s: %w", op, ErrNetworkSinkNotSupported)
+			}
+			w, err := factory(s)
+			if err != nil {
+				return nil, fmt.Errorf("%s: network sink: %w", op, err)
+			}
+			sinkNode = &writer.Sink{Format: string(s.Format), Writer: w}
+			id, err := NewId("net")
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", op, err)
+			}
+			sinkId = eventlogger.NodeID(id)
 		default:
 			return nil, fmt.Errorf("%s: unknown sink type %s", op, s.Type)
 		}

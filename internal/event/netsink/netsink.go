@@ -277,3 +277,13 @@ func New(sc *event.SinkConfig, deps Deps) (*Sink, error) {
 		return nil, ErrUnsupported
 	}
 }
+
+func init() {
+	event.RegisterNetworkSinkFactory(func(sc *event.SinkConfig) (io.Writer, error) {
+		s, err := New(sc, Deps{})
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
+	})
+}
