@@ -49,12 +49,13 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
 ## Worker install gate
 
 `worker.New` calls `installSSHRecording`, which installs the ssh recording
-factory only when the scratch store (`recording_storage_path`), the finalizer,
-the `bsr` spec provider and the reporter all exist. Today no production spec
-provider, finalizer or reporter is built, so the factory stays uninstalled, the
-worker emits one startup event naming the missing dependency classes, and any
-session that requires recording is refused before an upstream connection is
-made.
+factory only when every dependency exists. The startup event names a missing
+dependency by these classes: `recording_storage_path` (the scratch store),
+`finalizer`, `bsr_kms_wrapper` (the spec provider) and `reporter`. Today no
+production spec provider, finalizer or reporter is built, so the factory stays
+uninstalled, the worker emits one startup event naming the missing classes, and
+any session that requires recording is refused before an upstream connection
+is made. There is no configuration field that enables recording yet.
 
 ## Not yet available
 
