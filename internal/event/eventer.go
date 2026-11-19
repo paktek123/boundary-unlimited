@@ -76,9 +76,12 @@ type queuedEvent struct {
 
 // Eventer provides a method to send events to pipelines of sinks
 type Eventer struct {
-	broker               broker
-	serverName           string
-	flushableNodes       []flushable
+	broker         broker
+	serverName     string
+	flushableNodes []flushable
+	// sinkClosers drain network sink writers when the eventer is flushed at
+	// shutdown.
+	sinkClosers          []interface{ Close(context.Context) error }
 	conf                 EventerConfig
 	logger               hclog.Logger
 	auditPipelines       []pipeline
@@ -346,6 +349,9 @@ func NewEventer(log hclog.Logger, serializationLock *sync.Mutex, serverName stri
 			w, err := factory(s)
 			if err != nil {
 				return nil, fmt.Errorf("%s: network sink: %w", op, err)
+			}
+			if c, ok := w.(interface{ Close(context.Context) error }); ok {
+				e.sinkClosers = append(e.sinkClosers, c)
 			}
 			sinkNode = &writer.Sink{Format: string(s.Format), Writer: w}
 			id, err := NewId("net")
@@ -782,6 +788,17 @@ func (e *Eventer) FlushNodes(ctx context.Context) error {
 		if err := n.FlushAll(ctx); err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}
+	}
+	// Drain network sinks after the nodes above have written everything to
+	// them. The context bounds the drain; anything left is counted as dropped.
+	var closeErr error
+	for _, c := range e.sinkClosers {
+		if err := c.Close(ctx); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+	}
+	if closeErr != nil {
+		return fmt.Errorf("%s: closing network sinks: %w", op, closeErr)
 	}
 	return nil
 }

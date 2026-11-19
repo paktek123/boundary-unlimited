@@ -69,3 +69,21 @@ func TestNetworkSinkFactory_BuildErrorFailsClosed(t *testing.T) {
 type writerFunc func([]byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
+type closableWriter struct {
+	writerFunc
+	closed int
+}
+
+func (c *closableWriter) Close(context.Context) error { c.closed++; return nil }
+
+func TestNetworkSinkFactory_FlushNodesClosesSinks(t *testing.T) {
+	cw := &closableWriter{writerFunc: func(p []byte) (int, error) { return len(p), nil }}
+	RegisterNetworkSinkFactory(func(*SinkConfig) (io.Writer, error) { return cw, nil })
+	t.Cleanup(func() { RegisterNetworkSinkFactory(nil) })
+	lock := &sync.Mutex{}
+	e, err := NewEventer(hclog.New(&hclog.LoggerOptions{Mutex: lock}), lock, "net-close", netSinkEventerConfig())
+	require.NoError(t, err)
+	require.NoError(t, e.FlushNodes(context.Background()))
+	assert.Equal(t, 1, cw.closed)
+}
