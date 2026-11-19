@@ -46,6 +46,16 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
   proxying cannot record SSH.
 * Scratch space is bounded by a quota; size it for your longest sessions.
 
+## Worker install gate
+
+`worker.New` calls `installSSHRecording`, which installs the ssh recording
+factory only when the scratch store (`recording_storage_path`), the finalizer,
+the `bsr` spec provider and the reporter all exist. Today no production spec
+provider, finalizer or reporter is built, so the factory stays uninstalled, the
+worker emits one startup event naming the missing dependency classes, and any
+session that requires recording is refused before an upstream connection is
+made.
+
 ## Not yet available
 
 Enabling recording on a target, upload to a storage bucket from a running
