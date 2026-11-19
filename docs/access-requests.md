@@ -35,5 +35,9 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
 
 ## Not yet available
 
-Registration of the API in the controller (actor and grant resolution), the HTTP gateway, the CLI (`boundary access-requests`), revoke, request creation through any endpoint, controller
-wiring of the notifier, and any UI.
+The adapter relies on an `ActorResolver` that the controller must implement
+(authentication, and the approver and grant lookup per scope); that, with
+registration of the API in the controller, is the key remaining work. Also
+missing: the HTTP gateway, the CLI (`boundary access-requests`), revoke,
+request creation through any endpoint, controller wiring of the notifier, and
+any UI.
