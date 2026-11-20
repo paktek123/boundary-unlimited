@@ -28,7 +28,7 @@ begin;
 
   prepare upper_hash as
   insert into runbook_definition (public_id, scope_id, name, interpreter, source_commit_sha, script_path, script_sha256)
-  values ('rb_______03', 'p____bwidget', 'n3', 'sh', repeat('a', 40), 'a.sh', repeat('B', 64));
+  values ('rb_______04', 'p____bwidget', 'n4', 'sh', repeat('a', 40), 'a.sh', repeat('B', 64));
   select throws_ok('upper_hash', null, null, 'upper case hash succeeded');
 
   select * from finish();

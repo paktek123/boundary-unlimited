@@ -335,6 +335,7 @@ fork, which is independent of HashiCorp.
 * recording: Add `installSSHRecording` (`internal/daemon/worker/ssh_recording_install.go`), which installs the ssh recording factory only when the scratch store, finalizer, spec provider and reporter all exist, and otherwise uninstalls it and emits one startup event naming the missing dependency classes (no ids, paths or secrets). `worker.New` calls it with no dependencies today because no production spec provider, finalizer or reporter is built yet, so recording-required sessions stay refused (fail closed). No config field added. Refs #291, #259.
 * access requests: Add the gRPC adapter `internal/daemon/controller/handlers/accessrequests` implementing the generated `AccessRequestServiceServer` over `accessrequest.Service`: the requester always comes from the authenticated actor (never the message), requests are visible only to their requester or an approver of the scope (others get not found), approve/deny/cancel require the current `version`, and revoke is refused as not yet supported. Not registered in the controller, so no endpoint accepts requests yet. Refs #18, #3.
 * Runbooks: migration 118 lets `runbook_definition.script_sha256` hold the empty string (the explicit unverified state) while still rejecting any other malformed hash. Nothing creates unverified rows yet and run/approval refuse them (Refs #321).
+* docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
 
 ## 0.21.3 (2026/04/28)
 
