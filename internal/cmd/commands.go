@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"github.com/hashicorp/boundary/internal/cmd/base"
+	"github.com/hashicorp/boundary/internal/cmd/commands/accessrequestscmd"
 	"github.com/hashicorp/boundary/internal/cmd/commands/accountscmd"
 	"github.com/hashicorp/boundary/internal/cmd/commands/aliasescmd"
 	"github.com/hashicorp/boundary/internal/cmd/commands/authenticate"
@@ -1243,6 +1244,54 @@ func initCommands(ui, serverCmdUi cli.Ui, runOpts *RunOptions) {
 				CommandName: "search",
 			}, nil
 		},
+
+		"access-requests": func() (cli.Command, error) {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+			}, nil
+		},
+		"access-requests create": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "create",
+			}
+		}),
+		"access-requests read": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "read",
+			}
+		}),
+		"access-requests list": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "list",
+			}
+		}),
+		"access-requests approve": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "approve",
+			}
+		}),
+		"access-requests deny": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "deny",
+			}
+		}),
+		"access-requests cancel": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "cancel",
+			}
+		}),
+		"access-requests revoke": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &accessrequestscmd.Command{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "revoke",
+			}
+		}),
 
 		"sessions": func() (cli.Command, error) {
 			return &sessionscmd.Command{
