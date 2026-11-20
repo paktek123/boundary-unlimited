@@ -62,3 +62,9 @@ is made. There is no configuration field that enables recording yet.
 Enabling recording on a target, upload to a storage bucket from a running
 worker, registering the session recording record, and CLI playback/export of
 SSH recordings.
+
+The export pipeline exists only as an internal library
+(`internal/bsr/playback`). It validates a recording first and converts it
+(asciicast v2 for shell channels, raw log otherwise) only if the recording is
+valid and complete; on any failure nothing is written. It is not wired to any
+CLI command or API, so no export is available to operators yet.
