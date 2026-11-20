@@ -67,7 +67,7 @@ func (c *KubernetesCommand) extraKubernetesHelpFunc(helpMap map[string]func() st
 			"",
 			"  Update a kubernetes-type target given its ID. Example:",
 			"",
-			`    $ boundary targets update kubernetes -id tkubernetes_1234567890 -name "devops" -description "Kubernetes target for DevOps"`,
+			`    $ boundary targets update kubernetes -id tkube_1234567890 -name "devops" -description "Kubernetes target for DevOps"`,
 			"",
 			"",
 		})
