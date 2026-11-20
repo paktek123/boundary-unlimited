@@ -1,17 +1,16 @@
-# SIEM event sink transports (library only, not yet configurable)
+# SIEM event sink transports (http and syslog)
 
 Refs #54, #55, #56.
 
-Two transport libraries exist for streaming audit events to a SIEM. **Neither
-can be enabled by configuration yet**: the `http` and `syslog` sink types are
-recognised by the config parser and validated strictly, but every valid network
-sink is then rejected at load with "network event sinks (http, syslog) are not
-yet supported: no delivery is wired" (`event.ErrNetworkSinkNotSupported`), so
-nothing can silently send (or silently not send) audit data. A builder that
-turns a validated config into a bounded, best-effort delivery pipeline is in
-review and is not wired to the event system either. The delivery wiring lands in
-a later slice; this page documents what the libraries enforce so that slice and
-operators can rely on it.
+Two transport libraries stream audit events to a SIEM. The `http` and `syslog`
+sink types are delivered: the config parser validates them strictly,
+`event.NewEventer` builds the bounded, best-effort pipeline of `internal/event/netsink` through the
+registered network sink factory (linked into `cmd/boundary`), and
+`Eventer.FlushNodes` drains the queues at shutdown. The wiring is fail closed:
+if no factory is registered, or building a sink fails (for example the secret
+reference cannot be resolved), the configuration is refused with
+`event.ErrNetworkSinkNotSupported` or a startup error instead of silently
+dropping audit data. This page documents what the libraries enforce.
 
 Both implement `sinkqueue.Sender` and deliver best-effort batches. Errors never
 contain entry contents, URLs, tokens or response bodies.
@@ -57,12 +56,12 @@ network sink (`internal/event/sinkqueue`) is bounded in entries and bytes:
   audit events silently (this mode is not used for network sinks);
 - `Close` returns an error wrapping `ErrDropped` when anything was ever lost.
 
-## Configuration rules (validated, then rejected until delivery is wired)
+## Configuration rules
 
 `internal/event` parses `type = "http"` / `type = "syslog"` with an `http { ... }`
 or `syslog { ... }` block and validates it strictly (`sink_network_config.go`).
-Even a valid block is then refused with "not yet supported" until delivery is
-wired. The rules it applies (security decision on #55):
+Without a registered delivery factory a valid block is refused with "not yet
+supported". The rules it applies (security decision on #55):
 
 - `http`: `url` (https only, no userinfo), `token` as `env://NAME` or an
   absolute `file://` reference (inline tokens refused), `format` of `hec` or
@@ -76,6 +75,6 @@ wired. The rules it applies (security decision on #55):
   fail the load, and errors never contain the URL, address or secret
   reference.
 
-Still to come: hooking the pipeline into the eventer, failing startup on
-an unresolvable secret, and the rate-limited counts-only system event for
-drops. Until that merges the sink types stay rejected (enforcement-first).
+Delivery is best-effort: entries still queued when the process is killed
+(rather than shut down normally) are lost. Still to come: the rate-limited
+counts-only system event for drops.
