@@ -119,16 +119,6 @@ func (c *Command) extraHelpFunc(helpMap map[string]func() string) string {
 			"",
 			"  Please see the access-requests subcommand help for detailed usage information.",
 		})
-	case "create":
-		helpStr = base.WrapForHelpText([]string{
-			"Usage: boundary access-requests create [options] [args]",
-			"",
-			"  Create an access request for explicit grants. Nothing is granted until an approver, who must hold the requested grants, approves it. Example:",
-			"",
-			`    $ boundary access-requests create -scope-id p_1234567890 -grant 'ids=*;type=target;actions=authorize-session' -duration-seconds 3600`,
-			"",
-			"",
-		})
 	case "approve", "deny", "cancel", "revoke":
 		note := ""
 		if c.Func == "revoke" {
