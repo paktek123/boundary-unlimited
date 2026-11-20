@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/hashicorp/boundary/internal/gen/controller/api"
+	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/accessrequests"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/accounts"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/aliases"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/authmethods"
@@ -903,6 +904,22 @@ var inputStructs = []*structInfo{
 		pluralResourceName:  "runbooks",
 		versionEnabled:      true,
 		createResponseTypes: []string{ReadResponseType, DeleteResponseType},
+	// Access requests: create, read and list are generated. The decision and
+	// cancel actions (approve, deny, cancel, revoke) are hand-written in
+	// api/accessrequests, like sessions/cancel.go.
+	{
+		inProto: &accessrequests.AccessRequest{},
+		outFile: "accessrequests/access_request.gen.go",
+		templates: []*template.Template{
+			clientTemplate,
+			commonCreateTemplate,
+			readTemplate,
+			listTemplate,
+		},
+		pluralResourceName:  "access-requests",
+		versionEnabled:      true,
+		createResponseTypes: []string{CreateResponseType, ReadResponseType, ListResponseType},
+		recursiveListing:    true,
 	},
 
 	// Storage related resources
