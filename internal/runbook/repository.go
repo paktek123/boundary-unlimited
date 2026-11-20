@@ -80,6 +80,42 @@ func NewStoredDefinition(id, scopeID string, def Definition, sha, scriptPath str
 	}, nil
 }
 
+// NewUnverifiedStoredDefinition builds a definition from a pin reference only
+// (no script bytes): commit sha, script path and parameter declarations. It has
+// no script hash, so Verified reports false and the pin it returns fails
+// source.Verify: run and approval binding refuse it (fail closed). Use
+// StoredDefinition.WithPin to change the reference: that resets it to unverified.
+func NewUnverifiedStoredDefinition(id, scopeID, name, description, interpreter string, params []Parameter, sel TargetSelector, sha, scriptPath string) (StoredDefinition, error) {
+	d := StoredDefinition{
+		Id: id, ScopeId: scopeID, Name: name, Description: description, Interpreter: interpreter,
+		SourceCommitSHA: sha, ScriptPath: scriptPath,
+		Parameters: append([]Parameter(nil), params...),
+		Selector:   cloneSelector(sel),
+	}
+	if err := d.validate(); err != nil {
+		return StoredDefinition{}, err
+	}
+	return d, nil
+}
+
+// Verified reports whether the definition carries a script hash. Only verified
+// definitions may be run or bound to an approval.
+func (s StoredDefinition) Verified() bool { return s.ScriptSHA256 != "" }
+
+// WithPin returns the definition pointed at a new commit and path. If either
+// changed, the script hash is cleared and the definition is unverified again.
+func (s StoredDefinition) WithPin(sha, scriptPath string) (StoredDefinition, error) {
+	out := cloneStored(s)
+	if sha != s.SourceCommitSHA || scriptPath != s.ScriptPath {
+		out.ScriptSHA256 = ""
+	}
+	out.SourceCommitSHA, out.ScriptPath = sha, scriptPath
+	if err := out.validate(); err != nil {
+		return StoredDefinition{}, err
+	}
+	return out, nil
+}
+
 // Pin returns the recorded pin, for source.Verify before execution.
 func (s StoredDefinition) Pin() source.Pin {
 	return source.Pin{SHA: s.SourceCommitSHA, ScriptSHA256: s.ScriptSHA256}
@@ -107,7 +143,9 @@ func (s StoredDefinition) validate() error {
 	if err := source.ValidatePath(s.ScriptPath); err != nil {
 		return fmt.Errorf("%w: script path: %s", ErrInvalidInput, err.Error())
 	}
-	if !sha256HexRE.MatchString(s.ScriptSHA256) {
+	// An empty script hash is allowed only in the explicit unverified state
+	// (see NewUnverifiedStoredDefinition); anything else must be a full hash.
+	if s.ScriptSHA256 != "" && !sha256HexRE.MatchString(s.ScriptSHA256) {
 		return fmt.Errorf("%w: script sha256 must be 64 lowercase hex characters", ErrInvalidInput)
 	}
 	if len(s.Parameters) > MaxParameters {
