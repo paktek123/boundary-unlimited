@@ -307,6 +307,9 @@ func (s *Service) CreatePinned(ctx context.Context, c Caller, r PinnedRequest) (
 // UpdatePinned replaces a definition's metadata and pin if r.Version matches.
 // Changing the commit or script path resets the definition to unverified.
 func (s *Service) UpdatePinned(ctx context.Context, c Caller, id string, r PinnedRequest) (runbook.StoredDefinition, error) {
+	if r.Version == 0 {
+		return runbook.StoredDefinition{}, fmt.Errorf("%w: version is required", ErrInvalid)
+	}
 	cur, err := s.repo.Get(ctx, id)
 	if err != nil {
 		if errors.Is(err, runbook.ErrNotFound) {

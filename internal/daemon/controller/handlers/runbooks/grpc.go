@@ -21,9 +21,9 @@ type CallerResolver interface {
 	Caller(ctx context.Context) (Caller, error)
 }
 
-// GRPCService adapts Service to services.RunbookServiceServer for the read and
-// delete operations. Create and update accept only a pin (see CreateRunbook). It is NOT registered in the
-// controller.
+// GRPCService adapts Service to services.RunbookServiceServer for the read,
+// delete, create and update operations. Create and update accept only a pin
+// (see CreateRunbook). It is NOT registered in the controller.
 type GRPCService struct {
 	services.UnimplementedRunbookServiceServer
 	svc     *Service
