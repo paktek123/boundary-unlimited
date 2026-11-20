@@ -175,6 +175,8 @@ reference only. It never fetches, accepts or returns script bytes.
 * `commit_sha` must be a full 40-hex SHA and `script_path` must pass the source
   path validation. Short SHAs, branches and tags are rejected, with errors that
   do not echo script data.
+* The repository reference must resolve to an operator-configured allow-list of
+  repository identifiers; it is never a free-form client URL.
 * The proto has no script body field and no free-form client URL. Fields that
   are not enforced are rejected, and run/execute RPCs answer "not yet
   supported".
