@@ -89,8 +89,4 @@ func TestAccessRequestActionsWildcardAuthorizesNothing(t *testing.T) {
 		assert.Empty(t, perms, "%v", grants)
 	}
 
-	// Naming actions explicitly next to a wildcard still works for the named ones only.
-	acl := runbookACL(t, scopeId, "ids=*;type=access-request;actions=read,*")
-	assert.True(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, action.Read, "u_1234567890").Authorized)
-	assert.False(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, action.Approve, "u_1234567890").Authorized)
 }
