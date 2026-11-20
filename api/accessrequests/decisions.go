@@ -27,6 +27,9 @@ func (n AccessRequestUpdateResult) GetItem() *AccessRequest { return n.Item }
 // GetResponse returns the raw API response.
 func (n AccessRequestUpdateResult) GetResponse() *api.Response { return n.response }
 
+// The create options below are for Create only; passing them to a decision call
+// sends them in its body, where the server ignores or rejects them.
+
 // WithJustification sets the free-text justification on a create request.
 func WithJustification(in string) Option {
 	return func(o *options) { o.postMap["justification"] = in }
@@ -90,7 +93,7 @@ func (c *Client) action(ctx context.Context, name, id string, version uint32, op
 	}
 	opts.postMap["version"] = version
 
-	req, err := c.client.NewRequest(ctx, "POST", fmt.Sprintf("access-requests/%s:%s", id, name), opts.postMap, apiOpts...)
+	req, err := c.client.NewRequest(ctx, "POST", fmt.Sprintf("access-requests/%s:%s", url.PathEscape(id), name), opts.postMap, apiOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating %s request: %w", name, err)
 	}
