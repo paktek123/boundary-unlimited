@@ -167,6 +167,34 @@ refused; canary values never appear in events, errors or logs; an approval
 cannot be reused for another run, twice, or after TTL; self-approval is
 rejected; existing wildcard roles do not gain `runbooks:*`.
 
+## API create and update take only the pin (binding security decision on #279)
+
+The API that will create and update runbook definitions takes a repository
+reference only. It never fetches, accepts or returns script bytes.
+
+* `commit_sha` must be a full 40-hex SHA and `script_path` must pass the source
+  path validation. Short SHAs, branches and tags are rejected, with errors that
+  do not echo script data.
+* The repository reference must resolve to an operator-configured allow-list of
+  repository identifiers; it is never a free-form client URL.
+* The proto has no script body field and no free-form client URL. Fields that
+  are not enforced are rejected, and run/execute RPCs answer "not yet
+  supported".
+* A definition stored without a verified script hash is **unverified** and can
+  never be approved or run. Changing `commit_sha` or `script_path` on update
+  resets a definition to unverified. Run and approval binding refuse unverified
+  definitions (fail closed).
+* Every RPC needs an explicit `runbooks:*` grant; wildcard grants do not cover
+  runbooks. Cross-scope reads answer not found.
+* Each write emits an audit event with the runbook id, commit SHA, parameter
+  names and principal only: no script and no parameter values.
+* No outbound network access in the handler or repository. A production fetcher
+  that verifies and records the script hash needs its own security decision and
+  gates any run support.
+
+Not resisted: a compromised repository admin landing a new commit that a
+reviewer then approves, and a compromised controller operator.
+
 ## Open security questions
 
 For the security reviewer; the formal decision on #89 already covers the main
