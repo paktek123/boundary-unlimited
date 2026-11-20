@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/boundary/internal/gen/controller/api/services"
+	pb "github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/runbooks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 type ctxCaller struct{}
@@ -70,11 +72,11 @@ func TestGRPC_ReadAndDelete(t *testing.T) {
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
-	t.Run("create and update are not exposed yet", func(t *testing.T) {
+	t.Run("create and update without an item are invalid", func(t *testing.T) {
 		_, err := g.CreateRunbook(asCaller(adm), &services.CreateRunbookRequest{})
-		assert.Equal(t, codes.Unimplemented, status.Code(err))
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = g.UpdateRunbook(asCaller(adm), &services.UpdateRunbookRequest{})
-		assert.Equal(t, codes.Unimplemented, status.Code(err))
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 	})
 
 	t.Run("delete is authorised and audited", func(t *testing.T) {
@@ -109,4 +111,63 @@ func TestGRPCErr(t *testing.T) {
 func TestNewGRPCService_FailsClosed(t *testing.T) {
 	_, err := NewGRPCService(nil, nil)
 	require.Error(t, err)
+}
+
+func TestGRPC_CreateUpdatePinned(t *testing.T) {
+	s, em, repo := newSvc(t)
+	adm := admin(t)
+	g, err := NewGRPCService(s, ctxCaller{})
+	require.NoError(t, err)
+	item := func() *pb.Runbook {
+		return &pb.Runbook{ScopeId: scopeA, Name: "restart", Interpreter: "sh", CommitSha: sha40,
+			ScriptPath: "ops/run.sh", Selector: &pb.RunbookTargetSelector{AllTargets: true},
+			// Output-only fields are ignored.
+			ScriptSha256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}
+	}
+
+	t.Run("no grant is refused", func(t *testing.T) {
+		_, err := g.CreateRunbook(asCaller(Caller{UserId: "u_nobody0000", ACL: acl(t, scopeA)}), &services.CreateRunbookRequest{Item: item()})
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+		_, err = g.CreateRunbook(context.Background(), &services.CreateRunbookRequest{Item: item()})
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+	t.Run("branch and short sha are rejected", func(t *testing.T) {
+		for _, sha := range []string{"main", "0123abc"} {
+			it := item()
+			it.CommitSha = sha
+			_, err := g.CreateRunbook(asCaller(adm), &services.CreateRunbookRequest{Item: it})
+			assert.Equal(t, codes.InvalidArgument, status.Code(err), sha)
+		}
+	})
+	var created *pb.Runbook
+	t.Run("create is unverified and audited with pin only", func(t *testing.T) {
+		resp, err := g.CreateRunbook(asCaller(adm), &services.CreateRunbookRequest{Item: item()})
+		require.NoError(t, err)
+		created = resp.Item
+		assert.Empty(t, created.ScriptSha256, "client-supplied hash must be ignored")
+		stored, err := repo.Get(context.Background(), created.Id)
+		require.NoError(t, err)
+		assert.False(t, stored.Verified())
+		require.Len(t, em.events, 1)
+		assert.Equal(t, sha40, em.events[0].CommitSHA)
+		assert.Equal(t, adm.UserId, em.events[0].PrincipalId)
+	})
+	t.Run("update changing the pin stays unverified; mask unsupported", func(t *testing.T) {
+		it := item()
+		it.CommitSha = "fedcba9876543210fedcba9876543210fedcba98"
+		it.Version = created.Version
+		_, err := g.UpdateRunbook(asCaller(adm), &services.UpdateRunbookRequest{Id: created.Id, Item: it,
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}}})
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		resp, err := g.UpdateRunbook(asCaller(adm), &services.UpdateRunbookRequest{Id: created.Id, Item: it})
+		require.NoError(t, err)
+		assert.Equal(t, uint32(2), resp.Item.Version)
+		stored, _ := repo.Get(context.Background(), created.Id)
+		assert.False(t, stored.Verified())
+		_, err = g.UpdateRunbook(asCaller(adm), &services.UpdateRunbookRequest{Id: created.Id, Item: it}) // stale version
+		assert.Equal(t, codes.Aborted, status.Code(err))
+		it.Version = 0
+		_, err = g.UpdateRunbook(asCaller(adm), &services.UpdateRunbookRequest{Id: created.Id, Item: it})
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	})
 }
