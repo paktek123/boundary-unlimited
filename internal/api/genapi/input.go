@@ -1145,6 +1145,15 @@ var inputStructs = []*structInfo{
 		},
 	},
 	{
+		inProto:        &targets.KubernetesTargetAttributes{},
+		outFile:        "targets/kubernetes_target_attributes.gen.go",
+		subtypeName:    "KubernetesTarget",
+		parentTypeName: "Target",
+		templates: []*template.Template{
+			mapstructureConversionTemplate,
+		},
+	},
+	{
 		inProto: &targets.Target{},
 		outFile: "targets/target.gen.go",
 		templates: []*template.Template{
