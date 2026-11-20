@@ -266,8 +266,9 @@ func (a ACL) Allowed(r Resource, aType action.Type, userId string, opt ...Option
 			// We don't have this action, but it's a subaction and we have the
 			// parent action. As an example, if we are looking for "read:self"
 			// and have "read", this is sufficient.
-		case grant.ActionSet[action.All]:
-			// All actions are allowed
+		case grant.ActionSet[action.All] && r.Type != resource.AccessRequest:
+			// All actions are allowed. This never applies to access requests:
+			// every access-request action (including approve) must be named.
 		default:
 			// No actions in the grant match what we're looking for, so continue
 			// with the next grant
@@ -590,7 +591,7 @@ func (a ACL) buildPermission(
 		// We found a grant that matches the requested resource type:
 		// Search to see if one or all actions in the action set have been granted.
 		found := false
-		if ok := grant.ActionSet[action.All]; ok {
+		if ok := grant.ActionSet[action.All]; ok && requestedType != resource.AccessRequest {
 			found = true
 		} else {
 			for idA := range idActions {
