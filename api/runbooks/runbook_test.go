@@ -47,3 +47,25 @@ func TestReadAndDeletePaths(t *testing.T) {
 	_, err = c.Read(context.Background(), "")
 	require.Error(t, err)
 }
+
+func TestServerErrorsPassThrough(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"kind":"NotFound","message":"not found"}`))
+	}))
+	defer srv.Close()
+	cfg, err := api.DefaultConfig()
+	require.NoError(t, err)
+	cfg.Addr = srv.URL
+	ac, err := api.NewClient(cfg)
+	require.NoError(t, err)
+	c := NewClient(ac)
+
+	_, err = c.Read(context.Background(), "rb_1234567890")
+	require.Error(t, err)
+	assert.NotNil(t, api.AsServerError(err))
+	_, err = c.Delete(context.Background(), "rb_1234567890")
+	require.Error(t, err)
+	assert.NotNil(t, api.AsServerError(err))
+}
