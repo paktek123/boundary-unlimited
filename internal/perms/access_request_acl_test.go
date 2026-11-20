@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/boundary/internal/types/action"
 	"github.com/hashicorp/boundary/internal/types/resource"
+	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/scopes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,4 +70,27 @@ func TestAccessRequestExplicitGrants(t *testing.T) {
 	// an explicit grant of approve authorizes it.
 	acl = runbookACL(t, scopeId, "ids=*;type=access-request;actions=approve")
 	assert.True(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, action.Approve, "u_1234567890").Authorized)
+}
+
+func TestAccessRequestActionsWildcardAuthorizesNothing(t *testing.T) {
+	t.Parallel()
+	const scopeId = "o_1234567890"
+	all := []action.Type{action.Create, action.List, action.Read, action.Cancel, action.Approve, action.Deny, action.Revoke}
+	for _, grants := range [][]string{
+		{"ids=*;type=access-request;actions=*"},
+		{"ids=*;type=*;actions=*", "ids=*;type=access-request;actions=*"},
+	} {
+		acl := runbookACL(t, scopeId, grants...)
+		for _, a := range all {
+			assert.False(t, acl.Allowed(Resource{ScopeId: scopeId, Type: resource.AccessRequest}, a, "u_1234567890").Authorized, "%v %s collection", grants, a)
+			assert.False(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, a, "u_1234567890").Authorized, "%v %s id", grants, a)
+		}
+		perms := acl.ListPermissions(map[string]*scopes.ScopeInfo{scopeId: nil}, resource.AccessRequest, action.AccessRequestIdActions, "u_1234567890")
+		assert.Empty(t, perms, "%v", grants)
+	}
+
+	// Naming actions explicitly next to a wildcard still works for the named ones only.
+	acl := runbookACL(t, scopeId, "ids=*;type=access-request;actions=read,*")
+	assert.True(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, action.Read, "u_1234567890").Authorized)
+	assert.False(t, acl.Allowed(Resource{ScopeId: scopeId, Id: "ar_1234567890", Type: resource.AccessRequest}, action.Approve, "u_1234567890").Authorized)
 }
