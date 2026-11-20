@@ -14,7 +14,7 @@ Tracking: epic #22, issue #27. Design: [docs/rfc/kubernetes-target.md](rfc/kuber
 |---|---|
 | Target subtype package (store, repository tests) | `internal/target/kubernetes` |
 | Inert `target_kubernetes` table (migration 113) | `internal/db/schema/migrations/oss/postgres` |
-| Worker relay to a Kubernetes API server over mandatory, verified TLS; not registered as a proxy handler | `internal/daemon/worker/proxy/kube` |
+| Worker relay to a Kubernetes API server over mandatory, verified TLS; registered as a proxy handler that refuses every session (fail closed) until a session input decoder is installed | `internal/daemon/worker/proxy/kube` |
 | Kubeconfig builder: TLS-verifying, written to a private 0600 temp file, exec-plugin kubeconfigs rejected | `internal/cmd/commands/connect` (`kubeconfig.go`) |
 | Parsing of a brokered Kubernetes credential for `boundary connect kube` | `internal/cmd/commands/connect/kubecreds` |
 
@@ -32,4 +32,7 @@ Tracking: epic #22, issue #27. Design: [docs/rfc/kubernetes-target.md](rfc/kuber
 ## Not yet available
 
 The API handler, SDK and `boundary targets create kubernetes` (issue #25), the
-registered worker proxy and the `boundary connect kube` flags (issue #26).
+session input decoder that lets the registered worker proxy relay a session,
+and the `boundary connect kube` flags (issue #26). Until the decoder exists
+the registered handler (`internal/daemon/worker/proxy/kube/register.go`)
+refuses every session before relaying any byte.
