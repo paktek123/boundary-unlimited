@@ -8,6 +8,7 @@ package accessrequestscmd
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -80,20 +81,27 @@ func extraFlagsHandlingFuncImpl(c *Command, _ *base.FlagSets, opts *[]accessrequ
 		*opts = append(*opts, accessrequests.WithGrants(c.flagGrants))
 	}
 	if c.flagDuration != "" {
-		var secs uint32
-		if n, err := strconv.ParseUint(c.flagDuration, 10, 32); err == nil {
-			secs = uint32(n)
-		} else {
-			d, err := time.ParseDuration(c.flagDuration)
-			if err != nil || d <= 0 {
-				c.UI.Error(fmt.Sprintf("Error parsing %q as a duration", c.flagDuration))
-				return false
-			}
-			secs = uint32(d.Seconds())
+		secs, ok := parseDurationSeconds(c.flagDuration)
+		if !ok {
+			c.UI.Error(fmt.Sprintf("Error parsing %q as a positive duration of at most %d seconds", c.flagDuration, uint64(math.MaxUint32)))
+			return false
 		}
 		*opts = append(*opts, accessrequests.WithDurationSeconds(secs))
 	}
 	return true
+}
+
+// parseDurationSeconds parses an integer number of seconds or a duration
+// string. It rejects zero, negative and out-of-range values.
+func parseDurationSeconds(in string) (uint32, bool) {
+	if n, err := strconv.ParseUint(in, 10, 32); err == nil {
+		return uint32(n), n > 0
+	}
+	d, err := time.ParseDuration(in)
+	if err != nil || d < time.Second || d.Seconds() > math.MaxUint32 {
+		return 0, false
+	}
+	return uint32(d.Seconds()), true
 }
 
 func (c *Command) extraHelpFunc(helpMap map[string]func() string) string {
@@ -122,10 +130,14 @@ func (c *Command) extraHelpFunc(helpMap map[string]func() string) string {
 			"",
 		})
 	case "approve", "deny", "cancel", "revoke":
+		note := ""
+		if c.Func == "revoke" {
+			note = " Revoking may be refused by the server until it is supported."
+		}
 		helpStr = base.WrapForHelpText([]string{
 			fmt.Sprintf("Usage: boundary access-requests %s [options] [args]", c.Func),
 			"",
-			fmt.Sprintf("  %s the access request specified by ID. The server decides who may do this; approval is never allowed for the requester. Example:", c.Func),
+			fmt.Sprintf("  %s the access request specified by ID. The server decides who may do this; approval is never allowed for the requester.%s Example:", c.Func, note),
 			"",
 			fmt.Sprintf("    $ boundary access-requests %s -id ar_1234567890", c.Func),
 			"",
