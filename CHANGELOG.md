@@ -337,6 +337,7 @@ fork, which is independent of HashiCorp.
 * api: Add the Go SDK package `api/accessrequests` (generated create/read/list client plus hand-written approve, deny, cancel and revoke calls and create options). The controller does not serve the access-request API yet (#322), so calls fail closed (Refs #323).
 * perms: Add the `access-request` resource type (actions create, list, read, cancel, approve, deny, revoke; hyphenated spelling only). A wildcard type grant (`type=*`) never covers access requests, so every access-request action needs an explicit `type=access-request` grant. No API enforces these grants yet; the type is groundwork for the binding security decision on #322.
 * cli: Add `boundary access-requests create|read|list|approve|deny|cancel|revoke` over the new `api/accessrequests` SDK. The controller does not serve the access-request API yet (#322), so the commands fail closed; authorization (explicit grants, no self-approval) is enforced server side (Refs #323).
+* docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
 
 ## 0.21.3 (2026/04/28)
 
