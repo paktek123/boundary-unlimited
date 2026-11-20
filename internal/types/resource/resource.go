@@ -38,6 +38,7 @@ const (
 	Billing
 	Alias
 	Runbook
+	AccessRequest
 	// NOTE: When adding a new type, be sure to update:
 	//
 	// * The Grant.validateType function and test
@@ -81,6 +82,7 @@ func (r Type) String() string {
 		"billing",
 		"alias",
 		"runbook",
+		"access-request",
 	}[r]
 }
 
@@ -142,6 +144,7 @@ var Map = map[string]Type{
 	Billing.String():           Billing,
 	Alias.String():             Alias,
 	Runbook.String():           Runbook,
+	AccessRequest.String():     AccessRequest,
 }
 
 // Parent returns the parent type for a given type; if there is no parent, it
@@ -187,6 +190,7 @@ func (r Type) TopLevelType() bool {
 		Policy,
 		Alias,
 		Runbook,
+		AccessRequest,
 		Worker:
 		return true
 	}

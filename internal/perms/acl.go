@@ -244,6 +244,12 @@ func (a ACL) Allowed(r Resource, aType action.Type, userId string, opt ...Option
 		if r.Type == resource.Runbook && (grant.Type == resource.All || aType == action.Execute) {
 			continue
 		}
+		// Access requests are opt-in too: a wildcard type grant (type=*) never
+		// covers them, so read, cancel and approve access to access requests
+		// is always a deliberate grant on type=access-request.
+		if r.Type == resource.AccessRequest && grant.Type == resource.All {
+			continue
+		}
 		switch {
 		case len(grant.ActionSet) == 0:
 			// Continue with the next grant, unless we have output fields
@@ -575,6 +581,9 @@ func (a ACL) buildPermission(
 		}
 		// Runbooks are opt-in: wildcard type grants never cover them.
 		if requestedType == resource.Runbook && grant.Type == resource.All {
+			continue
+		}
+		if requestedType == resource.AccessRequest && grant.Type == resource.All {
 			continue
 		}
 
