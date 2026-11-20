@@ -336,6 +336,7 @@ fork, which is independent of HashiCorp.
 * access requests: Add the gRPC adapter `internal/daemon/controller/handlers/accessrequests` implementing the generated `AccessRequestServiceServer` over `accessrequest.Service`: the requester always comes from the authenticated actor (never the message), requests are visible only to their requester or an approver of the scope (others get not found), approve/deny/cancel require the current `version`, and revoke is refused as not yet supported. Not registered in the controller, so no endpoint accepts requests yet. Refs #18, #3.
 * targets: Add the `KubernetesTargetAttributes` message (default_port and default_client_port only) to the targets API proto, oneof field 204, with regenerated SDK protobuf code. No handler accepts a `kubernetes` target yet and no session recording options are included, so nothing is enabled (Refs #25).
 * api: Generate the Go SDK options for `KubernetesTargetAttributes` (`api/targets/kubernetes_target_attributes.gen.go`, `WithKubernetesTarget*` options). The API still rejects `kubernetes` targets (Refs #25).
+* cli: Add `boundary targets create kubernetes` and `targets update kubernetes` (generated `kubernetes_targets.gen.go` plus `kubernetes_funcs.go`, adapted from the rdp commands without session-recording flags). The controller still rejects `kubernetes` targets, so these commands fail closed until the handler lands (Refs #25).
 
 ## 0.21.3 (2026/04/28)
 
