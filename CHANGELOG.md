@@ -348,6 +348,7 @@ fork, which is independent of HashiCorp.
 * runbooks: Add an explicit `unverified` state to `runbook.StoredDefinition` (`NewUnverifiedStoredDefinition`, `Verified`, `WithPin` in `internal/runbook/repository.go`): a definition built from a pin only (full commit SHA and script path, no script bytes) has no script hash, `source.Verify` refuses its pin so run and approval binding fail closed, and changing the commit or path resets a verified definition to unverified. Nothing creates unverified definitions through an API yet (Refs #321).
 * docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
 * runbooks: Add `VerifiedCallerResolver` (`internal/daemon/controller/handlers/runbooks/verified_caller.go`), the `CallerResolver` backed by `auth.Verify` with the global scope, refusing anonymous and recovery callers and returning a fixed error for every failure. It is not registered in the controller, so no runbooks endpoint changes. Refs #337, #320.
+* api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
 
 ## 0.21.3 (2026/04/28)
 
