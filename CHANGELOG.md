@@ -347,6 +347,8 @@ fork, which is independent of HashiCorp.
 * Runbooks: migration 118 lets `runbook_definition.script_sha256` hold the empty string (the explicit unverified state) while still rejecting any other malformed hash. Nothing creates unverified rows yet and run/approval refuse them (Refs #321).
 * runbooks: Add an explicit `unverified` state to `runbook.StoredDefinition` (`NewUnverifiedStoredDefinition`, `Verified`, `WithPin` in `internal/runbook/repository.go`): a definition built from a pin only (full commit SHA and script path, no script bytes) has no script hash, `source.Verify` refuses its pin so run and approval binding fail closed, and changing the commit or path resets a verified definition to unverified. Nothing creates unverified definitions through an API yet (Refs #321).
 * docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
+* event: Correct the `HTTPSink` and `SyslogSink` comments in `internal/event/sink_type.go`: they said "not yet supported", but both are delivered when the netsink delivery factory is registered and fail closed without it. Comment-only change. Refs #55, #56.
+* api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
 
 ## 0.21.3 (2026/04/28)
 
