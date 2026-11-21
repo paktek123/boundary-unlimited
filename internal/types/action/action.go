@@ -77,6 +77,9 @@ const (
 	MonthlyActiveUsers                 Type = 63
 	ListResolvableAliases              Type = 64
 	Execute                            Type = 65
+	Approve                            Type = 66
+	Deny                               Type = 67
+	Revoke                             Type = 68
 
 	// When adding new actions, be sure to update:
 	//
@@ -150,6 +153,9 @@ var Map = map[string]Type{
 	MonthlyActiveUsers.String():                 MonthlyActiveUsers,
 	ListResolvableAliases.String():              ListResolvableAliases,
 	Execute.String():                            Execute,
+	Approve.String():                            Approve,
+	Deny.String():                               Deny,
+	Revoke.String():                             Revoke,
 }
 
 var DeprecatedMap = map[string]Type{
@@ -229,6 +235,9 @@ func (a Type) String() string {
 		"monthly-active-users",
 		"list-resolvable-aliases",
 		"execute",
+		"approve",
+		"deny",
+		"revoke",
 	}[a]
 }
 
