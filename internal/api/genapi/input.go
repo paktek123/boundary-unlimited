@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/plugins"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/policies"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/roles"
+	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/runbooks"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/scopes"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/session_recordings"
 	"github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/sessions"
@@ -879,6 +880,31 @@ var inputStructs = []*structInfo{
 		recursiveListing:    true,
 	},
 
+	// Runbooks: read and delete only. Create and update take only the pinned
+	// reference and replace the definition (no update_mask), so they are not
+	// generated from the generic templates. List is not generated because the
+	// generic list template needs created/updated times, which Runbook does not
+	// carry. The controller does not serve the API yet (#320).
+	{
+		inProto: &runbooks.RunbookParameter{},
+		outFile: "runbooks/runbook_parameter.gen.go",
+	},
+	{
+		inProto: &runbooks.RunbookTargetSelector{},
+		outFile: "runbooks/runbook_target_selector.gen.go",
+	},
+	{
+		inProto: &runbooks.Runbook{},
+		outFile: "runbooks/runbook.gen.go",
+		templates: []*template.Template{
+			clientTemplate,
+			readTemplate,
+			deleteTemplate,
+		},
+		pluralResourceName:  "runbooks",
+		versionEnabled:      true,
+		createResponseTypes: []string{ReadResponseType, DeleteResponseType},
+	},
 	// Access requests: create, read and list are generated. The decision and
 	// cancel actions (approve, deny, cancel, revoke) are hand-written in
 	// api/accessrequests, like sessions/cancel.go.
