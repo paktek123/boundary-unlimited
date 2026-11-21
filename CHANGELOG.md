@@ -347,6 +347,7 @@ fork, which is independent of HashiCorp.
 * Runbooks: migration 118 lets `runbook_definition.script_sha256` hold the empty string (the explicit unverified state) while still rejecting any other malformed hash. Nothing creates unverified rows yet and run/approval refuse them (Refs #321).
 * runbooks: Add an explicit `unverified` state to `runbook.StoredDefinition` (`NewUnverifiedStoredDefinition`, `Verified`, `WithPin` in `internal/runbook/repository.go`): a definition built from a pin only (full commit SHA and script path, no script bytes) has no script hash, `source.Verify` refuses its pin so run and approval binding fail closed, and changing the commit or path resets a verified definition to unverified. Nothing creates unverified definitions through an API yet (Refs #321).
 * docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
+* docs: `docs/ssh-session-recording.md` now states that the `session-recordings` export and download CLI commands exist but the open-source controller returns `Unimplemented` for them, so no playback or export is served by this build. Refs #14.
 
 ## 0.21.3 (2026/04/28)
 
