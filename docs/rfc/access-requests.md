@@ -150,6 +150,44 @@ enforced.
 7. Controller repository and API/CLI to create, list, approve, deny and cancel
    (#16, #18 and following), only after 6 has merged.
 
+## API authorization model (binding security decision on #322)
+
+This section records the security decision taken on #322 for the API that will
+serve access requests. It describes what the API must enforce; the API is not
+registered in the controller yet.
+
+* **Resource type and grants.** Grants are written
+  `type=access-request;actions=create,list,read,cancel,approve,deny,revoke`.
+  Only the hyphenated spelling is accepted (`access_request` is rejected).
+* **Explicit grants only.** Every RPC needs an explicit grant on
+  `type=access-request`. A wildcard `type=*` or `actions=*` grant does not
+  satisfy it, so access to justifications and the ability to approve are
+  always deliberate. A missing grant is 403 and is decided before any
+  repository lookup, so missing and existing ids look the same.
+* **Identity and scope come from the authenticated request** (via the
+  actor resolver), never from request fields. Approvers see requests only in
+  scopes where they hold `approve`; everyone else sees only their own, and other
+  users' requests answer not found.
+* **Self-approval is always refused**, even for a caller who holds `approve`
+  and created the request, and an approver must already hold every requested
+  grant. The requester withdraws their own request with `cancel`.
+* **One shared service.** A single `accessrequest.Service` is passed to the API
+  adapter and to the grant overlay. If it cannot be built (no repository, no
+  audit emitter, KMS or database failure) the API and its HTTP gateway are not
+  registered and the overlay stays unset, with a fixed-reason system event that
+  never includes the underlying error. The audit emitter is required: an
+  unauditable approval must not produce a grant.
+* **Notifier is optional and never decides state.** A send failure or timeout
+  happens after the state change is committed, is bounded by a timeout and
+  never changes or blocks the state. Messages and events carry ids, grant
+  strings and timestamps only.
+* **Justification is untrusted text**: length bounded, never placed in events,
+  logs, notifier payloads or error messages.
+* **No inert options.** Fields the stack does not enforce are rejected.
+
+Not resisted: a compromised approver who legitimately holds the requested
+grants, and a compromised controller operator.
+
 ## Open security questions
 
 For the security reviewer; not decided here.
