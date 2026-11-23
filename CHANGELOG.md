@@ -351,6 +351,8 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-session-recording.md` now states that the `session-recordings` export and download CLI commands exist but the open-source controller returns `Unimplemented` for them, so no playback or export is served by this build. Refs #14.
 * runbooks: Add `VerifiedCallerResolver` (`internal/daemon/controller/handlers/runbooks/verified_caller.go`), the `CallerResolver` backed by `auth.Verify` with the global scope, refusing anonymous and recovery callers and returning a fixed error for every failure. It is not registered in the controller, so no runbooks endpoint changes. Refs #337, #320.
 * api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
+* targets: Add the `kubernetes` target handler (`internal/daemon/controller/handlers/targets/kubernetes`) and register it with the kubernetes target type in the controller binary, so kubernetes targets can be created, read, updated and listed through the API (default_port defaults to 443; ports are validated; there are no recording or credential options). The worker kube handler has no proxy enabled yet, so every kubernetes session is refused and kubernetes targets are not usable for connecting. Refs #336, #25.
+
 
 ## 0.21.3 (2026/04/28)
 
