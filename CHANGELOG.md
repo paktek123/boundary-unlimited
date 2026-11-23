@@ -352,6 +352,8 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-session-recording.md` now states that the `session-recordings` export and download CLI commands exist but the open-source controller returns `Unimplemented` for them, so no playback or export is served by this build. Refs #14.
 * runbooks: Add `VerifiedCallerResolver` (`internal/daemon/controller/handlers/runbooks/verified_caller.go`), the `CallerResolver` backed by `auth.Verify` with the global scope, refusing anonymous and recovery callers and returning a fixed error for every failure. It is not registered in the controller, so no runbooks endpoint changes. Refs #337, #320.
 * api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
+* access requests: Add `VerifiedActorResolver` (`internal/daemon/controller/handlers/accessrequests/verified_actor.go`), the `ActorResolver` backed by `auth.Verify`: the actor id comes from the verified result, and `CanApprove` is true only when the ACL explicitly authorizes `approve` on the request's scope. Anonymous and recovery callers are refused with a fixed reason. `Actor.Grants` is left empty, so approval fails closed until grants are supplied. It is not registered in the controller. Refs #338, #322.
+
 
 ## 0.21.3 (2026/04/28)
 
