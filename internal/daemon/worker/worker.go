@@ -389,6 +389,7 @@ func New(ctx context.Context, conf *Config) (*Worker, error) {
 	}
 
 	installSSHAuditEmitters(event.WriteSysEvent)
+	installSSHSessionInput()
 	if w.sshScratch, err = newSSHScratch(w.conf.RawConfig.Worker.RecordingStoragePath); err != nil {
 		return nil, fmt.Errorf("error creating ssh recording scratch store: %w", err)
 	}
