@@ -4,10 +4,12 @@
 package kubernetes
 
 import (
+	"context"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/hashicorp/boundary/internal/target"
+	"github.com/hashicorp/boundary/internal/target/kubernetes"
 	pb "github.com/hashicorp/boundary/sdk/pbs/controller/api/resources/targets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,7 @@ func TestVet(t *testing.T) {
 	assert.Empty(t, attr(nil, nil).Vet())
 	assert.Empty(t, attr(u(6443), u(8080)).Vet())
 	assert.Contains(t, attr(u(0), nil).Vet(), defaultPortField)
+	assert.Empty(t, attr(u(65535), u(65535)).Vet())
 	assert.Contains(t, attr(u(65536), nil).Vet(), defaultPortField)
 	assert.Contains(t, attr(nil, u(0)).Vet(), defaultClientPortField)
 	assert.Contains(t, attr(nil, u(70000)).Vet(), defaultClientPortField)
@@ -58,4 +61,22 @@ func TestSetAttributes(t *testing.T) {
 	require.NoError(t, setAttributes(nil, out))
 	assert.Nil(t, out.Attrs)
 	require.NotNil(t, newAttribute(&pb.Target_KubernetesTargetAttributes{KubernetesTargetAttributes: &pb.KubernetesTargetAttributes{}}))
+
+	tgt, err := target.New(context.Background(), kubernetes.Subtype, "p_1234567890",
+		target.WithName("k"), target.WithAddress("k8s.example.com"),
+		target.WithDefaultPort(6443), target.WithDefaultClientPort(8080))
+	require.NoError(t, err)
+	out = &pb.Target{}
+	require.NoError(t, setAttributes(tgt, out))
+	got := out.GetKubernetesTargetAttributes()
+	require.NotNil(t, got)
+	assert.Equal(t, uint32(6443), got.GetDefaultPort().GetValue())
+	assert.Equal(t, uint32(8080), got.GetDefaultClientPort().GetValue())
+
+	tgt, err = target.New(context.Background(), kubernetes.Subtype, "p_1234567890",
+		target.WithName("k"), target.WithAddress("k8s.example.com"), target.WithDefaultPort(6443))
+	require.NoError(t, err)
+	out = &pb.Target{}
+	require.NoError(t, setAttributes(tgt, out))
+	assert.Nil(t, out.GetKubernetesTargetAttributes().GetDefaultClientPort())
 }
