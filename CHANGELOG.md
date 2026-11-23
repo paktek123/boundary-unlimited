@@ -351,8 +351,8 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-session-recording.md` now states that the `session-recordings` export and download CLI commands exist but the open-source controller returns `Unimplemented` for them, so no playback or export is served by this build. Refs #14.
 * runbooks: Add `VerifiedCallerResolver` (`internal/daemon/controller/handlers/runbooks/verified_caller.go`), the `CallerResolver` backed by `auth.Verify` with the global scope, refusing anonymous and recovery callers and returning a fixed error for every failure. It is not registered in the controller, so no runbooks endpoint changes. Refs #337, #320.
 * api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
-
 * worker: Add `NewSessionBucketSource` (`internal/daemon/worker/recording_bucket_source.go`), a fail-closed `RecordingBucketSource` over controller-provided bucket lookup and opener functions; any missing piece yields a fixed-reason error and the credential is redacted from formatting. Not yet installed in the SSH recording path. Refs #348.
+
 ## 0.21.3 (2026/04/28)
 
 ### New and Improved

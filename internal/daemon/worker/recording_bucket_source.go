@@ -6,7 +6,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"fmt"
 )
 
 // ErrRecordingBucketUnavailable is returned when no storage bucket can be
@@ -23,11 +22,15 @@ var ErrNoRecordingBucket = errors.New("worker: session has no storage bucket")
 // from any formatting so it cannot reach logs or events by accident.
 type SessionBucketRef struct {
 	BucketId string
-	Secret   []byte
+	Secret   []byte `json:"-"`
 }
 
 // String redacts the credential.
 func (r SessionBucketRef) String() string { return "SessionBucketRef{redacted}" }
+
+// MarshalJSON emits only a redaction marker so the credential cannot leak
+// through structured logging or event payloads.
+func (r SessionBucketRef) MarshalJSON() ([]byte, error) { return []byte(`"redacted"`), nil }
 
 // GoString redacts the credential for %#v.
 func (r SessionBucketRef) GoString() string { return r.String() }
@@ -64,7 +67,10 @@ func (s *sessionBucketSource) Open(ctx context.Context, sessionId string) (Recor
 	}
 	bs, err := s.open(ctx, ref)
 	if err != nil || isNilSession(bs) {
-		return nil, fmt.Errorf("%w", ErrRecordingBucketUnavailable)
+		if !isNilSession(bs) {
+			_ = bs.Close()
+		}
+		return nil, ErrRecordingBucketUnavailable
 	}
 	return bs, nil
 }
