@@ -46,6 +46,17 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
   proxying cannot record SSH.
 * Scratch space is bounded by a quota; size it for your longest sessions.
 
+## Worker install gate
+
+`worker.New` calls `installSSHRecording`, which installs the ssh recording
+factory only when every dependency exists. The startup event names a missing
+dependency by these classes: `recording_storage_path` (the scratch store),
+`finalizer`, `bsr_kms_wrapper` (the spec provider) and `reporter`. Today no
+production spec provider, finalizer or reporter is built, so the factory stays
+uninstalled, the worker emits one startup event naming the missing classes, and
+any session that requires recording is refused before an upstream connection
+is made. There is no configuration field that enables recording yet.
+
 ## Not yet available
 
 Enabling recording on a target, upload to a storage bucket from a running
@@ -55,5 +66,13 @@ SSH recordings.
 The export pipeline exists only as an internal library
 (`internal/bsr/playback`). It validates a recording first and converts it
 (asciicast v2 for shell channels, raw log otherwise) only if the recording is
-valid and complete; on any failure nothing is written. It is not wired to any
-CLI command or API, so no export is available to operators yet.
+valid and complete; on any failure nothing is written.
+
+The CLI commands exist in this fork: `boundary session-recordings export`
+(create, read, list, cancel) and `boundary session-recordings download`. They
+call the `SessionRecordingService` API, but the open-source controller's
+handler (`internal/daemon/controller/handlers/session_recordings`) returns
+`Unimplemented` ("session recordings are an Enterprise-only feature") for
+get, list, download, export and delete. So no playback or export is served by
+this build, and the CLI commands fail with that error. Nothing in this section
+changes what a worker records or uploads. Refs #14.
