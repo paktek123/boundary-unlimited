@@ -349,6 +349,10 @@ fork, which is independent of HashiCorp.
 * docs: `docs/access-requests.md` lists the (unregistered) access-request gRPC adapter and what remains. Refs #18.
 * perms: Add the `access-request` resource type (actions create, list, read, cancel, approve, deny, revoke; hyphenated spelling only). A wildcard type grant (`type=*`) never covers access requests, so every access-request action needs an explicit `type=access-request` grant. No API enforces these grants yet; the type is groundwork for the binding security decision on #322.
 * cli: Add `boundary access-requests create|read|list|approve|deny|cancel|revoke` over the new `api/accessrequests` SDK. The controller does not serve the access-request API yet (#322), so the commands fail closed; authorization (explicit grants, no self-approval) is enforced server side (Refs #323).
+* event: Correct the `HTTPSink` and `SyslogSink` comments in `internal/event/sink_type.go`: they said "not yet supported", but both are delivered when the netsink delivery factory is registered and fail closed without it. Comment-only change. Refs #55, #56.
+* docs: `docs/ssh-session-recording.md` now states that the `session-recordings` export and download CLI commands exist but the open-source controller returns `Unimplemented` for them, so no playback or export is served by this build. Refs #14.
+* runbooks: Add `VerifiedCallerResolver` (`internal/daemon/controller/handlers/runbooks/verified_caller.go`), the `CallerResolver` backed by `auth.Verify` with the global scope, refusing anonymous and recovery callers and returning a fixed error for every failure. It is not registered in the controller, so no runbooks endpoint changes. Refs #337, #320.
+* api: Fix a missing closing brace in the runbooks entry of `internal/api/genapi/input.go` that made the package (and `build, vet and gofmt` CI) fail to parse on main. No generated output or API behaviour changes.
 
 ## 0.21.3 (2026/04/28)
 
