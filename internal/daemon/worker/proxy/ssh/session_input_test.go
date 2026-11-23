@@ -5,6 +5,7 @@ package ssh
 
 import (
 	"context"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -96,4 +97,33 @@ func TestSetInputDecoderNilRefusesAll(t *testing.T) {
 	SetInputDecoder(nil)
 	_, _, err := decodeInput(context.Background(), nil, mustAny(t, validInput(t)))
 	require.Error(t, err)
+}
+
+func TestHandleProxyWithInstalledDecoderRefusesRecordingWithoutFactory(t *testing.T) {
+	ctx := context.Background()
+	InstallRecordingFactory(nil)
+	withDecoder(t, DecodeSessionInput)
+	in := validInput(t)
+	in.RecordingEnabled = true
+	pb := mustAny(t, in)
+	c1, c2 := net.Pipe()
+	defer c1.Close()
+	fn, err := registered(t)(ctx, ctx, nil, c2, nil, in.ConnectionId, pb, nil)
+	require.Error(t, err)
+	require.Nil(t, fn)
+	_ = c1.SetReadDeadline(time.Now().Add(2 * time.Second))
+	n, rerr := c1.Read(make([]byte, 1))
+	require.Zero(t, n)
+	require.Error(t, rerr)
+}
+
+func TestHandleProxyWithInstalledDecoderRefusesConnectionMismatch(t *testing.T) {
+	ctx := context.Background()
+	withDecoder(t, DecodeSessionInput)
+	pb := mustAny(t, validInput(t))
+	c1, c2 := net.Pipe()
+	defer c1.Close()
+	fn, err := registered(t)(ctx, ctx, nil, c2, nil, "sc_other", pb, nil)
+	require.Error(t, err)
+	require.Nil(t, fn)
 }
