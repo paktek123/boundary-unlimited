@@ -457,6 +457,18 @@ var resources = map[resource.Type]info{
 			action.Execute: "Execute a runbook (reserved: never authorized until the runbook executor exists)",
 		},
 	},
+	resource.AccessRequest: {
+		scopes: []string{"Global", "Org", "Project"},
+		actionDescOverrides: map[action.Type]string{
+			action.Create:  "Create an access request",
+			action.List:    "List access requests (own requests, or those in scopes where approve is granted)",
+			action.Read:    "Read an access request",
+			action.Cancel:  "Cancel an own access request",
+			action.Approve: "Approve an access request (never self-approval)",
+			action.Deny:    "Deny an access request",
+			action.Revoke:  "Revoke an approved access request",
+		},
+	},
 	resource.Role: {
 		scopes: append(iamScopes, infraScope...),
 	},
