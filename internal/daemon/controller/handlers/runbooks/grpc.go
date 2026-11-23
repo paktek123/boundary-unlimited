@@ -21,10 +21,9 @@ type CallerResolver interface {
 	Caller(ctx context.Context) (Caller, error)
 }
 
-// GRPCService adapts Service to services.RunbookServiceServer for the read and
-// delete operations. Create and update stay Unimplemented until the source of
-// the script body is decided (issue #279). It is NOT registered in the
-// controller.
+// GRPCService adapts Service to services.RunbookServiceServer for the read,
+// delete, create and update operations. Create and update accept only a pin
+// (see CreateRunbook). It is NOT registered in the controller.
 type GRPCService struct {
 	services.UnimplementedRunbookServiceServer
 	svc     *Service
@@ -86,6 +85,65 @@ func toPB(d runbook.StoredDefinition) *pb.Runbook {
 		})
 	}
 	return out
+}
+
+func fromPB(scopeId string, in *pb.Runbook, version uint32) PinnedRequest {
+	r := PinnedRequest{
+		ScopeId: scopeId, Name: in.GetName(), Description: in.GetDescription(), Interpreter: in.GetInterpreter(),
+		CommitSHA: in.GetCommitSha(), ScriptPath: in.GetScriptPath(), Version: version,
+	}
+	if sel := in.GetSelector(); sel != nil {
+		r.Selector = runbook.TargetSelector{AllTargets: sel.GetAllTargets(),
+			TargetIDs: append([]string(nil), sel.GetTargetIds()...), ScopeIDs: append([]string(nil), sel.GetScopeIds()...)}
+	}
+	for _, p := range in.GetParameters() {
+		r.Parameters = append(r.Parameters, runbook.Parameter{
+			Name: p.GetName(), Type: runbook.ParamType(p.GetType()), Regex: p.GetRegex(),
+			AllowedValues: append([]string(nil), p.GetAllowedValues()...),
+			Min:           p.Min, Max: p.Max, MaxLength: int(p.GetMaxLength()),
+			Required: p.GetRequired(), Default: p.GetDefault(), HasDefault: p.GetHasDefault(),
+		})
+	}
+	return r
+}
+
+// CreateRunbook accepts only the pin (commit, script path), metadata and
+// parameter definitions. The result is unverified: run and approval refuse it.
+// Output-only fields in the item (id, script_sha256, version) are ignored.
+func (g *GRPCService) CreateRunbook(ctx context.Context, req *services.CreateRunbookRequest) (*services.CreateRunbookResponse, error) {
+	c, err := g.caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.GetItem() == nil {
+		return nil, status.Error(codes.InvalidArgument, "item is required")
+	}
+	d, err := g.svc.CreatePinned(ctx, c, fromPB(req.GetItem().GetScopeId(), req.GetItem(), 0))
+	if err != nil {
+		return nil, grpcErr(err)
+	}
+	return &services.CreateRunbookResponse{Item: toPB(d)}, nil
+}
+
+// UpdateRunbook replaces the definition with the item (the update mask is not
+// supported) at the item's version. Changing commit or path resets it to
+// unverified.
+func (g *GRPCService) UpdateRunbook(ctx context.Context, req *services.UpdateRunbookRequest) (*services.UpdateRunbookResponse, error) {
+	c, err := g.caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.GetItem() == nil || req.GetId() == "" || req.GetItem().GetVersion() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "id, item and item.version are required")
+	}
+	if len(req.GetUpdateMask().GetPaths()) > 0 {
+		return nil, status.Error(codes.InvalidArgument, "update_mask is not supported; the item replaces the definition")
+	}
+	d, err := g.svc.UpdatePinned(ctx, c, req.GetId(), fromPB("", req.GetItem(), req.GetItem().GetVersion()))
+	if err != nil {
+		return nil, grpcErr(err)
+	}
+	return &services.UpdateRunbookResponse{Item: toPB(d)}, nil
 }
 
 // GetRunbook implements services.RunbookServiceServer.
