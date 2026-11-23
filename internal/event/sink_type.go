@@ -11,8 +11,8 @@ const (
 	StderrSink SinkType = "stderr" // StderrSink is written to stderr
 	FileSink   SinkType = "file"   // FileSink is written to a file
 	WriterSink SinkType = "writer" // WriterSink is written to an io.Writer
-	HTTPSink   SinkType = "http"   // HTTPSink streams to an https collector (not yet supported)
-	SyslogSink SinkType = "syslog" // SyslogSink streams RFC 5424 to a collector (not yet supported)
+	HTTPSink   SinkType = "http"   // HTTPSink streams to an https collector; needs the registered netsink delivery factory and fails closed without it
+	SyslogSink SinkType = "syslog" // SyslogSink streams RFC 5424 to a collector; needs the registered netsink delivery factory and fails closed without it
 )
 
 type SinkType string // SinkType defines the type of sink in a config stanza (file, stderr, writer)
