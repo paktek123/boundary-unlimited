@@ -17,6 +17,23 @@ Tracking: epic #1, issue #9. Design: [docs/rfc/ssh-credential-injection.md](rfc/
 | SSH proxy handler and upstream dialing | `internal/daemon/worker/proxy/ssh` |
 | Host key verification policy | `internal/daemon/worker/proxy/ssh/hostkey`, `internal/target/ssh/hostkeypolicy` |
 
+## Worker session input
+
+The ssh worker handler argument is the `SshSessionInput` message
+(`internal/proto/controller/servers/services/v1/ssh_session_input.proto`),
+decoded by `DecodeSessionInput` in
+`internal/daemon/worker/proxy/ssh/session_input.go`. It carries the session,
+connection and target ids, the resolved upstream address, the pinned host keys
+or host CAs, a recording flag and the expiration. It has deliberately **no
+credential field**. The decoder fails closed: it refuses the session when the
+message is missing or malformed, when its connection id does not match the
+connection being proxied, when neither a pinned host key nor a host CA is
+present, or when there are more than `hostkeypolicy.MaxHostKeys` entries.
+
+The controller does not populate this message yet: an `ssh` target has no
+stored host key policy (tracked on issue #347), so no input is sent and the decoder
+refuses every ssh session until that lands.
+
 ## Properties the feature keeps
 
 * **The client never sees injected secrets.** Only brokered credentials are
