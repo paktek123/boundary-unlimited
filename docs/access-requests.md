@@ -19,6 +19,8 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
 | Grant overlay: approved, unexpired requests add exactly their approved grants for `authorize-session` | `internal/accessrequest/merge.go`, `internal/daemon/controller/handlers/targets/overlay_authorizer.go` |
 | Sweeper that audits and then expires overdue requests | `internal/accessrequest` (`sweeper.go`) |
 | gRPC adapter for the generated `AccessRequestServiceServer` (requester from the authenticated actor, visibility limited to requester or scope approver, version required for decisions, revoke refused); **not registered** in the controller | `internal/daemon/controller/handlers/accessrequests` |
+| `access-request` resource type and its explicit-only grants (`type=access-request;actions=create,list,read,cancel,approve,deny,revoke`); neither `type=*` nor `actions=*` ever covers it | `internal/types/resource`, `internal/perms` |
+| Go SDK client for the access-request API (create, read, list, approve, deny, cancel, revoke); the controller does not serve the API yet, so every call fails | `api/accessrequests` |
 | Notification fan-out and `notifier` config (the stanza is still refused at load) | `internal/notify`, [docs/notifier.md](notifier.md) |
 
 ## Rules the feature keeps
