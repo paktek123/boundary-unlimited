@@ -6,6 +6,7 @@ package accessrequests
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/hashicorp/boundary/internal/accessrequest"
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
@@ -68,6 +69,9 @@ func (r *VerifiedActorResolver) Actor(ctx context.Context, scopeId string) (acce
 	if scopeId == "" {
 		return actor, nil
 	}
+	if !validScopeId(scopeId) {
+		return accessrequest.Actor{}, errUnauthenticated
+	}
 	actor.CanApprove = canApprove(res.ACL(), res.UserId, scopeId)
 	return actor, nil
 }
@@ -81,4 +85,13 @@ func canApprove(acl perms.ACL, userId, scopeId string) bool {
 		action.Approve,
 		userId,
 	).Authorized
+}
+
+// validScopeId reports whether scopeId has the shape of a stored scope id
+// (global, an org or a project), so a malformed value fails closed instead of
+// silently yielding CanApprove=false.
+func validScopeId(scopeId string) bool {
+	return scopeId == scope.Global.String() ||
+		strings.HasPrefix(scopeId, scope.Org.Prefix()+"_") ||
+		strings.HasPrefix(scopeId, scope.Project.Prefix()+"_")
 }

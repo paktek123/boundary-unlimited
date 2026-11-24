@@ -104,3 +104,19 @@ func TestCanApprove(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifiedActorResolverMalformedScope(t *testing.T) {
+	r := &VerifiedActorResolver{verify: func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
+		return auth.VerifyResults{UserId: "u_1"}
+	}}
+	for _, scopeId := range []string{"bogus", "x_123", "u_1"} {
+		if _, err := r.Actor(context.Background(), scopeId); err != errUnauthenticated {
+			t.Fatalf("scope %q: expected fixed refusal, got %v", scopeId, err)
+		}
+	}
+	for _, scopeId := range []string{"global", "o_1234567890", "p_1234567890"} {
+		if _, err := r.Actor(context.Background(), scopeId); err != nil {
+			t.Fatalf("scope %q: %v", scopeId, err)
+		}
+	}
+}
