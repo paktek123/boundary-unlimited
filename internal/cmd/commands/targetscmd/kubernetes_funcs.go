@@ -5,6 +5,7 @@ package targetscmd
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -185,6 +186,10 @@ func extraKubernetesFlagsHandlingFuncImpl(c *KubernetesCommand, _ *base.FlagSets
 			dur, err := time.ParseDuration(c.flagSessionMaxSeconds)
 			if err != nil {
 				c.UI.Error(fmt.Sprintf("Error parsing %q: %s", c.flagSessionMaxSeconds, err))
+				return false
+			}
+			if dur <= 0 || dur.Seconds() > math.MaxUint32 {
+				c.UI.Error(fmt.Sprintf("Error parsing %q: session-max-seconds must be between 1 second and %d seconds", c.flagSessionMaxSeconds, uint64(math.MaxUint32)))
 				return false
 			}
 			final = uint32(dur.Seconds())
