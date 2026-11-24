@@ -39,13 +39,23 @@ func TestRunbookSysEmitter(t *testing.T) {
 	ctx := context.Background()
 	require.Error(t, runbookSysEmitter{}.Emit(ctx, runbooks.WriteEvent{}))
 
+	var gotOp string
 	var got []any
-	e := runbookSysEmitter{write: func(_ context.Context, _ event.Op, _ string, args ...any) { got = args }}
-	require.NoError(t, e.Emit(ctx, runbooks.WriteEvent{Op: "delete", RunbookId: "rb_1", ScopeId: "global", PrincipalId: "u_1", Timestamp: time.Unix(0, 0)}))
-	assert.Contains(t, got, "runbook_id")
-	// no script, parameter or description key is ever forwarded
-	assert.NotContains(t, got, "script")
-	assert.NotContains(t, got, "description")
+	e := runbookSysEmitter{write: func(_ context.Context, _ event.Op, msg string, args ...any) { gotOp, got = msg, args }}
+	require.NoError(t, e.Emit(ctx, runbooks.WriteEvent{
+		Op: "delete", RunbookId: "rb_1", ScopeId: "global", PrincipalId: "u_1", Version: 3,
+		Timestamp: time.Unix(0, 0), CommitSHA: "canary-sha", ParamNames: []string{"canary-param"},
+	}))
+	assert.Equal(t, "delete", gotOp)
+	// Exactly these keys, in this order; nothing else (no script, parameter,
+	// description or commit data) is ever forwarded.
+	var keys []string
+	for i := 0; i < len(got); i += 2 {
+		keys = append(keys, got[i].(string))
+	}
+	assert.Equal(t, []string{"runbook_id", "scope_id", "principal_id", "version", "at"}, keys)
+	assert.NotContains(t, got, "canary-sha")
+	assert.NotContains(t, got, "canary-param")
 }
 
 func TestRunbookReadDelete_CreateUpdateUnimplemented(t *testing.T) {
