@@ -357,6 +357,7 @@ fork, which is independent of HashiCorp.
 * worker: Add `NewSessionBucketSource` (`internal/daemon/worker/recording_bucket_source.go`), a fail-closed `RecordingBucketSource` over controller-provided bucket lookup and opener functions; any missing piece yields a fixed-reason error and the credential is redacted from formatting. Not yet installed in the SSH recording path. Refs #348.
 * targets: Add the `kubernetes` target handler (`internal/daemon/controller/handlers/targets/kubernetes`): port validation (default_port defaults to 443) and attribute mapping, with no recording or credential options. It is not imported by the controller binary yet, so kubernetes targets still cannot be created; registration lands with its service-level database tests. Refs #336, #25.
 * worker: Add `sshFinalizeReporter` (`internal/daemon/worker/ssh_finalize_reporter.go`), the production `FinalizeReporter` for ssh recordings: one system event per finalisation with the session id, upload status and attempts only (no error text). It is not yet wired into the recording factory, so nothing is enabled (Refs #259).
+* worker: Pass the `sshFinalizeReporter` and the ssh scratch store to `installSSHRecording` at startup. The recording factory stays uninstalled (and recording-required ssh sessions refused) because the finalizer and spec provider do not exist yet; the startup event now names only those (Refs #259).
 
 ## 0.21.3 (2026/04/28)
 
