@@ -2,14 +2,16 @@
 
 Tracking: epic #89, issues #260 and #279. Design: [docs/rfc/runbooks.md](rfc/runbooks.md).
 
-> **Status: not usable yet.** There is no runbook API, CLI or worker execution.
-> The `runbooks` service is not registered in the controller, so no endpoint
-> accepts a runbook definition, and running a runbook always returns "not yet
-> supported". The pieces below are merged as libraries and database schema
-> only. This page is the API documentation stub; it will describe the real API
-> when the service is registered (issue #279).
+> **Status: read and delete only.** The controller serves `GetRunbook`,
+> `ListRunbooks` and `DeleteRunbook` (gRPC and the HTTP gateway) once this is
+> merged, each behind an explicit `runbooks` grant resolved through
+> `auth.Verify`. `CreateRunbook` and `UpdateRunbook` are not served
+> (`Unimplemented`), there is no CLI or worker execution, and running a
+> runbook always returns "not yet supported". If the repository, audit emitter
+> or caller resolver cannot be built at startup the API is not registered and a
+> system event with a fixed reason is written. Design and tracking: issue #320.
 
-## What is merged (not registered)
+## What is merged
 
 | Area | Location |
 |---|---|
