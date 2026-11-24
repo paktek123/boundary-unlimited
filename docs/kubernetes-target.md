@@ -2,11 +2,14 @@
 
 Tracking: epic #22, issue #27. Design: [docs/rfc/kubernetes-target.md](rfc/kubernetes-target.md).
 
-> **Status: not available yet.** The `kubernetes` target type is not
-> registered: nothing outside `internal/target/kubernetes` imports it, so the
-> API, SDK and CLI cannot create one and no session can be authorized for it.
-> The pieces below are merged as libraries or inert database schema only. This
-> page will be updated when the target type can be used.
+> **Status: not available yet.** The controller handler for `kubernetes`
+> targets (`internal/daemon/controller/handlers/targets/kubernetes`) is merged
+> as a library but is not imported by the controller binary, so the API, SDK and
+> CLI cannot create one and no session can be authorized for it. Registration
+> lands together with its service-level database tests. Even then the worker
+> relay refuses every kubernetes session until its input decoder is installed
+> (issue #26). There are no recording or credential injection options;
+> credential sources are limited to the `brokered` purpose.
 
 ## What is merged (not enabled)
 
@@ -31,8 +34,8 @@ Tracking: epic #22, issue #27. Design: [docs/rfc/kubernetes-target.md](rfc/kuber
 
 ## Not yet available
 
-The API handler, SDK and `boundary targets create kubernetes` (issue #25), the
-session input decoder that lets the registered worker proxy relay a session,
+The SDK options and `boundary targets create kubernetes` (issue #25, PRs #328
+and #329), the session input decoder that lets the registered worker proxy relay a session,
 and the `boundary connect kube` flags (issue #26). Until the decoder exists
 the registered handler (`internal/daemon/worker/proxy/kube/register.go`)
 refuses every session before relaying any byte.

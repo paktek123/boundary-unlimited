@@ -104,3 +104,8 @@ func recoverSSHScratch(ctx context.Context, s *scratch.Store, write sysEventWrit
 	}
 	return nil
 }
+
+// installSSHSessionInput installs the decoder of the SshSessionInput handler
+// argument. The input carries no credential, so sessions that need an injected
+// credential are still refused when the session starts.
+func installSSHSessionInput() { sshproxy.InstallSessionInputDecoder() }
