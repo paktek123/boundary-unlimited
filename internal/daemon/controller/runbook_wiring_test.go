@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers/runbooks"
 	"github.com/hashicorp/boundary/internal/event"
 	pbs "github.com/hashicorp/boundary/internal/gen/controller/api/services"
+	"github.com/hashicorp/boundary/internal/runbook"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -54,4 +55,33 @@ func TestRunbookReadDelete_CreateUpdateUnimplemented(t *testing.T) {
 	assert.Equal(t, codes.Unimplemented, status.Code(err))
 	_, err = s.UpdateRunbook(ctx, &pbs.UpdateRunbookRequest{})
 	assert.Equal(t, codes.Unimplemented, status.Code(err))
+}
+
+type userNoGrants struct{}
+
+func (userNoGrants) Caller(context.Context) (runbooks.Caller, error) {
+	return runbooks.Caller{UserId: "u_1234567890"}, nil
+}
+
+func TestNewRunbookServer_ServedRPCsRefuseWithoutAuthOrGrant(t *testing.T) {
+	ctx := context.Background()
+	for name, tc := range map[string]struct {
+		callers runbooks.CallerResolver
+		want    codes.Code
+	}{
+		"unauthenticated": {noCaller{}, codes.Unauthenticated},
+		"no grants":       {userNoGrants{}, codes.PermissionDenied},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := newRunbookServer(runbook.NewMemRepository(), noEmit{}, tc.callers)
+			require.NotNil(t, srv)
+
+			_, err := srv.GetRunbook(ctx, &pbs.GetRunbookRequest{Id: "rb_1234567890"})
+			assert.Equal(t, tc.want, status.Code(err))
+			_, err = srv.ListRunbooks(ctx, &pbs.ListRunbooksRequest{ScopeId: "global"})
+			assert.Equal(t, tc.want, status.Code(err))
+			_, err = srv.DeleteRunbook(ctx, &pbs.DeleteRunbookRequest{Id: "rb_1234567890"})
+			assert.Equal(t, tc.want, status.Code(err))
+		})
+	}
 }
