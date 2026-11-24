@@ -230,3 +230,84 @@ func TestNewServiceRequiresDeps(t *testing.T) {
 	_, err := NewService(nil, nil)
 	assert.Error(t, err)
 }
+
+func pinned(name string) PinnedRequest {
+	return PinnedRequest{ScopeId: scopeA, Name: name, Interpreter: runbook.InterpreterPosixSh,
+		Selector: runbook.TargetSelector{AllTargets: true}, CommitSHA: sha40, ScriptPath: "ops/run.sh"}
+}
+
+func TestUpdatePinnedVerification(t *testing.T) {
+	ctx := context.Background()
+	s, em, repo := newSvc(t)
+	c := admin(t)
+	// Seed a verified definition (script hash present).
+	v, err := runbook.NewStoredDefinition("rb_seed00001", scopeA, req("echo hi\n").Definition, sha40, "ops/run.sh")
+	require.NoError(t, err)
+	v, err = repo.Create(ctx, v)
+	require.NoError(t, err)
+	require.True(t, v.Verified())
+
+	same := pinned("restart")
+	same.Version = v.Version
+	got, err := s.UpdatePinned(ctx, c, v.Id, same)
+	require.NoError(t, err)
+	assert.True(t, got.Verified(), "identical pin keeps verification")
+
+	moved := pinned("restart")
+	moved.CommitSHA = "fedcba9876543210fedcba9876543210fedcba98"
+	moved.Version = got.Version
+	got, err = s.UpdatePinned(ctx, c, v.Id, moved)
+	require.NoError(t, err)
+	assert.False(t, got.Verified(), "changed commit resets to unverified")
+
+	other := pinned("restart")
+	other.CommitSHA = moved.CommitSHA
+	other.ScriptPath = "ops/other.sh"
+	other.Version = got.Version
+	got, err = s.UpdatePinned(ctx, c, v.Id, other)
+	require.NoError(t, err)
+	assert.False(t, got.Verified())
+	assert.Len(t, em.events, 3)
+
+	// Version is required in the service itself.
+	_, err = s.UpdatePinned(ctx, c, v.Id, pinned("restart"))
+	assert.ErrorIs(t, err, ErrInvalid)
+}
+
+func TestPinnedGrantsAndCanary(t *testing.T) {
+	ctx := context.Background()
+	s, em, repo := newSvc(t)
+	c := admin(t)
+	nobody := Caller{UserId: "u_nobody0000", ACL: acl(t, scopeA)}
+
+	_, err := s.CreatePinned(ctx, nobody, pinned("x"))
+	assert.ErrorIs(t, err, ErrForbidden)
+
+	r := pinned("restart-" + canary)
+	r.Description = "desc " + canary
+	r.Parameters = []runbook.Parameter{{Name: "SERVICE", Type: runbook.TypeString, Regex: "^[a-z]+$", Default: canary, HasDefault: true}}
+	d, err := s.CreatePinned(ctx, c, r)
+	require.NoError(t, err)
+	require.Len(t, em.events, 1)
+	assert.NotContains(t, fmt.Sprintf("%+v", em.events), canary, "audit event carries ids, commit and parameter names only")
+	assert.Equal(t, []string{"SERVICE"}, em.events[0].ParamNames)
+
+	u := pinned("restart")
+	u.Version = d.Version
+	_, err = s.UpdatePinned(ctx, nobody, d.Id, u)
+	assert.ErrorIs(t, err, ErrForbidden, "update without grant")
+	_, err = s.UpdatePinned(ctx, c, "rb_missing000", u)
+	assert.ErrorIs(t, err, ErrForbidden, "missing id looks like forbidden")
+
+	bad := pinned("x")
+	bad.CommitSHA = "main-" + canary
+	_, err = s.CreatePinned(ctx, c, bad)
+	require.ErrorIs(t, err, ErrInvalid)
+	assert.NotContains(t, err.Error(), canary, "errors never echo input")
+
+	// No fetcher or dialer exists in the service: Create/Update make no network
+	// calls by construction (it only holds the repository and emitter).
+	all, err := repo.List(ctx, scopeA)
+	require.NoError(t, err)
+	assert.Len(t, all, 1)
+}
