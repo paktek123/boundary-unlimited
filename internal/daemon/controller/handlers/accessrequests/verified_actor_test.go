@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/boundary/globals"
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
 	"github.com/hashicorp/boundary/internal/perms"
 	"github.com/hashicorp/boundary/internal/types/resource"
@@ -22,6 +23,9 @@ func TestVerifiedActorResolverErrors(t *testing.T) {
 		},
 		"anonymous": func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
 			return auth.VerifyResults{UserId: "u_anon"}
+		},
+		"recovery user": func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
+			return auth.VerifyResults{UserId: globals.RecoveryUserId}
 		},
 		"empty user": func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
 			return auth.VerifyResults{}
@@ -118,5 +122,25 @@ func TestVerifiedActorResolverMalformedScope(t *testing.T) {
 		if _, err := r.Actor(context.Background(), scopeId); err != nil {
 			t.Fatalf("scope %q: %v", scopeId, err)
 		}
+	}
+}
+
+// auth.Option is a function over an unexported type, so a test outside the
+// auth package cannot apply the options. Pin that the resolver passes the
+// scope, anonymous-not-allowed and recovery-not-allowed options on every call.
+func TestVerifiedActorResolverPassesAuthOptions(t *testing.T) {
+	var got int
+	r := &VerifiedActorResolver{verify: func(_ context.Context, typ resource.Type, opts ...auth.Option) auth.VerifyResults {
+		got = len(opts)
+		if typ != resource.AccessRequest {
+			t.Fatalf("verified type %v, want access-request", typ)
+		}
+		return auth.VerifyResults{UserId: "u_1"}
+	}}
+	if _, err := r.Actor(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if got != 3 {
+		t.Fatalf("passed %d auth options, want 3 (scope, anonymous not allowed, recovery not allowed)", got)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/hashicorp/boundary/globals"
 	"github.com/hashicorp/boundary/internal/accessrequest"
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
 	"github.com/hashicorp/boundary/internal/perms"
@@ -51,7 +52,8 @@ func NewVerifiedActorResolver() *VerifiedActorResolver {
 }
 
 // Actor authenticates the request. An empty scopeId authenticates only.
-// Anonymous and recovery-token callers are refused and every failure returns
+// Anonymous and recovery-token callers are refused (by the auth options and,
+// as defence in depth, by user id here) and every failure returns
 // errUnauthenticated.
 func (r *VerifiedActorResolver) Actor(ctx context.Context, scopeId string) (accessrequest.Actor, error) {
 	if r == nil || r.verify == nil {
@@ -62,7 +64,7 @@ func (r *VerifiedActorResolver) Actor(ctx context.Context, scopeId string) (acce
 		auth.WithAnonymousUserNotAllowed(true),
 		auth.WithRecoveryTokenNotAllowed(true),
 	)
-	if res.Error != nil || res.UserId == "" || res.UserId == anonymousUserId {
+	if res.Error != nil || res.UserId == "" || res.UserId == anonymousUserId || res.UserId == globals.RecoveryUserId {
 		return accessrequest.Actor{}, errUnauthenticated
 	}
 	actor := accessrequest.Actor{Id: res.UserId}
