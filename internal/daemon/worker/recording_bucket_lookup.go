@@ -16,7 +16,8 @@ type SessionLookupFunc func(ctx context.Context, sessionId string) (*services.Lo
 // NewLookupSessionBucketLookup builds a SessionBucketLookup that reads the
 // recording bucket from the LookupSession response. It copies the secret out of
 // the response into the redacting SessionBucketRef and holds nothing across
-// calls (no cache). A nil fetch func, a lookup error, a missing recording
+// calls (no cache). The response itself still holds the secret until it is
+// garbage collected, so callers must not retain it. A nil fetch func, a lookup error, a missing recording
 // bucket, an empty bucket id or an empty secret all yield
 // ErrNoRecordingBucket, so callers fail closed and the cause (which could
 // echo response data) is dropped.

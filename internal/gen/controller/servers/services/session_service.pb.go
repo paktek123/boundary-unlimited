@@ -82,8 +82,6 @@ func (x *LookupSessionRequest) GetWorkerId() string {
 	return ""
 }
 
-// LookupSessionResponse contains information necessary for a client to
-// establish a session.
 // RecordingBucket is the per-session storage bucket description the controller
 // supplies to the requesting worker only. It is never part of the
 // client-facing session authorization data. The secret is held in memory only
@@ -140,6 +138,8 @@ func (x *RecordingBucket) GetSecret() []byte {
 	return nil
 }
 
+// LookupSessionResponse contains information necessary for a client to
+// establish a session.
 type LookupSessionResponse struct {
 	state           protoimpl.MessageState            `protogen:"open.v1"`
 	Authorization   *targets.SessionAuthorizationData `protobuf:"bytes,10,opt,name=authorization,proto3" json:"authorization,omitempty"`
