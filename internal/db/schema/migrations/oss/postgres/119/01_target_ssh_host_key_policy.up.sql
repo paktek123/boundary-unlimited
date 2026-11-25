@@ -8,7 +8,7 @@ begin;
   -- Nothing accepts these columns through the API yet; the entries are
   -- validated in code (internal/target/ssh/hostkeypolicy) and the limits here
   -- are a bound on what the database will hold: at most 16 entries and a total
-  -- size of 16 entries of 4096 bytes each plus separators.
+  -- size of 16 entries of 4096 bytes each plus 15 newline separators (65551 bytes).
   alter table target_ssh
     add column host_key_policy_keys text[] not null default '{}',
     add column host_key_policy_cas text[] not null default '{}';
@@ -26,11 +26,11 @@ begin;
     add constraint host_key_policy_keys_count_limit
       check(cardinality(host_key_policy_keys) <= 16),
     add constraint host_key_policy_keys_size_limit
-      check(octet_length(array_to_string(host_key_policy_keys, E'\n')) <= 65552),
+      check(octet_length(array_to_string(host_key_policy_keys, E'\n')) <= 65551),
     add constraint host_key_policy_cas_count_limit
       check(cardinality(host_key_policy_cas) <= 16),
     add constraint host_key_policy_cas_size_limit
-      check(octet_length(array_to_string(host_key_policy_cas, E'\n')) <= 65552);
+      check(octet_length(array_to_string(host_key_policy_cas, E'\n')) <= 65551);
 
   comment on column target_ssh.host_key_policy_keys is
     'host_key_policy_keys are the pinned upstream host public keys in authorized_keys format.';
