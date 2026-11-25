@@ -46,14 +46,21 @@ func TestRunbookReadDelete_Grants(t *testing.T) {
 		name    string
 		grants  []string
 		allowed bool
+		// readOnlyOK: get is allowed by a read-only grant, list and delete are not.
+		readOnlyOK bool
 	}{
-		{"explicit grant", []string{"ids=*;type=runbook;actions=read,list,delete"}, true},
-		{"no grants", nil, false},
-		{"wildcard type", []string{"ids=*;type=*;actions=*"}, false},
-		{"read only", []string{"ids=*;type=runbook;actions=read"}, false},
+		{"explicit grant", []string{"ids=*;type=runbook;actions=read,list,delete"}, true, false},
+		{"no grants", nil, false, false},
+		{"wildcard type", []string{"ids=*;type=*;actions=*"}, false, false},
+		{"read only", []string{"ids=*;type=runbook;actions=read"}, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := runbook.NewMemRepository()
+			def := runbook.Definition{Name: "restart", Interpreter: runbook.InterpreterPosixSh, Script: []byte("echo hi\n")}
+			stored, err := runbook.NewStoredDefinition("rb_0000000001", "global", def, "0123456789abcdef0123456789abcdef01234567", "runbooks/restart.sh")
+			require.NoError(t, err)
+			_, err = repo.Create(ctx, stored)
+			require.NoError(t, err)
 			caller := runbooks.Caller{UserId: "u_1234567890", ACL: grantACL(t, tc.grants...)}
 			srv := newRunbookServer(repo, noEmit{}, fixedCaller{c: caller})
 			require.NotNil(t, srv)
@@ -61,16 +68,24 @@ func TestRunbookReadDelete_Grants(t *testing.T) {
 			_, getErr := srv.GetRunbook(ctx, &pbs.GetRunbookRequest{Id: "rb_0000000001"})
 			_, listErr := srv.ListRunbooks(ctx, &pbs.ListRunbooksRequest{ScopeId: "global"})
 			_, delErr := srv.DeleteRunbook(ctx, &pbs.DeleteRunbookRequest{Id: "rb_0000000001"})
-			if !tc.allowed {
-				for name, err := range map[string]error{"get": getErr, "list": listErr, "delete": delErr} {
-					assert.Equal(t, codes.PermissionDenied, status.Code(err), name)
+			if tc.readOnlyOK {
+				assert.NoError(t, getErr)
+				assert.Equal(t, codes.PermissionDenied, status.Code(listErr), "list")
+				assert.Equal(t, codes.PermissionDenied, status.Code(delErr), "delete")
+			} else if !tc.allowed {
+				for _, e := range []struct {
+					name string
+					err  error
+				}{{"get", getErr}, {"list", listErr}, {"delete", delErr}} {
+					assert.Equal(t, codes.PermissionDenied, status.Code(e.err), e.name)
 				}
 			} else {
-				// Authorised for list; get/delete of a missing id are indistinguishable from forbidden.
 				assert.NoError(t, listErr)
+				assert.NoError(t, getErr)
+				assert.NoError(t, delErr)
 			}
 
-			_, err := srv.CreateRunbook(ctx, &pbs.CreateRunbookRequest{})
+			_, err = srv.CreateRunbook(ctx, &pbs.CreateRunbookRequest{})
 			assert.Equal(t, codes.Unimplemented, status.Code(err))
 			_, err = srv.UpdateRunbook(ctx, &pbs.UpdateRunbookRequest{})
 			assert.Equal(t, codes.Unimplemented, status.Code(err))
