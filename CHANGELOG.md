@@ -362,6 +362,7 @@ fork, which is independent of HashiCorp.
 * docs: `docs/runbooks.md` lists the `auth.Verify`-backed caller resolver and the `api/runbooks` SDK client. Refs #320.
 * targets: Add the `kubernetes` target handler (`internal/daemon/controller/handlers/targets/kubernetes`): port validation (default_port defaults to 443) and attribute mapping, with no recording or credential options. It is not imported by the controller binary yet, so kubernetes targets still cannot be created; registration lands with its service-level database tests. Refs #336, #25.
 * worker: Add `sshFinalizeReporter` (`internal/daemon/worker/ssh_finalize_reporter.go`), the production `FinalizeReporter` for ssh recordings: one system event per finalisation with the session id, upload status and attempts only (no error text). It is not yet wired into the recording factory, so nothing is enabled (Refs #259).
+* targets: Add `BuildSessionInput` (`internal/daemon/controller/handlers/targets/ssh/session_input.go`), the controller-side builder of the ssh `SshSessionInput` worker argument. It fails closed on missing ids, a bad address, no expiration or an empty/invalid host key policy (no trust on first use) and is round-trip tested against the worker decoder. `AuthorizeSession` does not call it yet, so nothing is enabled. Refs #347.
 
 ## 0.21.3 (2026/04/28)
 
