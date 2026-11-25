@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hashicorp/boundary/internal/daemon/controller/handlers"
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers/runbooks"
 	"github.com/hashicorp/boundary/internal/db"
 	"github.com/hashicorp/boundary/internal/event"
@@ -15,6 +16,8 @@ import (
 	"github.com/hashicorp/boundary/internal/kms"
 	"github.com/hashicorp/boundary/internal/runbook"
 	runbookdb "github.com/hashicorp/boundary/internal/runbook/db"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // runbookSysEmitter publishes runbook write audit events as controller system
@@ -52,15 +55,58 @@ type runbookReadDelete struct {
 }
 
 func (r runbookReadDelete) GetRunbook(ctx context.Context, req *pbs.GetRunbookRequest) (*pbs.GetRunbookResponse, error) {
-	return r.inner.GetRunbook(ctx, req)
+	resp, err := r.inner.GetRunbook(ctx, req)
+	return resp, toAPIStatusErr(err)
 }
 
 func (r runbookReadDelete) ListRunbooks(ctx context.Context, req *pbs.ListRunbooksRequest) (*pbs.ListRunbooksResponse, error) {
-	return r.inner.ListRunbooks(ctx, req)
+	resp, err := r.inner.ListRunbooks(ctx, req)
+	return resp, toAPIStatusErr(err)
 }
 
 func (r runbookReadDelete) DeleteRunbook(ctx context.Context, req *pbs.DeleteRunbookRequest) (*pbs.DeleteRunbookResponse, error) {
-	return r.inner.DeleteRunbook(ctx, req)
+	resp, err := r.inner.DeleteRunbook(ctx, req)
+	return resp, toAPIStatusErr(err)
+}
+
+// apiStatusErr carries both a *handlers.ApiError, which the controller's
+// errorInterceptor and the HTTP gateway turn into the right HTTP status, and
+// the original gRPC status, so gRPC clients still see the same code.
+type apiStatusErr struct {
+	api *handlers.ApiError
+	st  *status.Status
+}
+
+func (e apiStatusErr) Error() string              { return e.api.Error() }
+func (e apiStatusErr) Unwrap() error              { return e.api }
+func (e apiStatusErr) GRPCStatus() *status.Status { return e.st }
+
+// toAPIStatusErr converts the gRPC status errors returned by the runbooks
+// adapter into API errors. Without it the HTTP gateway reports every failure,
+// including "unauthenticated" and "forbidden", as HTTP 500. The messages are
+// the adapter's fixed strings, never request data.
+func toAPIStatusErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		st = status.New(codes.Internal, "internal error")
+	}
+	var base error
+	switch st.Code() {
+	case codes.Unauthenticated:
+		base = handlers.UnauthenticatedError()
+	case codes.PermissionDenied:
+		base = handlers.ForbiddenError()
+	default:
+		base = handlers.ApiErrorWithCodeAndMessage(st.Code(), "%s", st.Message())
+	}
+	var api *handlers.ApiError
+	if !errors.As(base, &api) {
+		return err
+	}
+	return apiStatusErr{api: api, st: st}
 }
 
 // newRunbookServer builds the get/list/delete-only runbook server. It returns

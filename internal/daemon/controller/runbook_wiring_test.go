@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/boundary/internal/daemon/controller/handlers"
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers/runbooks"
 	"github.com/hashicorp/boundary/internal/event"
 	pbs "github.com/hashicorp/boundary/internal/gen/controller/api/services"
@@ -92,6 +93,35 @@ func TestNewRunbookServer_ServedRPCsRefuseWithoutAuthOrGrant(t *testing.T) {
 			assert.Equal(t, tc.want, status.Code(err))
 			_, err = srv.DeleteRunbook(ctx, &pbs.DeleteRunbookRequest{Id: "rb_1234567890"})
 			assert.Equal(t, tc.want, status.Code(err))
+		})
+	}
+}
+
+func TestToAPIStatusErr(t *testing.T) {
+	assert.NoError(t, toAPIStatusErr(nil))
+	for name, tc := range map[string]struct {
+		in     error
+		code   codes.Code
+		status int32
+	}{
+		"unauthenticated":   {status.Error(codes.Unauthenticated, "unauthenticated"), codes.Unauthenticated, 401},
+		"permission denied": {status.Error(codes.PermissionDenied, "forbidden"), codes.PermissionDenied, 403},
+		"invalid argument":  {status.Error(codes.InvalidArgument, "invalid request"), codes.InvalidArgument, 400},
+		"aborted":           {status.Error(codes.Aborted, "conflict"), codes.Aborted, 409},
+		"plain error":       {errors.New("boom canary"), codes.Internal, 500},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := toAPIStatusErr(tc.in)
+			require.Error(t, err)
+			// gRPC clients keep the original code.
+			assert.Equal(t, tc.code, status.Code(err))
+			// The controller interceptor and gateway see an ApiError with the
+			// matching HTTP status.
+			var api *handlers.ApiError
+			require.True(t, errors.As(err, &api))
+			assert.Equal(t, tc.status, api.Status)
+			// A non-status error's text is never forwarded.
+			assert.NotContains(t, err.Error(), "canary")
 		})
 	}
 }
