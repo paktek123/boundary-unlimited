@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: MIT
 
 begin;
-  select plan(7);
+  select plan(14);
 
   select wtt_load('widgets', 'iam', 'kms', 'auth', 'hosts', 'targets');
 
@@ -41,6 +41,31 @@ begin;
        set host_key_policy_keys = array[repeat('a', 70000)]
      where public_id = 'tssh______p1';
   select throws_ok('too_big', '23514', null, 'oversized host key policy accepted');
+
+  -- boundaries: 16 entries accepted, exact total size accepted, one more refused
+  select lives_ok($$update target_ssh
+       set host_key_policy_keys = array(select 'ssh-ed25519 AAAA' || g from generate_series(1, 16) g)
+     where public_id = 'tssh______p1'$$, '16 host keys refused');
+  select lives_ok($$update target_ssh
+       set host_key_policy_keys = array[repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096),
+         repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096),
+         repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096)]
+     where public_id = 'tssh______p1'$$, 'exact max size refused');
+  select throws_ok($$update target_ssh
+       set host_key_policy_keys = array[repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096),
+         repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096),
+         repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4096), repeat('a', 4097)]
+     where public_id = 'tssh______p1'$$, '23514', null, 'max size plus one accepted');
+
+  -- history records the policy (rows are matched by content: all updates share one
+  -- transaction timestamp, so valid_range cannot tell them apart here)
+  update target_ssh set host_key_policy_keys = array['ssh-ed25519 AAAAold'] where public_id = 'tssh______p1';
+  update target_ssh set host_key_policy_keys = array['ssh-ed25519 AAAAnew'] where public_id = 'tssh______p1';
+  select ok(exists(select 1 from target_ssh_hst where public_id = 'tssh______p1'
+      and host_key_policy_keys = array['ssh-ed25519 AAAAold']), 'history lacks the old keys');
+  select ok(exists(select 1 from target_ssh_hst where public_id = 'tssh______p1'
+      and host_key_policy_keys = array['ssh-ed25519 AAAAnew']), 'history lacks the new keys');
+  select has_column('target_ssh_hst', 'host_key_policy_cas', 'history lacks cas column');
 
   select * from finish();
 rollback;

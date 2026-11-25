@@ -13,13 +13,22 @@ begin;
     add column host_key_policy_keys text[] not null default '{}',
     add column host_key_policy_cas text[] not null default '{}';
 
+  -- The history table must carry the new columns: the generic hst triggers
+  -- copy only columns present in both tables, so without this the changes of
+  -- the pinned trust anchors would not be recorded.
+  alter table target_ssh_hst
+    add column host_key_policy_keys text[] not null default '{}',
+    add column host_key_policy_cas text[] not null default '{}';
+
+  -- Element validation (NULL elements, key syntax) is done in the domain layer;
+  -- array_to_string skips NULL elements.
   alter table target_ssh
     add constraint host_key_policy_keys_count_limit
-      check(coalesce(cardinality(host_key_policy_keys), 0) <= 16),
+      check(cardinality(host_key_policy_keys) <= 16),
     add constraint host_key_policy_keys_size_limit
       check(octet_length(array_to_string(host_key_policy_keys, E'\n')) <= 65552),
     add constraint host_key_policy_cas_count_limit
-      check(coalesce(cardinality(host_key_policy_cas), 0) <= 16),
+      check(cardinality(host_key_policy_cas) <= 16),
     add constraint host_key_policy_cas_size_limit
       check(octet_length(array_to_string(host_key_policy_cas, E'\n')) <= 65552);
 
