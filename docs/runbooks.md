@@ -23,6 +23,8 @@ Tracking: epic #89, issues #260 and #279. Design: [docs/rfc/runbooks.md](rfc/run
 | Oplog-backed repository over migration 115 (no script body is stored; only commit, path and SHA-256) | `internal/runbook/db` |
 | Definition service (create, get, list, update, delete) with audit events | `internal/daemon/controller/handlers/runbooks` |
 | `runbooks:*` grants | `internal/perms` |
+| Caller resolver backed by `auth.Verify` (refuses anonymous and recovery-token callers; fixed error text) | `internal/daemon/controller/handlers/runbooks/verified_caller.go` |
+| Go SDK client for reading and deleting runbooks | `api/runbooks` |
 
 ## Rules the feature keeps
 

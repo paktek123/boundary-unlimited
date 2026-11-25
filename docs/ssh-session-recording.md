@@ -19,6 +19,7 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
 | Recording factory and fail-closed guard around the SSH proxy | `internal/daemon/worker/proxy/ssh` (`recordingfactory.go`, `recguard`) |
 | Local scratch store with quota, recovery of orphaned recordings | `internal/daemon/worker/recording/scratch` |
 | Finalisation and verified upload | `internal/daemon/worker/recording/{finalize,upload}` |
+| Session storage bucket source: `NewSessionBucketSource` resolves the per-session bucket from controller-provided data; any missing lookup, opener or bucket refuses the session with the fixed `ErrRecordingBucketUnavailable`, and the bucket credential is redacted from formatting and JSON. Not installed: no production lookup or opener exists yet (issue #348) | `internal/daemon/worker/recording_bucket_source.go` |
 
 ## Properties the feature keeps
 
