@@ -87,6 +87,9 @@ func TestKubeconfigFromCredential_FakeAPIServer(t *testing.T) {
 	assert.Equal(t, "Bearer "+token, gotAuth)
 
 	// An unrelated CA must be refused: verification is never disabled.
-	_, err = newClient(x509.NewCertPool(), "example.com").Get(cl["server"].(string) + "/version")
+	bad, err := newClient(x509.NewCertPool(), "example.com").Get(cl["server"].(string) + "/version")
+	if bad != nil {
+		_ = bad.Body.Close()
+	}
 	assert.Error(t, err)
 }
