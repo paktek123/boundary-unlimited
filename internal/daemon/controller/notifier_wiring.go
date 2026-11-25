@@ -32,10 +32,13 @@ func buildNotifier(ctx context.Context, dests []sender.Destination, deps sender.
 	fo, err := sender.BuildFanOut(dests, deps, timeout, resolve)
 	if err != nil {
 		// Log a fixed reason with the destination count only: the wrapped
-		// error names destinations but is never printed in full.
+		// error is never printed, and destination names are not logged because
+		// a name that failed validation is arbitrary operator text.
 		event.WriteSysEvent(ctx, op, "notifier could not be built", "destinations", fmt.Sprint(len(dests)))
 		return nil, errNotifierBuild
 	}
+	// BuildFanOut returns a nil *FanOut for no destinations; return an untyped
+	// nil so the interface is not a non-nil interface holding a nil pointer.
 	if fo == nil {
 		return nil, nil
 	}
