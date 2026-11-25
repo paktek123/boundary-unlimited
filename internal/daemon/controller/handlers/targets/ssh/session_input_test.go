@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
-	"strings"
 )
 
 func testPubKey(t *testing.T) string {
@@ -63,6 +63,9 @@ func TestBuildSessionInput(t *testing.T) {
 		"no connection id":    func(a *SessionInputArgs) { a.ConnectionId = "" },
 		"no target id":        func(a *SessionInputArgs) { a.TargetId = "" },
 		"no address":          func(a *SessionInputArgs) { a.UpstreamAddress = "" },
+		"address bad port":    func(a *SessionInputArgs) { a.UpstreamAddress = "host:abc" },
+		"address port 0":      func(a *SessionInputArgs) { a.UpstreamAddress = "host:0" },
+		"address no host":     func(a *SessionInputArgs) { a.UpstreamAddress = ":22" },
 		"address no port":     func(a *SessionInputArgs) { a.UpstreamAddress = "host" },
 		"oversized id":        func(a *SessionInputArgs) { a.SessionId = strings.Repeat("a", 257) },
 		"no policy (no TOFU)": func(a *SessionInputArgs) { a.PinnedHostKeys, a.HostCAs = nil, nil },

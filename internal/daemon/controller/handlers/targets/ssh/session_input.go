@@ -6,6 +6,7 @@ package ssh
 import (
 	"context"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/boundary/internal/errors"
@@ -16,7 +17,9 @@ import (
 )
 
 // maxSessionInputFieldLength mirrors the worker decoder's bound on ids and
-// the address.
+// the address. It duplicates the worker decoder's unexported bound
+// (maxSessionInputIdLength in internal/daemon/worker/proxy/ssh); the
+// round-trip test fails if the decoder starts refusing what is built here.
 const maxSessionInputFieldLength = 256
 
 // SessionInputArgs are the values from which the worker handler argument of an
@@ -56,7 +59,8 @@ func BuildSessionInput(ctx context.Context, a SessionInputArgs) (*anypb.Any, err
 	case a.TargetId == "":
 		return fail("ssh session input has no target id")
 	}
-	if _, port, err := net.SplitHostPort(a.UpstreamAddress); err != nil || port == "" {
+	host, port, err := net.SplitHostPort(a.UpstreamAddress)
+	if n, perr := strconv.ParseUint(port, 10, 16); err != nil || host == "" || perr != nil || n == 0 {
 		return fail("ssh session input upstream address must be host:port")
 	}
 	if len(a.PinnedHostKeys)+len(a.HostCAs) == 0 {
