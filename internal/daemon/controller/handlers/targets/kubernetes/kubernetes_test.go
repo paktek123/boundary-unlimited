@@ -80,3 +80,22 @@ func TestSetAttributes(t *testing.T) {
 	require.NoError(t, setAttributes(tgt, out))
 	assert.Nil(t, out.GetKubernetesTargetAttributes().GetDefaultClientPort())
 }
+
+func TestVetForUpdateRanges(t *testing.T) {
+	assert.Contains(t, attr(u(65536), nil).VetForUpdate([]string{defaultPortField}), defaultPortField)
+	assert.Contains(t, attr(nil, u(0)).VetForUpdate([]string{defaultClientPortField}), defaultClientPortField)
+	assert.Contains(t, attr(nil, u(65536)).VetForUpdate([]string{defaultClientPortField}), defaultClientPortField)
+	// An unset client port in the mask means "clear it" and is accepted.
+	assert.Empty(t, attr(nil, nil).VetForUpdate([]string{defaultClientPortField}))
+	assert.Empty(t, attr(u(6443), u(8080)).VetForUpdate([]string{defaultPortField, defaultClientPortField}))
+}
+
+func TestNewAttributeIgnoresOtherAttributeTypes(t *testing.T) {
+	// Attributes of another target type (or nil) must yield an empty kubernetes
+	// attribute set, never a panic or carried-over values.
+	for _, in := range []any{nil, "bogus", &pb.Target_TcpTargetAttributes{TcpTargetAttributes: &pb.TcpTargetAttributes{}}} {
+		a := newAttribute(in)
+		assert.Empty(t, a.Vet())
+		assert.Len(t, a.Options(), 1)
+	}
+}
