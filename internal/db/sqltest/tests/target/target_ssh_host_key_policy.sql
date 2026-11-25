@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: MIT
 
 begin;
-  select plan(14);
+  select plan(13);
 
   select wtt_load('widgets', 'iam', 'kms', 'auth', 'hosts', 'targets');
 
