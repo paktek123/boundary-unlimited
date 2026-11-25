@@ -399,6 +399,9 @@ func New(ctx context.Context, conf *Config) (*Worker, error) {
 	// factory and logs which dependencies are missing: recording-required
 	// sessions stay refused (fail closed).
 	sshDeps := sshRecordingDeps{Reporter: sshFinalizeReporter{write: event.WriteSysEvent}}
+	// Scratch is an interface: assigning a nil *scratch.Store directly would
+	// create a non-nil interface holding a nil pointer and defeat the nil check
+	// in installSSHRecording, so only assign when the store exists.
 	if w.sshScratch != nil {
 		sshDeps.Scratch = w.sshScratch
 	}
