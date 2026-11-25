@@ -84,6 +84,62 @@ func (x *LookupSessionRequest) GetWorkerId() string {
 
 // LookupSessionResponse contains information necessary for a client to
 // establish a session.
+// RecordingBucket is the per-session storage bucket description the controller
+// supplies to the requesting worker only. It is never part of the
+// client-facing session authorization data. The secret is held in memory only
+// by the worker and must never be logged or placed in events.
+type RecordingBucket struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	StorageBucketId string                 `protobuf:"bytes,10,opt,name=storage_bucket_id,json=storageBucketId,proto3" json:"storage_bucket_id,omitempty" class:"public"` // @gotags: `class:"public"`
+	Secret          []byte                 `protobuf:"bytes,20,opt,name=secret,proto3" json:"secret,omitempty" class:"secret"`                                            // @gotags: `class:"secret"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RecordingBucket) Reset() {
+	*x = RecordingBucket{}
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordingBucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordingBucket) ProtoMessage() {}
+
+func (x *RecordingBucket) ProtoReflect() protoreflect.Message {
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordingBucket.ProtoReflect.Descriptor instead.
+func (*RecordingBucket) Descriptor() ([]byte, []int) {
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RecordingBucket) GetStorageBucketId() string {
+	if x != nil {
+		return x.StorageBucketId
+	}
+	return ""
+}
+
+func (x *RecordingBucket) GetSecret() []byte {
+	if x != nil {
+		return x.Secret
+	}
+	return nil
+}
+
 type LookupSessionResponse struct {
 	state           protoimpl.MessageState            `protogen:"open.v1"`
 	Authorization   *targets.SessionAuthorizationData `protobuf:"bytes,10,opt,name=authorization,proto3" json:"authorization,omitempty"`
@@ -107,13 +163,16 @@ type LookupSessionResponse struct {
 	//
 	// Deprecated: Marked as deprecated in controller/servers/services/v1/session_service.proto.
 	Pkcs8HostKeys [][]byte `protobuf:"bytes,140,rep,name=pkcs8_host_keys,json=pkcs8HostKeys,proto3" json:"pkcs8_host_keys,omitempty" class:"secret"` // @gotags: `class:"secret"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// recording_bucket is set only when the target requires session recording
+	// and only for the worker that owns the session.
+	RecordingBucket *RecordingBucket `protobuf:"bytes,150,opt,name=recording_bucket,json=recordingBucket,proto3" json:"recording_bucket,omitempty" class:"secret"` // @gotags: `class:"secret"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LookupSessionResponse) Reset() {
 	*x = LookupSessionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[1]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -125,7 +184,7 @@ func (x *LookupSessionResponse) String() string {
 func (*LookupSessionResponse) ProtoMessage() {}
 
 func (x *LookupSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[1]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -138,7 +197,7 @@ func (x *LookupSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookupSessionResponse.ProtoReflect.Descriptor instead.
 func (*LookupSessionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{1}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LookupSessionResponse) GetAuthorization() *targets.SessionAuthorizationData {
@@ -241,6 +300,13 @@ func (x *LookupSessionResponse) GetPkcs8HostKeys() [][]byte {
 	return nil
 }
 
+func (x *LookupSessionResponse) GetRecordingBucket() *RecordingBucket {
+	if x != nil {
+		return x.RecordingBucket
+	}
+	return nil
+}
+
 type ActivateSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,10,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty" class:"public" eventstream:"observation"`                             // @gotags: `class:"public" eventstream:"observation"`
@@ -253,7 +319,7 @@ type ActivateSessionRequest struct {
 
 func (x *ActivateSessionRequest) Reset() {
 	*x = ActivateSessionRequest{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[2]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -265,7 +331,7 @@ func (x *ActivateSessionRequest) String() string {
 func (*ActivateSessionRequest) ProtoMessage() {}
 
 func (x *ActivateSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[2]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -278,7 +344,7 @@ func (x *ActivateSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivateSessionRequest.ProtoReflect.Descriptor instead.
 func (*ActivateSessionRequest) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{2}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ActivateSessionRequest) GetSessionId() string {
@@ -318,7 +384,7 @@ type ActivateSessionResponse struct {
 
 func (x *ActivateSessionResponse) Reset() {
 	*x = ActivateSessionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[3]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +396,7 @@ func (x *ActivateSessionResponse) String() string {
 func (*ActivateSessionResponse) ProtoMessage() {}
 
 func (x *ActivateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[3]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,7 +409,7 @@ func (x *ActivateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivateSessionResponse.ProtoReflect.Descriptor instead.
 func (*ActivateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{3}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ActivateSessionResponse) GetStatus() SESSIONSTATUS {
@@ -362,7 +428,7 @@ type CancelSessionRequest struct {
 
 func (x *CancelSessionRequest) Reset() {
 	*x = CancelSessionRequest{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[4]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -374,7 +440,7 @@ func (x *CancelSessionRequest) String() string {
 func (*CancelSessionRequest) ProtoMessage() {}
 
 func (x *CancelSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[4]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -387,7 +453,7 @@ func (x *CancelSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelSessionRequest.ProtoReflect.Descriptor instead.
 func (*CancelSessionRequest) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{4}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CancelSessionRequest) GetSessionId() string {
@@ -406,7 +472,7 @@ type CancelSessionResponse struct {
 
 func (x *CancelSessionResponse) Reset() {
 	*x = CancelSessionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[5]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +484,7 @@ func (x *CancelSessionResponse) String() string {
 func (*CancelSessionResponse) ProtoMessage() {}
 
 func (x *CancelSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[5]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +497,7 @@ func (x *CancelSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelSessionResponse.ProtoReflect.Descriptor instead.
 func (*CancelSessionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{5}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CancelSessionResponse) GetStatus() SESSIONSTATUS {
@@ -451,7 +517,7 @@ type AuthorizeConnectionRequest struct {
 
 func (x *AuthorizeConnectionRequest) Reset() {
 	*x = AuthorizeConnectionRequest{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[6]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +529,7 @@ func (x *AuthorizeConnectionRequest) String() string {
 func (*AuthorizeConnectionRequest) ProtoMessage() {}
 
 func (x *AuthorizeConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[6]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +542,7 @@ func (x *AuthorizeConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthorizeConnectionRequest.ProtoReflect.Descriptor instead.
 func (*AuthorizeConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{6}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AuthorizeConnectionRequest) GetSessionId() string {
@@ -509,7 +575,7 @@ type AuthorizeConnectionResponse struct {
 
 func (x *AuthorizeConnectionResponse) Reset() {
 	*x = AuthorizeConnectionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[7]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -521,7 +587,7 @@ func (x *AuthorizeConnectionResponse) String() string {
 func (*AuthorizeConnectionResponse) ProtoMessage() {}
 
 func (x *AuthorizeConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[7]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -534,7 +600,7 @@ func (x *AuthorizeConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthorizeConnectionResponse.ProtoReflect.Descriptor instead.
 func (*AuthorizeConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{7}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AuthorizeConnectionResponse) GetConnectionId() string {
@@ -589,7 +655,7 @@ type ConnectConnectionRequest struct {
 
 func (x *ConnectConnectionRequest) Reset() {
 	*x = ConnectConnectionRequest{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[8]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +667,7 @@ func (x *ConnectConnectionRequest) String() string {
 func (*ConnectConnectionRequest) ProtoMessage() {}
 
 func (x *ConnectConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[8]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +680,7 @@ func (x *ConnectConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectConnectionRequest.ProtoReflect.Descriptor instead.
 func (*ConnectConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{8}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ConnectConnectionRequest) GetConnectionId() string {
@@ -675,7 +741,7 @@ type ConnectConnectionResponse struct {
 
 func (x *ConnectConnectionResponse) Reset() {
 	*x = ConnectConnectionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[9]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +753,7 @@ func (x *ConnectConnectionResponse) String() string {
 func (*ConnectConnectionResponse) ProtoMessage() {}
 
 func (x *ConnectConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[9]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,7 +766,7 @@ func (x *ConnectConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectConnectionResponse.ProtoReflect.Descriptor instead.
 func (*ConnectConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{9}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ConnectConnectionResponse) GetStatus() CONNECTIONSTATUS {
@@ -722,7 +788,7 @@ type CloseConnectionRequestData struct {
 
 func (x *CloseConnectionRequestData) Reset() {
 	*x = CloseConnectionRequestData{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[10]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -734,7 +800,7 @@ func (x *CloseConnectionRequestData) String() string {
 func (*CloseConnectionRequestData) ProtoMessage() {}
 
 func (x *CloseConnectionRequestData) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[10]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -747,7 +813,7 @@ func (x *CloseConnectionRequestData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseConnectionRequestData.ProtoReflect.Descriptor instead.
 func (*CloseConnectionRequestData) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{10}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CloseConnectionRequestData) GetConnectionId() string {
@@ -787,7 +853,7 @@ type CloseConnectionRequest struct {
 
 func (x *CloseConnectionRequest) Reset() {
 	*x = CloseConnectionRequest{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[11]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -799,7 +865,7 @@ func (x *CloseConnectionRequest) String() string {
 func (*CloseConnectionRequest) ProtoMessage() {}
 
 func (x *CloseConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[11]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -812,7 +878,7 @@ func (x *CloseConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseConnectionRequest.ProtoReflect.Descriptor instead.
 func (*CloseConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{11}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CloseConnectionRequest) GetCloseRequestData() []*CloseConnectionRequestData {
@@ -832,7 +898,7 @@ type CloseConnectionResponseData struct {
 
 func (x *CloseConnectionResponseData) Reset() {
 	*x = CloseConnectionResponseData{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[12]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -844,7 +910,7 @@ func (x *CloseConnectionResponseData) String() string {
 func (*CloseConnectionResponseData) ProtoMessage() {}
 
 func (x *CloseConnectionResponseData) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[12]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -857,7 +923,7 @@ func (x *CloseConnectionResponseData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseConnectionResponseData.ProtoReflect.Descriptor instead.
 func (*CloseConnectionResponseData) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{12}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CloseConnectionResponseData) GetConnectionId() string {
@@ -883,7 +949,7 @@ type CloseConnectionResponse struct {
 
 func (x *CloseConnectionResponse) Reset() {
 	*x = CloseConnectionResponse{}
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[13]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -895,7 +961,7 @@ func (x *CloseConnectionResponse) String() string {
 func (*CloseConnectionResponse) ProtoMessage() {}
 
 func (x *CloseConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[13]
+	mi := &file_controller_servers_services_v1_session_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +974,7 @@ func (x *CloseConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseConnectionResponse.ProtoReflect.Descriptor instead.
 func (*CloseConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{13}
+	return file_controller_servers_services_v1_session_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CloseConnectionResponse) GetCloseResponseData() []*CloseConnectionResponseData {
@@ -927,7 +993,11 @@ const file_controller_servers_services_v1_session_service_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\n" +
 	" \x01(\tR\tsessionId\x12\x1b\n" +
-	"\tworker_id\x18\x14 \x01(\tR\bworkerId\"\x99\x05\n" +
+	"\tworker_id\x18\x14 \x01(\tR\bworkerId\"U\n" +
+	"\x0fRecordingBucket\x12*\n" +
+	"\x11storage_bucket_id\x18\n" +
+	" \x01(\tR\x0fstorageBucketId\x12\x16\n" +
+	"\x06secret\x18\x14 \x01(\fR\x06secret\"\xf6\x05\n" +
 	"\x15LookupSessionResponse\x12c\n" +
 	"\rauthorization\x18\n" +
 	" \x01(\v2=.controller.api.resources.targets.v1.SessionAuthorizationDataR\rauthorization\x12\x1d\n" +
@@ -946,7 +1016,8 @@ const file_controller_servers_services_v1_session_service_proto_rawDesc = "" +
 	"\ttarget_id\x18n \x01(\tR\btargetId\x12\x17\n" +
 	"\auser_id\x18x \x01(\tR\x06userId\x12Q\n" +
 	"\vcredentials\x18\x82\x01 \x03(\v2*.controller.servers.services.v1.CredentialB\x02\x18\x01R\vcredentials\x12+\n" +
-	"\x0fpkcs8_host_keys\x18\x8c\x01 \x03(\fB\x02\x18\x01R\rpkcs8HostKeys\"\xc8\x01\n" +
+	"\x0fpkcs8_host_keys\x18\x8c\x01 \x03(\fB\x02\x18\x01R\rpkcs8HostKeys\x12[\n" +
+	"\x10recording_bucket\x18\x96\x01 \x01(\v2/.controller.servers.services.v1.RecordingBucketR\x0frecordingBucket\"\xc8\x01\n" +
 	"\x16ActivateSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\n" +
@@ -1026,60 +1097,62 @@ func file_controller_servers_services_v1_session_service_proto_rawDescGZIP() []b
 	return file_controller_servers_services_v1_session_service_proto_rawDescData
 }
 
-var file_controller_servers_services_v1_session_service_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_controller_servers_services_v1_session_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_controller_servers_services_v1_session_service_proto_goTypes = []any{
 	(*LookupSessionRequest)(nil),             // 0: controller.servers.services.v1.LookupSessionRequest
-	(*LookupSessionResponse)(nil),            // 1: controller.servers.services.v1.LookupSessionResponse
-	(*ActivateSessionRequest)(nil),           // 2: controller.servers.services.v1.ActivateSessionRequest
-	(*ActivateSessionResponse)(nil),          // 3: controller.servers.services.v1.ActivateSessionResponse
-	(*CancelSessionRequest)(nil),             // 4: controller.servers.services.v1.CancelSessionRequest
-	(*CancelSessionResponse)(nil),            // 5: controller.servers.services.v1.CancelSessionResponse
-	(*AuthorizeConnectionRequest)(nil),       // 6: controller.servers.services.v1.AuthorizeConnectionRequest
-	(*AuthorizeConnectionResponse)(nil),      // 7: controller.servers.services.v1.AuthorizeConnectionResponse
-	(*ConnectConnectionRequest)(nil),         // 8: controller.servers.services.v1.ConnectConnectionRequest
-	(*ConnectConnectionResponse)(nil),        // 9: controller.servers.services.v1.ConnectConnectionResponse
-	(*CloseConnectionRequestData)(nil),       // 10: controller.servers.services.v1.CloseConnectionRequestData
-	(*CloseConnectionRequest)(nil),           // 11: controller.servers.services.v1.CloseConnectionRequest
-	(*CloseConnectionResponseData)(nil),      // 12: controller.servers.services.v1.CloseConnectionResponseData
-	(*CloseConnectionResponse)(nil),          // 13: controller.servers.services.v1.CloseConnectionResponse
-	(*targets.SessionAuthorizationData)(nil), // 14: controller.api.resources.targets.v1.SessionAuthorizationData
-	(*timestamppb.Timestamp)(nil),            // 15: google.protobuf.Timestamp
-	(SESSIONSTATUS)(0),                       // 16: controller.servers.services.v1.SESSIONSTATUS
-	(*Credential)(nil),                       // 17: controller.servers.services.v1.Credential
-	(CONNECTIONSTATUS)(0),                    // 18: controller.servers.services.v1.CONNECTIONSTATUS
-	(*anypb.Any)(nil),                        // 19: google.protobuf.Any
+	(*RecordingBucket)(nil),                  // 1: controller.servers.services.v1.RecordingBucket
+	(*LookupSessionResponse)(nil),            // 2: controller.servers.services.v1.LookupSessionResponse
+	(*ActivateSessionRequest)(nil),           // 3: controller.servers.services.v1.ActivateSessionRequest
+	(*ActivateSessionResponse)(nil),          // 4: controller.servers.services.v1.ActivateSessionResponse
+	(*CancelSessionRequest)(nil),             // 5: controller.servers.services.v1.CancelSessionRequest
+	(*CancelSessionResponse)(nil),            // 6: controller.servers.services.v1.CancelSessionResponse
+	(*AuthorizeConnectionRequest)(nil),       // 7: controller.servers.services.v1.AuthorizeConnectionRequest
+	(*AuthorizeConnectionResponse)(nil),      // 8: controller.servers.services.v1.AuthorizeConnectionResponse
+	(*ConnectConnectionRequest)(nil),         // 9: controller.servers.services.v1.ConnectConnectionRequest
+	(*ConnectConnectionResponse)(nil),        // 10: controller.servers.services.v1.ConnectConnectionResponse
+	(*CloseConnectionRequestData)(nil),       // 11: controller.servers.services.v1.CloseConnectionRequestData
+	(*CloseConnectionRequest)(nil),           // 12: controller.servers.services.v1.CloseConnectionRequest
+	(*CloseConnectionResponseData)(nil),      // 13: controller.servers.services.v1.CloseConnectionResponseData
+	(*CloseConnectionResponse)(nil),          // 14: controller.servers.services.v1.CloseConnectionResponse
+	(*targets.SessionAuthorizationData)(nil), // 15: controller.api.resources.targets.v1.SessionAuthorizationData
+	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
+	(SESSIONSTATUS)(0),                       // 17: controller.servers.services.v1.SESSIONSTATUS
+	(*Credential)(nil),                       // 18: controller.servers.services.v1.Credential
+	(CONNECTIONSTATUS)(0),                    // 19: controller.servers.services.v1.CONNECTIONSTATUS
+	(*anypb.Any)(nil),                        // 20: google.protobuf.Any
 }
 var file_controller_servers_services_v1_session_service_proto_depIdxs = []int32{
-	14, // 0: controller.servers.services.v1.LookupSessionResponse.authorization:type_name -> controller.api.resources.targets.v1.SessionAuthorizationData
-	15, // 1: controller.servers.services.v1.LookupSessionResponse.expiration:type_name -> google.protobuf.Timestamp
-	16, // 2: controller.servers.services.v1.LookupSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
-	17, // 3: controller.servers.services.v1.LookupSessionResponse.credentials:type_name -> controller.servers.services.v1.Credential
-	16, // 4: controller.servers.services.v1.ActivateSessionRequest.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
-	16, // 5: controller.servers.services.v1.ActivateSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
-	16, // 6: controller.servers.services.v1.CancelSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
-	18, // 7: controller.servers.services.v1.AuthorizeConnectionResponse.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
-	19, // 8: controller.servers.services.v1.AuthorizeConnectionResponse.protocol_context:type_name -> google.protobuf.Any
-	18, // 9: controller.servers.services.v1.ConnectConnectionResponse.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
-	10, // 10: controller.servers.services.v1.CloseConnectionRequest.close_request_data:type_name -> controller.servers.services.v1.CloseConnectionRequestData
-	18, // 11: controller.servers.services.v1.CloseConnectionResponseData.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
-	12, // 12: controller.servers.services.v1.CloseConnectionResponse.close_response_data:type_name -> controller.servers.services.v1.CloseConnectionResponseData
-	0,  // 13: controller.servers.services.v1.SessionService.LookupSession:input_type -> controller.servers.services.v1.LookupSessionRequest
-	2,  // 14: controller.servers.services.v1.SessionService.ActivateSession:input_type -> controller.servers.services.v1.ActivateSessionRequest
-	4,  // 15: controller.servers.services.v1.SessionService.CancelSession:input_type -> controller.servers.services.v1.CancelSessionRequest
-	6,  // 16: controller.servers.services.v1.SessionService.AuthorizeConnection:input_type -> controller.servers.services.v1.AuthorizeConnectionRequest
-	8,  // 17: controller.servers.services.v1.SessionService.ConnectConnection:input_type -> controller.servers.services.v1.ConnectConnectionRequest
-	11, // 18: controller.servers.services.v1.SessionService.CloseConnection:input_type -> controller.servers.services.v1.CloseConnectionRequest
-	1,  // 19: controller.servers.services.v1.SessionService.LookupSession:output_type -> controller.servers.services.v1.LookupSessionResponse
-	3,  // 20: controller.servers.services.v1.SessionService.ActivateSession:output_type -> controller.servers.services.v1.ActivateSessionResponse
-	5,  // 21: controller.servers.services.v1.SessionService.CancelSession:output_type -> controller.servers.services.v1.CancelSessionResponse
-	7,  // 22: controller.servers.services.v1.SessionService.AuthorizeConnection:output_type -> controller.servers.services.v1.AuthorizeConnectionResponse
-	9,  // 23: controller.servers.services.v1.SessionService.ConnectConnection:output_type -> controller.servers.services.v1.ConnectConnectionResponse
-	13, // 24: controller.servers.services.v1.SessionService.CloseConnection:output_type -> controller.servers.services.v1.CloseConnectionResponse
-	19, // [19:25] is the sub-list for method output_type
-	13, // [13:19] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	15, // 0: controller.servers.services.v1.LookupSessionResponse.authorization:type_name -> controller.api.resources.targets.v1.SessionAuthorizationData
+	16, // 1: controller.servers.services.v1.LookupSessionResponse.expiration:type_name -> google.protobuf.Timestamp
+	17, // 2: controller.servers.services.v1.LookupSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
+	18, // 3: controller.servers.services.v1.LookupSessionResponse.credentials:type_name -> controller.servers.services.v1.Credential
+	1,  // 4: controller.servers.services.v1.LookupSessionResponse.recording_bucket:type_name -> controller.servers.services.v1.RecordingBucket
+	17, // 5: controller.servers.services.v1.ActivateSessionRequest.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
+	17, // 6: controller.servers.services.v1.ActivateSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
+	17, // 7: controller.servers.services.v1.CancelSessionResponse.status:type_name -> controller.servers.services.v1.SESSIONSTATUS
+	19, // 8: controller.servers.services.v1.AuthorizeConnectionResponse.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
+	20, // 9: controller.servers.services.v1.AuthorizeConnectionResponse.protocol_context:type_name -> google.protobuf.Any
+	19, // 10: controller.servers.services.v1.ConnectConnectionResponse.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
+	11, // 11: controller.servers.services.v1.CloseConnectionRequest.close_request_data:type_name -> controller.servers.services.v1.CloseConnectionRequestData
+	19, // 12: controller.servers.services.v1.CloseConnectionResponseData.status:type_name -> controller.servers.services.v1.CONNECTIONSTATUS
+	13, // 13: controller.servers.services.v1.CloseConnectionResponse.close_response_data:type_name -> controller.servers.services.v1.CloseConnectionResponseData
+	0,  // 14: controller.servers.services.v1.SessionService.LookupSession:input_type -> controller.servers.services.v1.LookupSessionRequest
+	3,  // 15: controller.servers.services.v1.SessionService.ActivateSession:input_type -> controller.servers.services.v1.ActivateSessionRequest
+	5,  // 16: controller.servers.services.v1.SessionService.CancelSession:input_type -> controller.servers.services.v1.CancelSessionRequest
+	7,  // 17: controller.servers.services.v1.SessionService.AuthorizeConnection:input_type -> controller.servers.services.v1.AuthorizeConnectionRequest
+	9,  // 18: controller.servers.services.v1.SessionService.ConnectConnection:input_type -> controller.servers.services.v1.ConnectConnectionRequest
+	12, // 19: controller.servers.services.v1.SessionService.CloseConnection:input_type -> controller.servers.services.v1.CloseConnectionRequest
+	2,  // 20: controller.servers.services.v1.SessionService.LookupSession:output_type -> controller.servers.services.v1.LookupSessionResponse
+	4,  // 21: controller.servers.services.v1.SessionService.ActivateSession:output_type -> controller.servers.services.v1.ActivateSessionResponse
+	6,  // 22: controller.servers.services.v1.SessionService.CancelSession:output_type -> controller.servers.services.v1.CancelSessionResponse
+	8,  // 23: controller.servers.services.v1.SessionService.AuthorizeConnection:output_type -> controller.servers.services.v1.AuthorizeConnectionResponse
+	10, // 24: controller.servers.services.v1.SessionService.ConnectConnection:output_type -> controller.servers.services.v1.ConnectConnectionResponse
+	14, // 25: controller.servers.services.v1.SessionService.CloseConnection:output_type -> controller.servers.services.v1.CloseConnectionResponse
+	20, // [20:26] is the sub-list for method output_type
+	14, // [14:20] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_controller_servers_services_v1_session_service_proto_init() }
@@ -1095,7 +1168,7 @@ func file_controller_servers_services_v1_session_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_controller_servers_services_v1_session_service_proto_rawDesc), len(file_controller_servers_services_v1_session_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

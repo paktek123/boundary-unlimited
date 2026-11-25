@@ -44,6 +44,15 @@ message LookupSessionRequest {
 
 // LookupSessionResponse contains information necessary for a client to
 // establish a session.
+// RecordingBucket is the per-session storage bucket description the controller
+// supplies to the requesting worker only. It is never part of the
+// client-facing session authorization data. The secret is held in memory only
+// by the worker and must never be logged or placed in events.
+message RecordingBucket {
+  string storage_bucket_id = 10; // @gotags: `class:"public"`
+  bytes secret = 20; // @gotags: `class:"secret"`
+}
+
 message LookupSessionResponse {
   api.resources.targets.v1.SessionAuthorizationData authorization = 10;
   string tofu_token = 20; // @gotags: `class:"secret"`
@@ -63,6 +72,9 @@ message LookupSessionResponse {
   repeated Credential credentials = 130 [deprecated = true]; // @gotags: `class:"secret"`
   // pkcs8_host_keys is deprecated on this response message.
   repeated bytes pkcs8_host_keys = 140 [deprecated = true]; // @gotags: `class:"secret"`
+  // recording_bucket is set only when the target requires session recording
+  // and only for the worker that owns the session.
+  RecordingBucket recording_bucket = 150; // @gotags: `class:"secret"`
 }
 
 message ActivateSessionRequest {
