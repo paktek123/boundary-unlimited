@@ -37,9 +37,15 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
 
 ## Not yet available
 
-The adapter relies on an `ActorResolver` that the controller must implement
-(authentication, and the approver and grant lookup per scope); that, with
-registration of the API in the controller, is the key remaining work. Also
+The adapter relies on an `ActorResolver`. `VerifiedActorResolver`
+(`internal/daemon/controller/handlers/accessrequests/verified_actor.go`, issue
+#338) implements it over `auth.Verify`: the actor id comes from the verified
+result, anonymous and recovery-token callers are refused with one fixed error,
+and `CanApprove` is true only when the verified ACL holds an explicit `approve`
+grant of the form `ids=*;type=access-request;actions=approve` on the request's
+stored scope (wildcard type or action grants never qualify, and a grant naming
+one request id does not make a caller an approver). It is not registered.
+Registration of the API in the controller is the key remaining work. Also
 missing: the HTTP gateway, the CLI (`boundary access-requests`), revoke,
 request creation through any endpoint, controller wiring of the notifier, and
 any UI.
