@@ -19,6 +19,7 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
 | Recording factory and fail-closed guard around the SSH proxy | `internal/daemon/worker/proxy/ssh` (`recordingfactory.go`, `recguard`) |
 | Local scratch store with quota, recovery of orphaned recordings | `internal/daemon/worker/recording/scratch` |
 | Finalisation and verified upload | `internal/daemon/worker/recording/{finalize,upload}` |
+| Session storage bucket source: `NewSessionBucketSource` resolves the per-session bucket from controller-provided data; any missing lookup, opener or bucket refuses the session with the fixed `ErrRecordingBucketUnavailable`, and the bucket credential is redacted from formatting and JSON. Not installed: no production lookup or opener exists yet (issue #348) | `internal/daemon/worker/recording_bucket_source.go` |
 
 ## Properties the feature keeps
 
@@ -66,5 +67,22 @@ SSH recordings.
 The export pipeline exists only as an internal library
 (`internal/bsr/playback`). It validates a recording first and converts it
 (asciicast v2 for shell channels, raw log otherwise) only if the recording is
-valid and complete; on any failure nothing is written. It is not wired to any
-CLI command or API, so no export is available to operators yet.
+valid and complete; on any failure nothing is written.
+
+The CLI commands exist in this fork: `boundary session-recordings export`
+(create, read, list, cancel) and `boundary session-recordings download`. They
+call the `SessionRecordingService` API, but the open-source controller's
+handler (`internal/daemon/controller/handlers/session_recordings`) returns
+`Unimplemented` ("session recordings are an Enterprise-only feature") for
+get, list, download, export and delete. So no playback or export is served by
+this build, and the CLI commands fail with that error. Nothing in this section
+changes what a worker records or uploads. Refs #14.
+
+## Per-session bucket credential (not populated yet)
+
+The `LookupSession` response now has an optional `recording_bucket` message
+(bucket id plus a secret-classified credential), and the worker has
+`NewLookupSessionBucketLookup` to read it into a redacting reference. The
+controller does not populate the field and nothing installs the lookup, so
+recording-required sessions are still refused. Operators should issue a
+write-only, prefix-scoped bucket credential. Refs #363.

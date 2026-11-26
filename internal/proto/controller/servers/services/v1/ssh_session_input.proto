@@ -1,0 +1,35 @@
+// Copyright Boundary Unlimited contributors 2026
+// SPDX-License-Identifier: MIT
+
+syntax = "proto3";
+
+package controller.servers.services.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/hashicorp/boundary/internal/gen/controller/servers/services;services";
+
+// SshSessionInput is the ssh worker handler argument, carried in the
+// protocol_context of the session authorization. It holds only non-secret
+// values: there is deliberately no credential field.
+message SshSessionInput {
+  // session_id is the id of the authorized session.
+  string session_id = 10;
+  // connection_id is the id of the authorized connection; the worker refuses
+  // the session when it does not match the connection being proxied.
+  string connection_id = 20;
+  // target_id is the id of the target, used in reported events.
+  string target_id = 30;
+  // upstream_address is the resolved host:port of the target.
+  string upstream_address = 40;
+  // pinned_host_keys are trusted upstream host public keys in authorized_keys
+  // format.
+  repeated string pinned_host_keys = 50;
+  // host_cas are trusted upstream host CA public keys in authorized_keys
+  // format.
+  repeated string host_cas = 60;
+  // recording_enabled is true when the session must be recorded.
+  bool recording_enabled = 70;
+  // expiration is when the session authorization ends.
+  google.protobuf.Timestamp expiration = 80;
+}

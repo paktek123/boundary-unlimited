@@ -681,6 +681,18 @@ var inputStructs = map[string][]*cmdInfo{
 			VersionedActions:    []string{"update", "attach-storage-policy", "detach-storage-policy"},
 		},
 	},
+	"accessrequests": {
+		{
+			ResourceType:        resource.AccessRequest.String(),
+			Pkg:                 "accessrequests",
+			StdActions:          []string{"create", "read", "list"},
+			Container:           "Scope",
+			HasExtraCommandVars: true,
+			HasExtraHelpFunc:    true,
+			HasId:               true,
+			VersionedActions:    []string{"approve", "deny", "cancel", "revoke"},
+		},
+	},
 	"sessions": {
 		{
 			ResourceType:        resource.Session.String(),
