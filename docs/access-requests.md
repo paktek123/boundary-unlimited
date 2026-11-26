@@ -35,6 +35,25 @@ Tracking: epic #3, issue #18. Design: [docs/rfc/access-requests.md](rfc/access-r
   emit identifier-only events; justifications and secrets are never included.
 * Access ends at the approved `not_after` time even if nobody revokes it.
 
+## CLI and Go SDK (not usable yet)
+
+The `boundary access-requests` commands (`create`, `read`, `list`, `approve`,
+`deny`, `cancel`, `revoke`) and the Go SDK package `api/accessrequests` exist,
+but the controller does not register the access-request API (#322), so they do
+not work against any controller yet. Against a controller built from main,
+`GET /v1/access-requests` fails with a server error that wraps "not found", and
+every command reports that error. The CLI makes no authorization decision: the
+controller will enforce explicit `access-request` grants, refuse self-approval
+and hide other users' requests once the API is registered.
+
+* `create` takes `-scope-id`, `-grant` (repeatable), `-duration-seconds` (an
+  integer or a duration such as `1h`) and `-justification`. It has no name or
+  description. Its generated `-h` usage example still mentions name and
+  description; ignore it.
+* `approve`, `deny`, `cancel` and `revoke` take `-id` and an optional
+  `-version`; without it the command reads the request first (check-and-set).
+  `revoke` may be refused by the server until it is supported.
+
 ## Not yet available
 
 The adapter relies on an `ActorResolver` that the controller must implement

@@ -35,10 +35,10 @@ func init() {
 func extraActionsFlagsMapFuncImpl() map[string][]string {
 	return map[string][]string{
 		"create":  {flagJustification, flagGrant, flagDuration},
-		"approve": {"id"},
-		"deny":    {"id"},
-		"cancel":  {"id"},
-		"revoke":  {"id"},
+		"approve": {"id", "version"},
+		"deny":    {"id", "version"},
+		"cancel":  {"id", "version"},
+		"revoke":  {"id", "version"},
 	}
 }
 
