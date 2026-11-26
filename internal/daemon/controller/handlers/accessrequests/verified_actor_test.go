@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
 	"github.com/hashicorp/boundary/internal/daemon/controller/handlers"
+	"github.com/hashicorp/boundary/internal/perms"
 	"github.com/hashicorp/boundary/internal/types/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,4 +67,51 @@ func TestVerifiedActorResolver_Identity(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "u_1", a.Id)
 	assert.False(t, a.CanApprove)
+}
+
+func aclWith(t *testing.T, grants map[string][]string) func(*auth.VerifyResults) perms.ACL {
+	t.Helper()
+	var parsed []perms.Grant
+	for scopeId, gs := range grants {
+		for _, g := range gs {
+			pg, err := perms.Parse(context.Background(), perms.GrantTuple{RoleScopeId: scopeId, GrantScopeId: scopeId, Grant: g})
+			require.NoError(t, err, g)
+			parsed = append(parsed, pg)
+		}
+	}
+	acl := perms.NewACL(parsed...)
+	return func(*auth.VerifyResults) perms.ACL { return acl }
+}
+
+func TestVerifiedActorResolver_CanApprove(t *testing.T) {
+	const a, b = "o_1234567890", "o_0987654321"
+	cases := []struct {
+		name   string
+		grants map[string][]string
+		scope  string
+		want   bool
+	}{
+		{"explicit approve in the scope", map[string][]string{a: {"ids=*;type=access-request;actions=approve"}}, a, true},
+		{"approve in scope A does not allow scope B", map[string][]string{a: {"ids=*;type=access-request;actions=approve"}}, b, false},
+		{"read-only does not approve", map[string][]string{a: {"ids=*;type=access-request;actions=read,list"}}, a, false},
+		{"wildcard type and action do not approve", map[string][]string{a: {"ids=*;type=*;actions=*"}}, a, false},
+		{"access-request actions=* does not approve", map[string][]string{a: {"ids=*;type=access-request;actions=*"}}, a, false},
+		{"no grants", nil, a, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &VerifiedActorResolver{
+				verify: fake(auth.VerifyResults{UserId: "u_1234567890"}),
+				aclOf:  aclWith(t, tc.grants),
+			}
+			actor, err := r.Actor(context.Background(), tc.scope)
+			require.NoError(t, err)
+			assert.Equal(t, "u_1234567890", actor.Id)
+			assert.Equal(t, tc.want, actor.CanApprove)
+			// Authenticate-only never grants approval.
+			actor, err = r.Actor(context.Background(), "")
+			require.NoError(t, err)
+			assert.False(t, actor.CanApprove)
+		})
+	}
 }

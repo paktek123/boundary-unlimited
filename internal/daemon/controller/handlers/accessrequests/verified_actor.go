@@ -24,9 +24,9 @@ var errUnauthenticated = errors.New("accessrequests: unauthenticated")
 const anonymousUserId = "u_anon"
 
 // anyRequestId is a placeholder id used to evaluate the approve action against
-// grants of the form ids=*;type=access-request;actions=approve. Grants that
-// name one specific request id do not match it, so they do not make a caller
-// an approver (fail closed). The domain still re-checks the decision.
+// grants of the form ids=*;type=access-request;actions=approve (the grant
+// parser does not accept ids of a specific access request, so ids=* is the only
+// form). The domain still re-checks the decision.
 const anyRequestId = "ar_0000000000"
 
 // verifyFunc matches auth.Verify; a field so tests can use a fake verifier.
@@ -40,13 +40,15 @@ type verifyFunc func(ctx context.Context, typ resource.Type, opt ...auth.Option)
 // by the domain. It is not registered in the controller in this slice.
 type VerifiedActorResolver struct {
 	verify verifyFunc
+	// aclOf extracts the verified ACL; a field so tests can supply grants.
+	aclOf func(res *auth.VerifyResults) perms.ACL
 }
 
 var _ ActorResolver = (*VerifiedActorResolver)(nil)
 
 // NewVerifiedActorResolver returns a resolver backed by auth.Verify.
 func NewVerifiedActorResolver() *VerifiedActorResolver {
-	return &VerifiedActorResolver{verify: auth.Verify}
+	return &VerifiedActorResolver{verify: auth.Verify, aclOf: (*auth.VerifyResults).ACL}
 }
 
 // Actor authenticates the request. An empty scopeId authenticates only.
@@ -76,7 +78,11 @@ func (r *VerifiedActorResolver) Actor(ctx context.Context, scopeId string) (acce
 	if scopeId == "" {
 		return actor, nil
 	}
-	acl := res.ACL()
+	aclOf := r.aclOf
+	if aclOf == nil {
+		aclOf = (*auth.VerifyResults).ACL
+	}
+	acl := aclOf(&res)
 	actor.CanApprove = acl.Allowed(perms.Resource{
 		ScopeId: scopeId,
 		Id:      anyRequestId,
