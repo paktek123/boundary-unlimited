@@ -155,3 +155,5 @@ out
 
 # rdp e2e automation
 test_output*
+# Local "go build ./cmd/boundary" output in the repo root
+/boundary

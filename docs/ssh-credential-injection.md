@@ -49,8 +49,22 @@ refuses every ssh session until that lands.
   (optional passphrase) and the Vault `vault-ssh-certificate` library
   (planned, issue #8). `json` and `username_password_domain` are rejected.
 
+## Worker authentication library (not yet reachable)
+
+The worker package `internal/daemon/worker/proxy/ssh/injectauth` turns a
+credential into upstream SSH authentication methods and is used by
+`NewClientUpstream` (`upstream.go`). It supports a password, a private key with
+an optional passphrase, and a private key with an OpenSSH certificate. It fails
+closed with fixed-reason errors: a certificate without its key, an encrypted
+key without a passphrase, an unparsable key, an unsupported key type or an RSA
+key shorter than the minimum are all refused, and no key bytes appear in
+errors. This is a library only: no ssh target can reach it yet because the
+controller neither accepts the injected purpose on ssh targets nor sends a host
+key policy (see below), so it does not change what a session can do today.
+
 ## Not yet available
 
-The `injected_application` purpose on `ssh` targets (issue #5), static
-`ssh_private_key` injection in the worker (issue #7), the Vault SSH
-certificate library for injection (issue #8) and the matching CLI flag.
+The `injected_application` purpose on `ssh` targets (issue #5), wiring static
+`ssh_private_key` injection end to end (issue #7; the worker library above
+exists), the Vault SSH certificate library for injection (issue #8) and the
+matching CLI flag.

@@ -5,9 +5,9 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	"github.com/hashicorp/boundary/internal/errors"
 	"github.com/hashicorp/boundary/internal/notify/sender"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,8 @@ func TestBuildNotifier(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			n, err := buildNotifier(ctx, tc.dests, sender.Deps{}, 0, tc.resolve)
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, errNotifierBuild))
+			assert.True(t, errors.Match(errors.T(errors.InvalidParameter), err))
+			assert.Contains(t, err.Error(), errNotifierBuildMsg)
 			assert.Nil(t, n)
 			assert.NotContains(t, err.Error(), canary)
 			assert.NotContains(t, err.Error(), "hooks.example.com")

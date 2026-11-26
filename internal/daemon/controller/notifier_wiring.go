@@ -5,10 +5,10 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/boundary/internal/errors"
 	"github.com/hashicorp/boundary/internal/event"
 	"github.com/hashicorp/boundary/internal/notify"
 	"github.com/hashicorp/boundary/internal/notify/sender"
@@ -16,8 +16,8 @@ import (
 
 // errNotifierBuild is the only error text startup sees when the notifier
 // cannot be built. The cause is reported to the system event stream by
-// destination name only and never carries a URL, secret reference or secret.
-var errNotifierBuild = errors.New("controller: notifier could not be built")
+// destination count only and never carries a URL, secret reference or secret.
+const errNotifierBuildMsg = "notifier could not be built"
 
 // buildNotifier builds the notifier fan-out from the configured destinations.
 // With no destinations it returns nil, nil (no notifications; the request flow
@@ -35,7 +35,7 @@ func buildNotifier(ctx context.Context, dests []sender.Destination, deps sender.
 		// error is never printed, and destination names are not logged because
 		// a name that failed validation is arbitrary operator text.
 		event.WriteSysEvent(ctx, op, "notifier could not be built", "destinations", fmt.Sprint(len(dests)))
-		return nil, errNotifierBuild
+		return nil, errors.New(ctx, errors.InvalidParameter, op, errNotifierBuildMsg)
 	}
 	// BuildFanOut returns a nil *FanOut for no destinations; return an untyped
 	// nil so the interface is not a non-nil interface holding a nil pointer.
