@@ -363,6 +363,8 @@ fork, which is independent of HashiCorp.
 * targets: Add the `kubernetes` target handler (`internal/daemon/controller/handlers/targets/kubernetes`): port validation (default_port defaults to 443) and attribute mapping, with no recording or credential options. It is not imported by the controller binary yet, so kubernetes targets still cannot be created; registration lands with its service-level database tests. Refs #336, #25.
 * worker: Add `sshFinalizeReporter` (`internal/daemon/worker/ssh_finalize_reporter.go`), the production `FinalizeReporter` for ssh recordings: one system event per finalisation with the session id, upload status and attempts only (no error text). It is not yet wired into the recording factory, so nothing is enabled (Refs #259).
 * docs: `docs/ssh-credential-injection.md` describes the worker `injectauth` library (password, private key with passphrase, certificate; fail-closed) and states it is not yet reachable from any target. Refs #7.
+* worker: Add a test that every failure path of `injectauth.AuthMethods` returns an error carrying no password, passphrase, key or certificate bytes. Test only. Refs #7.
+* worker: Add a test that the kubernetes proxy relay forwards the client's Authorization header verbatim and injects no other credential or impersonation header. Test only. Refs #26.
 
 ## 0.21.3 (2026/04/28)
 
