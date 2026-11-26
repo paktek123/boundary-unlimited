@@ -20,8 +20,9 @@ func init() {
 }
 
 // InputDecoder turns the handler argument of a session into the plain values
-// HandleSession needs. The proto message that carries them arrives with the
-// controller slice; until a decoder is installed every session is refused.
+// HandleSession needs. The proto message that carries them is SshSessionInput
+// (see DecodeSessionInput); until a decoder is installed every session is
+// refused.
 type InputDecoder func(ctx context.Context, df proxy.DecryptFn, pb *anypb.Any) (SessionConfig, []HandleOption, error)
 
 // decodeInput is the installed decoder. The default refuses everything: with
@@ -52,7 +53,10 @@ func handleProxy(controlCtx context.Context, dataCtx context.Context, df proxy.D
 	case pb == nil:
 		return refuse(errors.New(controlCtx, errors.InvalidParameter, op, "missing ssh session input"))
 	}
-	cfg, opts, err := decodeInput(controlCtx, df, pb)
+	decoderMu.RLock()
+	decode := decodeInput
+	decoderMu.RUnlock()
+	cfg, opts, err := decode(controlCtx, df, pb)
 	if err != nil {
 		return refuse(errors.Wrap(controlCtx, err, op, errors.WithMsg("ssh session input unusable"), errors.WithCode(errors.InvalidParameter)))
 	}
