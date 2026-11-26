@@ -1415,6 +1415,12 @@ func initCommands(ui, serverCmdUi cli.Ui, runOpts *RunOptions) {
 				Func:    "create",
 			}
 		}),
+		"targets create kubernetes": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &targetscmd.KubernetesCommand{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "create",
+			}
+		}),
 		"targets update": wrapper.Wrap(func() wrapper.WrappableCommand {
 			return &targetscmd.Command{
 				Command: base.NewCommand(ui, opts...),
@@ -1429,6 +1435,12 @@ func initCommands(ui, serverCmdUi cli.Ui, runOpts *RunOptions) {
 		}),
 		"targets update rdp": wrapper.Wrap(func() wrapper.WrappableCommand {
 			return &targetscmd.RdpCommand{
+				Command: base.NewCommand(ui, opts...),
+				Func:    "update",
+			}
+		}),
+		"targets update kubernetes": wrapper.Wrap(func() wrapper.WrappableCommand {
+			return &targetscmd.KubernetesCommand{
 				Command: base.NewCommand(ui, opts...),
 				Func:    "update",
 			}
