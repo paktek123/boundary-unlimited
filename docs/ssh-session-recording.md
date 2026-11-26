@@ -54,7 +54,9 @@ factory only when every dependency exists. The startup event names a missing
 dependency by these classes: `recording_storage_path` (the scratch store),
 `finalizer`, `bsr_kms_wrapper` (the spec provider) and `reporter`. Today no
 production spec provider, finalizer or reporter is built, so the factory stays
-uninstalled, the worker emits one startup event naming the missing classes, and
+uninstalled, the worker emits one startup event naming the missing classes (the
+scratch store is supplied whenever `recording_storage_path` is configured, so
+`recording_storage_path` is named only when it is not), and
 any session that requires recording is refused before an upstream connection
 is made. There is no configuration field that enables recording yet.
 
