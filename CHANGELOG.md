@@ -370,6 +370,7 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-credential-injection.md` describes the worker `injectauth` library (password, private key with passphrase, certificate; fail-closed) and states it is not yet reachable from any target. Refs #7.
 * worker: Add a test that every failure path of `injectauth.AuthMethods` returns an error carrying no password, passphrase, key or certificate bytes. Test only. Refs #7.
 * worker: Add a test that the kubernetes proxy relay forwards the client's Authorization header verbatim and injects no other credential or impersonation header. Test only. Refs #26.
+* docs: `docs/kubernetes-target.md` lists the merged `kubernetes` target handler library and states that it is not imported by the controller binary. Refs #339.
 * runbooks: Migration 120 adds `runbook` to `iam_grant_resource_enm`, so a role grant such as `ids=*;type=runbook;actions=read,list,delete` can be stored (before, it failed with a foreign key violation). The runbook caller resolver now asks `auth.Verify` for the list action recursively from global, so a user's grants in every scope are loaded and a user without a runbook grant gets a refusal (403) instead of being reported as unauthenticated; project-scoped grants cover only their project. Covered by `TestRunbookAPI_EndToEnd` against a real controller. Refs #320.
 
 ## 0.21.3 (2026/04/28)
