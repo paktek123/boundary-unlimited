@@ -369,6 +369,7 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-credential-injection.md` describes the worker `injectauth` library (password, private key with passphrase, certificate; fail-closed) and states it is not yet reachable from any target. Refs #7.
 * worker: Add a test that every failure path of `injectauth.AuthMethods` returns an error carrying no password, passphrase, key or certificate bytes. Test only. Refs #7.
 * worker: Add a test that the kubernetes proxy relay forwards the client's Authorization header verbatim and injects no other credential or impersonation header. Test only. Refs #26.
+* docs: `docs/ssh-session-recording.md` no longer says the session bucket lookup is missing; it states that the lookup exists and the opener and installation do not. Refs #348.
 
 ## 0.21.3 (2026/04/28)
 
