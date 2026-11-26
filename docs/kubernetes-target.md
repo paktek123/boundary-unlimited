@@ -18,6 +18,7 @@ Tracking: epic #22, issue #27. Design: [docs/rfc/kubernetes-target.md](rfc/kuber
 | Target subtype package (store, repository tests) | `internal/target/kubernetes` |
 | Inert `target_kubernetes` table (migration 113) | `internal/db/schema/migrations/oss/postgres` |
 | `KubernetesTargetAttributes` API proto message (`default_port`, `default_client_port` only: no recording or credential-injection options) and its regenerated SDK pb; no handler uses it yet | `internal/proto/controller/api/resources/targets`, `sdk/pbs` |
+| Target handler for `kubernetes` targets (create/update with fail-closed port validation, `brokered`-only credential sources); a library, not imported by the controller binary, so it serves no request yet | `internal/daemon/controller/handlers/targets/kubernetes` |
 | Worker relay to a Kubernetes API server over mandatory, verified TLS; registered as a proxy handler that refuses every session (fail closed) until a session input decoder is installed | `internal/daemon/worker/proxy/kube` |
 | Kubeconfig builder: TLS-verifying, written to a private 0600 temp file, exec-plugin kubeconfigs rejected | `internal/cmd/commands/connect` (`kubeconfig.go`) |
 | Parsing of a brokered Kubernetes credential for `boundary connect kube` | `internal/cmd/commands/connect/kubecreds` |

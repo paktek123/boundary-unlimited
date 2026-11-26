@@ -8,6 +8,8 @@ import (
 	"errors"
 
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
+	"github.com/hashicorp/boundary/internal/daemon/controller/handlers"
+	"github.com/hashicorp/boundary/internal/types/action"
 	"github.com/hashicorp/boundary/internal/types/resource"
 	"github.com/hashicorp/boundary/internal/types/scope"
 )
@@ -49,12 +51,23 @@ func (r *VerifiedCallerResolver) Caller(ctx context.Context) (Caller, error) {
 	if r == nil || r.verify == nil {
 		return Caller{}, errUnauthenticated
 	}
+	// auth.Verify both authenticates and authorizes one action on one resource.
+	// This resolver only needs the identity and the user's grants: Service
+	// decides each RPC against the runbook's stored scope. So it asks for the
+	// list action recursively from global, which loads the user's grants in
+	// every scope, and tolerates a Forbidden result (an authenticated user who
+	// holds no runbook grant simply gets an ACL that allows nothing).
 	res := r.verify(ctx, resource.Runbook,
 		auth.WithScopeId(scope.Global.String()),
+		auth.WithAction(action.List),
+		auth.WithRecursive(true),
 		auth.WithAnonymousUserNotAllowed(true),
 		auth.WithRecoveryTokenNotAllowed(true),
 	)
-	if res.Error != nil || res.UserId == "" || res.UserId == anonymousUserId {
+	if res.Error != nil && !errors.Is(res.Error, handlers.ForbiddenError()) {
+		return Caller{}, errUnauthenticated
+	}
+	if res.UserId == "" || res.UserId == anonymousUserId {
 		return Caller{}, errUnauthenticated
 	}
 	return Caller{UserId: res.UserId, ACL: res.ACL()}, nil

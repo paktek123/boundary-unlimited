@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/boundary/internal/daemon/controller/auth"
+	"github.com/hashicorp/boundary/internal/daemon/controller/handlers"
 	"github.com/hashicorp/boundary/internal/types/resource"
 )
 
@@ -39,6 +40,27 @@ func TestVerifiedCallerResolver(t *testing.T) {
 			name: "empty user id denies",
 			verify: func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
 				return auth.VerifyResults{}
+			},
+			wantErr: true,
+		},
+		{
+			name: "forbidden without identity denies",
+			verify: func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
+				return auth.VerifyResults{Error: handlers.ForbiddenError()}
+			},
+			wantErr: true,
+		},
+		{
+			name: "forbidden for an identified user still resolves (no grant)",
+			verify: func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
+				return auth.VerifyResults{UserId: "u_1", Error: handlers.ForbiddenError()}
+			},
+			wantUser: "u_1",
+		},
+		{
+			name: "unauthenticated error denies",
+			verify: func(context.Context, resource.Type, ...auth.Option) auth.VerifyResults {
+				return auth.VerifyResults{UserId: "u_1", Error: handlers.UnauthenticatedError()}
 			},
 			wantErr: true,
 		},
