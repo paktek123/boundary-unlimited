@@ -246,6 +246,12 @@ func (c *Controller) registerGrpcServices(s *grpc.Server) error {
 		}
 		services.RegisterPolicyServiceServer(s, ps)
 	}
+	if _, ok := currentServices[services.RunbookService_ServiceDesc.ServiceName]; !ok {
+		// Get/list/delete only; unregistered when the service cannot be built.
+		if rs := buildRunbookServer(c.baseContext, db.New(c.conf.Database), c.kms); rs != nil {
+			services.RegisterRunbookServiceServer(s, rs)
+		}
+	}
 	if _, ok := currentServices[services.SessionRecordingService_ServiceDesc.ServiceName]; !ok {
 		srs, err := session_recordings.NewServiceFn(
 			c.baseContext,
@@ -452,6 +458,9 @@ func registerGrpcGatewayEndpoints(ctx context.Context, gwMux *runtime.ServeMux, 
 	}
 	if err := services.RegisterCredentialServiceHandler(ctx, gwMux, conn); err != nil {
 		return fmt.Errorf("failed to register credential service handler: %w", err)
+	}
+	if err := services.RegisterRunbookServiceHandler(ctx, gwMux, conn); err != nil {
+		return fmt.Errorf("failed to register runbook service handler: %w", err)
 	}
 	if err := services.RegisterSessionRecordingServiceHandler(ctx, gwMux, conn); err != nil {
 		return fmt.Errorf("failed to register session recording service handler: %w", err)
