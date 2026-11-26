@@ -43,8 +43,7 @@ The adapter relies on an `ActorResolver`. `VerifiedActorResolver`
 result, anonymous and recovery-token callers are refused with one fixed error,
 and `CanApprove` is true only when the verified ACL holds an explicit `approve`
 grant of the form `ids=*;type=access-request;actions=approve` on the request's
-stored scope (wildcard type or action grants never qualify, and a grant naming
-one request id does not make a caller an approver). It is not registered.
+stored scope (wildcard type or action grants never qualify). It is not registered.
 Registration of the API in the controller is the key remaining work. Also
 missing: the HTTP gateway, the CLI (`boundary access-requests`), revoke,
 request creation through any endpoint, controller wiring of the notifier, and
