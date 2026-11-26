@@ -363,6 +363,11 @@ fork, which is independent of HashiCorp.
 * targets: Add the `kubernetes` target handler (`internal/daemon/controller/handlers/targets/kubernetes`): port validation (default_port defaults to 443) and attribute mapping, with no recording or credential options. It is not imported by the controller binary yet, so kubernetes targets still cannot be created; registration lands with its service-level database tests. Refs #336, #25.
 * worker: Add `sshFinalizeReporter` (`internal/daemon/worker/ssh_finalize_reporter.go`), the production `FinalizeReporter` for ssh recordings: one system event per finalisation with the session id, upload status and attempts only (no error text). It is not yet wired into the recording factory, so nothing is enabled (Refs #259).
 * targets: Add migration 119 with the `host_key_policy_keys` and `host_key_policy_cas` columns on `target_ssh` (bounded to 16 entries and a total size limit, default empty) and a sqltest. Storage only: no proto, domain getter or API accepts the policy yet, so nothing is enabled. Refs #362.
+* targets: Add `BuildSessionInput` (`internal/daemon/controller/handlers/targets/ssh/session_input.go`), the controller-side builder of the ssh `SshSessionInput` worker argument. It fails closed on missing ids, a bad address, no expiration or an empty/invalid host key policy (no trust on first use) and is round-trip tested against the worker decoder. `AuthorizeSession` does not call it yet, so nothing is enabled. Refs #347.
+* connect: Add a kind-free end-to-end test of the `boundary connect kube` client half (brokered credential to private kubeconfig to a TLS-verified request against a fake API server). Test only; no behaviour change. Refs #339.
+* docs: `docs/ssh-credential-injection.md` describes the worker `injectauth` library (password, private key with passphrase, certificate; fail-closed) and states it is not yet reachable from any target. Refs #7.
+* worker: Add a test that every failure path of `injectauth.AuthMethods` returns an error carrying no password, passphrase, key or certificate bytes. Test only. Refs #7.
+* worker: Add a test that the kubernetes proxy relay forwards the client's Authorization header verbatim and injects no other credential or impersonation header. Test only. Refs #26.
 
 ## 0.21.3 (2026/04/28)
 
