@@ -45,6 +45,9 @@ type WriteEvent struct {
 	PrincipalId string
 	Version     uint32
 	Timestamp   time.Time
+	// CommitSHA and ParamNames are set for pin-only writes (never values).
+	CommitSHA  string
+	ParamNames []string
 }
 
 // Emitter publishes write audit events. A failure fails the write closed
@@ -249,4 +252,89 @@ func (s *Service) Delete(ctx context.Context, c Caller, id string) error {
 // Run always returns ErrRunNotSupported, whoever asks and whatever the id.
 func (s *Service) Run(_ context.Context, _ Caller, _ string) error {
 	return ErrRunNotSupported
+}
+
+// PinnedRequest carries a definition as a reference only: the pinned commit
+// and script path plus metadata. There is no script field.
+type PinnedRequest struct {
+	ScopeId     string
+	Name        string
+	Description string
+	Interpreter string
+	Parameters  []runbook.Parameter
+	Selector    runbook.TargetSelector
+	CommitSHA   string
+	ScriptPath  string
+	// Version is required for UpdatePinned.
+	Version uint32
+}
+
+func (s *Service) auditPinned(ctx context.Context, op string, d runbook.StoredDefinition, c Caller) error {
+	names := make([]string, 0, len(d.Parameters))
+	for _, p := range d.Parameters {
+		names = append(names, p.Name)
+	}
+	return s.emit.Emit(ctx, WriteEvent{Op: op, RunbookId: d.Id, ScopeId: d.ScopeId, PrincipalId: c.UserId,
+		Version: d.Version, Timestamp: s.now(), CommitSHA: d.SourceCommitSHA, ParamNames: names})
+}
+
+// CreatePinned stores an unverified definition from a pin reference. It never
+// fetches anything; the result is refused by run and approval binding until a
+// verified script hash exists.
+func (s *Service) CreatePinned(ctx context.Context, c Caller, r PinnedRequest) (runbook.StoredDefinition, error) {
+	if !s.allowed(c, r.ScopeId, "", action.Create) {
+		return runbook.StoredDefinition{}, ErrForbidden
+	}
+	id, err := s.newId(ctx)
+	if err != nil {
+		return runbook.StoredDefinition{}, errors.New("runbooks: internal error")
+	}
+	d, err := runbook.NewUnverifiedStoredDefinition(id, r.ScopeId, r.Name, r.Description, r.Interpreter, r.Parameters, r.Selector, r.CommitSHA, r.ScriptPath)
+	if err != nil {
+		return runbook.StoredDefinition{}, mapErr(err)
+	}
+	out, err := s.repo.Create(ctx, d)
+	if err != nil {
+		return runbook.StoredDefinition{}, mapErr(err)
+	}
+	if err := s.auditPinned(ctx, "create", out, c); err != nil {
+		_ = s.repo.Delete(ctx, out.Id)
+		return runbook.StoredDefinition{}, errors.New("runbooks: audit failed")
+	}
+	return out, nil
+}
+
+// UpdatePinned replaces a definition's metadata and pin if r.Version matches.
+// Changing the commit or script path resets the definition to unverified.
+func (s *Service) UpdatePinned(ctx context.Context, c Caller, id string, r PinnedRequest) (runbook.StoredDefinition, error) {
+	if r.Version == 0 {
+		return runbook.StoredDefinition{}, fmt.Errorf("%w: version is required", ErrInvalid)
+	}
+	cur, err := s.repo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, runbook.ErrNotFound) {
+			return runbook.StoredDefinition{}, ErrForbidden
+		}
+		return runbook.StoredDefinition{}, mapErr(err)
+	}
+	if !s.allowed(c, cur.ScopeId, cur.Id, action.Update) {
+		return runbook.StoredDefinition{}, ErrForbidden
+	}
+	d, err := runbook.NewUnverifiedStoredDefinition(cur.Id, cur.ScopeId, r.Name, r.Description, r.Interpreter, r.Parameters, r.Selector, r.CommitSHA, r.ScriptPath)
+	if err != nil {
+		return runbook.StoredDefinition{}, mapErr(err)
+	}
+	if r.CommitSHA == cur.SourceCommitSHA && r.ScriptPath == cur.ScriptPath {
+		d.ScriptSHA256 = cur.ScriptSHA256 // same pin: verification is kept
+	}
+	d.Version = r.Version
+	out, err := s.repo.Update(ctx, d)
+	if err != nil {
+		return runbook.StoredDefinition{}, mapErr(err)
+	}
+	if err := s.auditPinned(ctx, "update", out, c); err != nil {
+		_, _ = s.repo.Update(ctx, withVersion(cur, out.Version))
+		return runbook.StoredDefinition{}, errors.New("runbooks: audit failed")
+	}
+	return out, nil
 }
