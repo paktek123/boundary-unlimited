@@ -120,3 +120,37 @@ func TestInstallSSHRecording_AllDepsInstallsFactory(t *testing.T) {
 		})
 	}
 }
+
+func TestInstallSSHRecording_ReporterPresentStillFailsClosed(t *testing.T) {
+	var missing any
+	write := func(_ context.Context, _ event.Op, _ string, args ...any) {
+		for i := 0; i+1 < len(args); i += 2 {
+			if args[i] == "missing" {
+				missing = args[i+1]
+			}
+		}
+	}
+	deps := sshRecordingDeps{Reporter: sshFinalizeReporter{write: write}}
+	ok, err := installSSHRecording(context.Background(), deps, write)
+	require.NoError(t, err)
+	assert.False(t, ok, "recording must stay uninstalled without a finalizer and spec provider")
+	assert.ElementsMatch(t, []string{"recording_storage_path", "finalizer", "bsr_kms_wrapper"}, missing)
+}
+
+func TestInstallSSHRecording_ScratchPresentDoesNotChangeMissingList(t *testing.T) {
+	var missing any
+	write := func(_ context.Context, _ event.Op, _ string, args ...any) {
+		for i := 0; i+1 < len(args); i += 2 {
+			if args[i] == "missing" {
+				missing = args[i+1]
+			}
+		}
+	}
+	store, err := scratch.New(t.TempDir(), 1<<20)
+	require.NoError(t, err)
+	deps := sshRecordingDeps{Reporter: sshFinalizeReporter{write: write}, Scratch: store}
+	ok, err := installSSHRecording(context.Background(), deps, write)
+	require.NoError(t, err)
+	assert.False(t, ok)
+	assert.ElementsMatch(t, []string{"finalizer", "bsr_kms_wrapper"}, missing)
+}
