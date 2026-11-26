@@ -93,6 +93,28 @@ func TestRunbookReadDelete_Grants(t *testing.T) {
 	}
 }
 
+// TestRunbookReadDelete_GrantInOtherScopeRefused checks that a grant scoped
+// to a different scope never covers a runbook in the global scope.
+func TestRunbookReadDelete_GrantInOtherScopeRefused(t *testing.T) {
+	ctx := context.Background()
+	p, err := perms.Parse(ctx, perms.GrantTuple{RoleScopeId: "o_1234567890", GrantScopeId: "o_1234567890", Grant: "ids=*;type=runbook;actions=read,list,delete"})
+	require.NoError(t, err)
+	repo := runbook.NewMemRepository()
+	def := runbook.Definition{Name: "restart", Interpreter: runbook.InterpreterPosixSh, Script: []byte("echo hi\n")}
+	stored, err := runbook.NewStoredDefinition("rb_0000000001", "global", def, "0123456789abcdef0123456789abcdef01234567", "runbooks/restart.sh")
+	require.NoError(t, err)
+	_, err = repo.Create(ctx, stored)
+	require.NoError(t, err)
+	srv := newRunbookServer(repo, noEmit{}, fixedCaller{c: runbooks.Caller{UserId: "u_1234567890", ACL: perms.NewACL(p)}})
+	require.NotNil(t, srv)
+	_, getErr := srv.GetRunbook(ctx, &pbs.GetRunbookRequest{Id: "rb_0000000001"})
+	_, listErr := srv.ListRunbooks(ctx, &pbs.ListRunbooksRequest{ScopeId: "global"})
+	_, delErr := srv.DeleteRunbook(ctx, &pbs.DeleteRunbookRequest{Id: "rb_0000000001"})
+	assert.Equal(t, codes.PermissionDenied, status.Code(getErr), "get")
+	assert.Equal(t, codes.PermissionDenied, status.Code(listErr), "list")
+	assert.Equal(t, codes.PermissionDenied, status.Code(delErr), "delete")
+}
+
 // TestRunbookService_UnregisteredIsUnimplemented checks that a gRPC server
 // without the runbook service (the fail-closed state the HTTP gateway proxies
 // to) answers with a clean Unimplemented status, not an internal error.

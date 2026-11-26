@@ -85,6 +85,8 @@ func (e apiStatusErr) GRPCStatus() *status.Status { return e.st }
 // adapter into API errors. Without it the HTTP gateway reports every failure,
 // including "unauthenticated" and "forbidden", as HTTP 500. The messages are
 // the adapter's fixed strings, never request data.
+// The default branch below forwards st.Message(); that is safe only because
+// the adapter's messages are fixed strings, so keep it that way.
 func toAPIStatusErr(err error) error {
 	if err == nil {
 		return nil

@@ -77,3 +77,12 @@ handler (`internal/daemon/controller/handlers/session_recordings`) returns
 get, list, download, export and delete. So no playback or export is served by
 this build, and the CLI commands fail with that error. Nothing in this section
 changes what a worker records or uploads. Refs #14.
+
+## Per-session bucket credential (not populated yet)
+
+The `LookupSession` response now has an optional `recording_bucket` message
+(bucket id plus a secret-classified credential), and the worker has
+`NewLookupSessionBucketLookup` to read it into a redacting reference. The
+controller does not populate the field and nothing installs the lookup, so
+recording-required sessions are still refused. Operators should issue a
+write-only, prefix-scoped bucket credential. Refs #363.
