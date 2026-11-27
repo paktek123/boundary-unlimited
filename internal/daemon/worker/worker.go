@@ -395,11 +395,12 @@ func New(ctx context.Context, conf *Config) (*Worker, error) {
 	}
 
 	// The recording factory is installed only when every dependency exists. Only
-	// the scratch store is built (sshRecordingDepsFor); no production
-	// SpecProvider, finalizer or reporter exists yet, so this
+	// the scratch store and the finalize reporter are built
+	// (sshRecordingDepsFor); no production SpecProvider or finalizer exists
+	// yet, so this
 	// uninstalls the factory and logs why: recording-required sessions stay
 	// refused (fail closed).
-	if _, err := installSSHRecording(ctx, sshRecordingDepsFor(w.sshScratch), event.WriteSysEvent); err != nil {
+	if _, err := installSSHRecording(ctx, sshRecordingDepsFor(w.sshScratch, event.WriteSysEvent), event.WriteSysEvent); err != nil {
 		return nil, fmt.Errorf("error installing ssh recording: %w", err)
 	}
 
