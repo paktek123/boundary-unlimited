@@ -76,9 +76,12 @@ func (t *Target) vetStoredHostKeyPolicy(ctx context.Context) error {
 	return validateHostKeyPolicy(ctx, keys, cas)
 }
 
+// emptyTextArray is the postgres literal of an empty text[].
+const emptyTextArray = "{}"
+
 func encodeTextArray(v []string) (string, error) {
 	if len(v) == 0 {
-		return "{}", nil
+		return emptyTextArray, nil
 	}
 	out, err := pq.StringArray(v).Value()
 	if err != nil {

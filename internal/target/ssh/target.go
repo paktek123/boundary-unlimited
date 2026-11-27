@@ -69,6 +69,10 @@ func (h targetHooks) NewTarget(ctx context.Context, projectId string, opt ...tar
 			IngressWorkerFilter:    opts.WithIngressWorkerFilter,
 			EnableSessionRecording: opts.WithEnableSessionRecording,
 			StorageBucketId:        opts.WithStorageBucketId,
+			// The empty policy as the database stores it (the column default),
+			// so a created target equals the one read back.
+			HostKeyPolicyKeys: emptyTextArray,
+			HostKeyPolicyCas:  emptyTextArray,
 		},
 		Address: opts.WithAddress,
 	}
