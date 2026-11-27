@@ -125,6 +125,8 @@ func TestSSHRecordingDepsFor(t *testing.T) {
 	// No scratch store: the dependency stays absent (no typed nil).
 	d := sshRecordingDepsFor(nil, nil)
 	assert.True(t, isNilIface(d.Scratch))
+	// The reporter is always supplied (it only writes system events).
+	assert.False(t, isNilIface(d.Reporter))
 
 	// With a scratch store the scratch dependency is supplied too; the
 	// factory stays uninstalled and the startup event does not name
