@@ -2931,3 +2931,4 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
+* worker: Supply the `sshFinalizeReporter` to the ssh recording install dependencies, so the startup event no longer names `reporter` as missing. The finalizer and the spec provider still do not exist, so the factory stays uninstalled and recording-required sessions are still refused. Refs #259.
