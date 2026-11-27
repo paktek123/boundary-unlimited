@@ -6,6 +6,7 @@ package main
 import (
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,10 +20,18 @@ import (
 // same change, which makes the enabling step explicit in review.
 func TestKubernetesTargetNotRegistered(t *testing.T) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "package_registry_oss.go", nil, parser.ImportsOnly)
+	// Every non-test file of package main, so registration through any file is caught.
+	files, err := filepath.Glob("*.go")
 	require.NoError(t, err)
-	require.NotEmpty(t, f.Imports)
-	for _, imp := range f.Imports {
-		require.NotContains(t, strings.ToLower(imp.Path.Value), "kubernetes", "kubernetes is registered in the binary: %s", imp.Path.Value)
+	require.NotEmpty(t, files)
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, parser.ImportsOnly)
+		require.NoError(t, err)
+		for _, imp := range f.Imports {
+			require.NotContains(t, strings.ToLower(imp.Path.Value), "kubernetes", "kubernetes is linked in %s: %s", name, imp.Path.Value)
+		}
 	}
 }
