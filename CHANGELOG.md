@@ -2932,3 +2932,4 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
+* docs: `docs/ssh-credential-injection.md` lists the merged `BuildSessionInput` builder and the host key policy columns (migration 119) and states that nothing sends or accepts a policy yet. Refs #347, #362.
