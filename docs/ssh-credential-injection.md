@@ -30,9 +30,20 @@ message is missing or malformed, when its connection id does not match the
 connection being proxied, when neither a pinned host key nor a host CA is
 present, or when there are more than `hostkeypolicy.MaxHostKeys` entries.
 
-The controller does not populate this message yet: an `ssh` target has no
-stored host key policy (tracked on issue #347), so no input is sent and the decoder
-refuses every ssh session until that lands.
+The controller does not send this message yet. Merged so far, none of it enabled:
+
+* `BuildSessionInput`
+  (`internal/daemon/controller/handlers/targets/ssh/session_input.go`) builds
+  the message and fails closed on missing ids, a bad address, no expiration, an
+  oversized id field, or an empty or invalid host key policy (no trust on first
+  use). It is round-trip tested against the worker decoder, and tests assert
+  the message has no credential-like field. `AuthorizeSession` does not call
+  it (issue #347).
+* Migration 119 adds the `host_key_policy_keys` and `host_key_policy_cas`
+  columns to `target_ssh` (at most 16 entries each, bounded total size, empty
+  by default). No proto field, domain getter or API accepts a policy yet
+  (issues #362 and #364), so an `ssh` target still has no host key policy and
+  the decoder refuses every ssh session.
 
 ## Properties the feature keeps
 
