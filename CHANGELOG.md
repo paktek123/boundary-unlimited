@@ -375,6 +375,7 @@ fork, which is independent of HashiCorp.
 * targets: Add a test that the client-facing `SessionAuthorization` message has no bucket or storage field, guarding that the recording bucket credential only reaches the requesting worker. Refs #365.
 * docs: `docs/kubernetes-target.md` lists the merged `kubernetes` target handler library and states that it is not imported by the controller binary. Refs #339.
 * runbooks: Migration 120 adds `runbook` to `iam_grant_resource_enm`, so a role grant such as `ids=*;type=runbook;actions=read,list,delete` can be stored (before, it failed with a foreign key violation). The runbook caller resolver now asks `auth.Verify` for the list action recursively from global, so a user's grants in every scope are loaded and a user without a runbook grant gets a refusal (403) instead of being reported as unauthenticated; project-scoped grants cover only their project. Covered by `TestRunbookAPI_EndToEnd` against a real controller. Refs #320.
+* access requests: Add `VerifiedActorResolver` (`internal/daemon/controller/handlers/accessrequests/verified_actor.go`), an `auth.Verify`-backed `ActorResolver`: the actor id comes from the verified result and `CanApprove` only from an explicit `approve` grant on the request scope (wildcards never qualify). Not registered in the controller yet (Refs #338).
 
 ## 0.21.3 (2026/04/28)
 
