@@ -370,8 +370,14 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-credential-injection.md` describes the worker `injectauth` library (password, private key with passphrase, certificate; fail-closed) and states it is not yet reachable from any target. Refs #7.
 * worker: Add a test that every failure path of `injectauth.AuthMethods` returns an error carrying no password, passphrase, key or certificate bytes. Test only. Refs #7.
 * worker: Add a test that the kubernetes proxy relay forwards the client's Authorization header verbatim and injects no other credential or impersonation header. Test only. Refs #26.
+* targets: Add tests that the ssh session input carries no credential-like field and that oversized fields are refused. Refs #347.
+* docs: `docs/ssh-session-recording.md` no longer says the session bucket lookup is missing; it states that the lookup exists and the opener and installation do not. Refs #348.
+* targets: Add a test that the client-facing `SessionAuthorization` message has no bucket or storage field, guarding that the recording bucket credential only reaches the requesting worker. Refs #365.
+* docs: `docs/kubernetes-target.md` lists the merged `kubernetes` target handler library and states that it is not imported by the controller binary. Refs #339.
 * runbooks: Migration 120 adds `runbook` to `iam_grant_resource_enm`, so a role grant such as `ids=*;type=runbook;actions=read,list,delete` can be stored (before, it failed with a foreign key violation). The runbook caller resolver now asks `auth.Verify` for the list action recursively from global, so a user's grants in every scope are loaded and a user without a runbook grant gets a refusal (403) instead of being reported as unauthenticated; project-scoped grants cover only their project. Covered by `TestRunbookAPI_EndToEnd` against a real controller. Refs #320.
 * worker: Pass the ssh recording scratch store to `installSSHRecording` (`sshRecordingDepsFor`); the factory stays uninstalled and recording-required sessions stay refused until the finalizer, BSR KMS wrapper and reporter exist (Refs #259).
+* docs: `docs/runbooks.md` now states that pin-only create/update exist in the gRPC adapter but are not served by the controller wrapper, that definitions are `unverified` and that run is always refused (Refs #321). Docs only.
+* access requests: Add `VerifiedActorResolver` (`internal/daemon/controller/handlers/accessrequests/verified_actor.go`), an `auth.Verify`-backed `ActorResolver`: the actor id comes from the verified result and `CanApprove` only from an explicit `approve` grant on the request scope (wildcards never qualify). Not registered in the controller yet (Refs #338).
 
 ## 0.21.3 (2026/04/28)
 
