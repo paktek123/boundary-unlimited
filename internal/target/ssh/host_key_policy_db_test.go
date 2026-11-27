@@ -89,9 +89,10 @@ func TestRepository_HostKeyPolicyReadBack(t *testing.T) {
 				UpstreamAddress: "10.0.0.1:22", PinnedHostKeys: gotKeys, HostCAs: gotCas,
 				RecordingEnabled: true, Expiration: time.Now().Add(time.Hour),
 			})
-			if n == 0 {
+			switch n {
+			case 0:
 				require.Error(t, err)
-			} else if n == 1 {
+			case 1:
 				require.NoError(t, err)
 			}
 		})
