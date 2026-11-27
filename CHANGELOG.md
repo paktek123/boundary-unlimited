@@ -381,6 +381,7 @@ fork, which is independent of HashiCorp.
 * docs: `docs/ssh-session-recording.md` explains which dependency classes the worker install gate reports as missing (Refs #259). Docs only.
 * docs: `docs/access-requests.md` describes `VerifiedActorResolver` and the exact approve grant it honours (Refs #338). Docs only.
 * worker: Pass the ssh recording scratch store to `installSSHRecording` (`sshRecordingDepsFor`); the factory stays uninstalled and recording-required sessions stay refused until the finalizer, BSR KMS wrapper and reporter exist (Refs #259).
+* worker: Supply the `sshFinalizeReporter` to the ssh recording install dependencies, so the startup event no longer names `reporter` as missing. The finalizer and the spec provider still do not exist, so the factory stays uninstalled and recording-required sessions are still refused. Refs #259.
 * docs: `docs/runbooks.md` now states that pin-only create/update exist in the gRPC adapter but are not served by the controller wrapper, that definitions are `unverified` and that run is always refused (Refs #321). Docs only.
 * access requests: Add `VerifiedActorResolver` (`internal/daemon/controller/handlers/accessrequests/verified_actor.go`), an `auth.Verify`-backed `ActorResolver`: the actor id comes from the verified result and `CanApprove` only from an explicit `approve` grant on the request scope (wildcards never qualify). Not registered in the controller yet (Refs #338).
 

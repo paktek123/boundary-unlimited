@@ -22,13 +22,16 @@ type sshRecordingDeps struct {
 }
 
 // sshRecordingDepsFor returns the recording dependencies the worker can build
-// today. Only the scratch store exists; the finalizer, spec provider (BSR KMS
-// wrapper) and reporter are still missing, so installSSHRecording keeps the
+// today. The scratch store and the finalize reporter exist; the finalizer and
+// the spec provider (BSR KMS wrapper) are still missing, so installSSHRecording keeps the
 // factory uninstalled and recording-required sessions stay refused. A nil
 // store leaves the dependency absent (it is never wrapped in a non-nil
 // interface).
-func sshRecordingDepsFor(s *scratch.Store) sshRecordingDeps {
-	var d sshRecordingDeps
+func sshRecordingDepsFor(s *scratch.Store, write sysEventWriter) sshRecordingDeps {
+	// The finalize reporter only emits system events, so it is always built.
+	// The factory still needs the finalizer and the spec provider, which do not
+	// exist yet, so supplying the reporter enables nothing.
+	d := sshRecordingDeps{Reporter: sshFinalizeReporter{write: write}}
 	if s != nil {
 		d.Scratch = s
 	}
