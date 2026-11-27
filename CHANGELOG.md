@@ -2932,3 +2932,4 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
+* targets: Add tests guarding that ssh targets accept only the `brokered` credential purpose and refuse `enable_session_recording` and `storage_bucket_id` on create and update until the worker enforces them. Test only. Refs #5, #11.
