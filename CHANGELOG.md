@@ -2932,3 +2932,4 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
+* test: Add a guard that the kubernetes target subtype and handler are not linked into the boundary binary until registration is deliberately enabled. Test only. Refs #336.
