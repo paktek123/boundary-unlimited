@@ -115,9 +115,19 @@ func TestSessionInputHasNoCredentialFields(t *testing.T) {
 }
 
 func TestBuildSessionInputRefusesOversizedField(t *testing.T) {
-	a := validArgs(t)
-	a.TargetId = strings.Repeat("t", maxSessionInputFieldLength+1)
-	msg, err := BuildSessionInput(context.Background(), a)
-	require.Error(t, err)
-	assert.Nil(t, msg)
+	big := strings.Repeat("t", maxSessionInputFieldLength+1)
+	for name, mod := range map[string]func(*SessionInputArgs){
+		"session id":       func(a *SessionInputArgs) { a.SessionId = big },
+		"connection id":    func(a *SessionInputArgs) { a.ConnectionId = big },
+		"target id":        func(a *SessionInputArgs) { a.TargetId = big },
+		"upstream address": func(a *SessionInputArgs) { a.UpstreamAddress = big + ":22" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := validArgs(t)
+			mod(&a)
+			msg, err := BuildSessionInput(context.Background(), a)
+			require.Error(t, err)
+			assert.Nil(t, msg)
+		})
+	}
 }
