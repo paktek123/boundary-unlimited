@@ -19,7 +19,7 @@ Tracking: epic #2, issue #14. Design: [docs/rfc/ssh-session-recording.md](rfc/ss
 | Recording factory and fail-closed guard around the SSH proxy | `internal/daemon/worker/proxy/ssh` (`recordingfactory.go`, `recguard`) |
 | Local scratch store with quota, recovery of orphaned recordings | `internal/daemon/worker/recording/scratch` |
 | Finalisation and verified upload | `internal/daemon/worker/recording/{finalize,upload}` |
-| Session storage bucket source: `NewSessionBucketSource` resolves the per-session bucket from controller-provided data; any missing lookup, opener or bucket refuses the session with the fixed `ErrRecordingBucketUnavailable`, and the bucket credential is redacted from formatting and JSON. Not installed: no production lookup or opener exists yet (issue #348) | `internal/daemon/worker/recording_bucket_source.go` |
+| Session storage bucket source: `NewSessionBucketSource` resolves the per-session bucket from controller-provided data; any missing lookup, opener or bucket refuses the session with the fixed `ErrRecordingBucketUnavailable`, and the bucket credential is redacted from formatting and JSON. Not installed: the production lookup `NewLookupSessionBucketLookup` (`internal/daemon/worker/recording_bucket_lookup.go`) exists but no production opener does, and nothing installs the source yet (issue #348) | `internal/daemon/worker/recording_bucket_source.go` |
 
 ## Properties the feature keeps
 
@@ -54,7 +54,9 @@ factory only when every dependency exists. The startup event names a missing
 dependency by these classes: `recording_storage_path` (the scratch store),
 `finalizer`, `bsr_kms_wrapper` (the spec provider) and `reporter`. Today no
 production spec provider, finalizer or reporter is built, so the factory stays
-uninstalled, the worker emits one startup event naming the missing classes, and
+uninstalled, the worker emits one startup event naming the missing classes (the
+scratch store is supplied whenever `recording_storage_path` is configured, so
+`recording_storage_path` is named only when it is not), and
 any session that requires recording is refused before an upstream connection
 is made. There is no configuration field that enables recording yet.
 

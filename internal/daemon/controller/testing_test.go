@@ -38,27 +38,17 @@ func Test_TestController(t *testing.T) {
 
 		// this isn't the best solution for capturing stdout but it works for now...
 		captureFn := func(fn func()) string {
-			old := os.Stdout
-			defer func() {
-				os.Stderr = old
-			}()
-
+			old := os.Stderr
+			defer func() { os.Stderr = old }()
 			r, w, _ := os.Pipe()
 			os.Stderr = w
-
-			{
-				fn()
-			}
-
 			outC := make(chan string)
-			// copy the output in a separate goroutine so writing to stderr can't block indefinitely
 			go func() {
 				var buf bytes.Buffer
 				_, _ = io.Copy(&buf, r)
 				outC <- buf.String()
 			}()
-
-			// back to normal state
+			fn()
 			w.Close()
 			return <-outC
 		}
