@@ -22,8 +22,8 @@ type sshRecordingDeps struct {
 }
 
 // sshRecordingDepsFor returns the recording dependencies the worker can build
-// today. Only the scratch store exists; the finalizer, spec provider (BSR KMS
-// wrapper) and reporter are still missing, so installSSHRecording keeps the
+// today. The scratch store and the finalize reporter exist; the finalizer and
+// the spec provider (BSR KMS wrapper) are still missing, so installSSHRecording keeps the
 // factory uninstalled and recording-required sessions stay refused. A nil
 // store leaves the dependency absent (it is never wrapped in a non-nil
 // interface).
