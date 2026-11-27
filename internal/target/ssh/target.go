@@ -109,6 +109,9 @@ func (t *Target) VetForWrite(ctx context.Context, _ db.Reader, opType db.OpType,
 			return errors.New(ctx, errors.InvalidParameter, op, "missing name")
 		}
 	}
+	if err := t.vetStoredHostKeyPolicy(ctx); err != nil {
+		return errors.Wrap(ctx, err, op)
+	}
 	return nil
 }
 

@@ -2932,3 +2932,4 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
+* targets: Add the ssh target host key policy storage fields (`host_key_policy_keys`, `host_key_policy_cas`) and the domain methods `HostKeyPolicy` / `SetHostKeyPolicy`; the policy is validated (no wildcards, bounded, no duplicate keys) with fixed errors that never echo key text, and `VetForWrite` refuses an unvalidated policy. Nothing accepts the policy through the API yet. Refs #362.

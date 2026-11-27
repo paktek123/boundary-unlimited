@@ -109,5 +109,16 @@ message Target {
     this: "StorageBucketId"
     that: "attributes.storage_bucket_id"
   }];
-}
 
+  // host_key_policy_keys is the postgres text[] array literal of the pinned
+  // upstream host public keys (authorized_keys format). It is encoded and
+  // decoded by the ssh target package, never by callers.
+  // @inject_tag: `gorm:"default:null"`
+  string host_key_policy_keys = 170;
+
+  // host_key_policy_cas is the postgres text[] array literal of the trusted
+  // upstream host CA public keys (authorized_keys format). It is encoded and
+  // decoded by the ssh target package, never by callers.
+  // @inject_tag: `gorm:"default:null"`
+  string host_key_policy_cas = 180;
+}
