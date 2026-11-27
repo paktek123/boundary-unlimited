@@ -373,6 +373,7 @@ fork, which is independent of HashiCorp.
 * targets: Add a test that the client-facing `SessionAuthorization` message has no bucket or storage field, guarding that the recording bucket credential only reaches the requesting worker. Refs #365.
 * docs: `docs/kubernetes-target.md` lists the merged `kubernetes` target handler library and states that it is not imported by the controller binary. Refs #339.
 * runbooks: Migration 120 adds `runbook` to `iam_grant_resource_enm`, so a role grant such as `ids=*;type=runbook;actions=read,list,delete` can be stored (before, it failed with a foreign key violation). The runbook caller resolver now asks `auth.Verify` for the list action recursively from global, so a user's grants in every scope are loaded and a user without a runbook grant gets a refusal (403) instead of being reported as unauthenticated; project-scoped grants cover only their project. Covered by `TestRunbookAPI_EndToEnd` against a real controller. Refs #320.
+* targets: Add tests guarding that ssh targets accept only the `brokered` credential purpose and refuse `enable_session_recording` and `storage_bucket_id` on create and update until the worker enforces them. Test only. Refs #5, #11.
 
 ## 0.21.3 (2026/04/28)
 
@@ -2932,4 +2933,3 @@ them to access targets).
 
 v0.1.0 is the first release of Boundary. As a result there are no changes,
 improvements, or bugfixes from past versions.
-* targets: Add tests guarding that ssh targets accept only the `brokered` credential purpose and refuse `enable_session_recording` and `storage_bucket_id` on create and update until the worker enforces them. Test only. Refs #5, #11.
