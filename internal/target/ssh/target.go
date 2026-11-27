@@ -69,10 +69,6 @@ func (h targetHooks) NewTarget(ctx context.Context, projectId string, opt ...tar
 			IngressWorkerFilter:    opts.WithIngressWorkerFilter,
 			EnableSessionRecording: opts.WithEnableSessionRecording,
 			StorageBucketId:        opts.WithStorageBucketId,
-			// The empty policy as the database stores it (the column default),
-			// so a created target equals the one read back.
-			HostKeyPolicyKeys: emptyTextArray,
-			HostKeyPolicyCas:  emptyTextArray,
 		},
 		Address: opts.WithAddress,
 	}
@@ -113,7 +109,8 @@ func (t *Target) VetForWrite(ctx context.Context, _ db.Reader, opType db.OpType,
 			return errors.New(ctx, errors.InvalidParameter, op, "missing name")
 		}
 	}
-	if err := t.vetStoredHostKeyPolicy(ctx); err != nil {
+	// A policy that did not go through SetHostKeyPolicy is still refused.
+	if _, _, err := t.HostKeyPolicy(ctx); err != nil {
 		return errors.Wrap(ctx, err, op)
 	}
 	return nil

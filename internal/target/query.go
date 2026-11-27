@@ -103,6 +103,8 @@ final as (
          default_client_port,
          null as storage_bucket_id,
          false as enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'tcp' as type
     from tcp_targets
    union
@@ -122,6 +124,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         host_key_policy_keys,
+         host_key_policy_cas,
          'ssh' as type
     from ssh_targets
    union
@@ -141,6 +145,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'rdp' as type
     from rdp_targets
 )
@@ -190,6 +196,8 @@ final as (
          default_client_port,
          null as storage_bucket_id,
          false as enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'tcp' as type
     from tcp_targets
    union
@@ -209,6 +217,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         host_key_policy_keys,
+         host_key_policy_cas,
          'ssh' as type
     from ssh_targets
    union
@@ -228,6 +238,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'rdp' as type
     from rdp_targets
 )
@@ -277,6 +289,8 @@ final as (
          default_client_port,
          null as storage_bucket_id,
          false as enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'tcp' as type
     from tcp_targets
    union
@@ -296,6 +310,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         host_key_policy_keys,
+         host_key_policy_cas,
          'ssh' as type
     from ssh_targets
    union
@@ -315,6 +331,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'rdp' as type
     from rdp_targets
 )
@@ -365,6 +383,8 @@ final as (
          default_client_port,
          null as storage_bucket_id,
          false as enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'tcp' as type
     from tcp_targets
    union
@@ -384,6 +404,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         host_key_policy_keys,
+         host_key_policy_cas,
          'ssh' as type
     from ssh_targets
    union
@@ -403,6 +425,8 @@ final as (
          default_client_port,
          storage_bucket_id,
          enable_session_recording,
+         '' as host_key_policy_keys,
+         '' as host_key_policy_cas,
          'rdp' as type
     from rdp_targets
 )

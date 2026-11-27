@@ -74,6 +74,12 @@ type Target interface {
 	SetProxyServerCertificate(*ServerCertificate)
 }
 
+// storedHostKeyPolicySetter is implemented by subtypes that carry a host key
+// policy.
+type storedHostKeyPolicySetter interface {
+	SetStoredHostKeyPolicy(keys, cas string)
+}
+
 const (
 	targetsViewDefaultTable = "target_all_subtypes"
 )
@@ -199,6 +205,11 @@ func (t *targetView) targetSubtype(ctx context.Context, address string) (Target,
 	tt.SetCredentialSources(t.CredentialSources)
 	tt.SetEnableSessionRecording(t.EnableSessionRecording)
 	tt.SetStorageBucketId(t.StorageBucketId)
+	// Only the ssh subtype carries a host key policy. Without this a stored
+	// policy would read back empty.
+	if p, ok := tt.(storedHostKeyPolicySetter); ok {
+		p.SetStoredHostKeyPolicy(t.HostKeyPolicyKeys, t.HostKeyPolicyCas)
+	}
 	return tt, nil
 }
 
