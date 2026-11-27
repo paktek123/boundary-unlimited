@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	sshproxy "github.com/hashicorp/boundary/internal/daemon/worker/proxy/ssh"
+	"github.com/hashicorp/boundary/internal/daemon/worker/recording/scratch"
 )
 
 // sshRecordingDeps are the pieces the ssh recording factory needs. Every field
@@ -18,6 +19,23 @@ type sshRecordingDeps struct {
 	Finalizer sshproxy.RecordingFinalizer
 	Specs     sshproxy.SpecProvider
 	Reporter  sshproxy.FinalizeReporter
+}
+
+// sshRecordingDepsFor returns the recording dependencies the worker can build
+// today. The scratch store and the finalize reporter exist; the finalizer and
+// the spec provider (BSR KMS wrapper) are still missing, so installSSHRecording keeps the
+// factory uninstalled and recording-required sessions stay refused. A nil
+// store leaves the dependency absent (it is never wrapped in a non-nil
+// interface).
+func sshRecordingDepsFor(s *scratch.Store, write sysEventWriter) sshRecordingDeps {
+	// The finalize reporter only emits system events, so it is always built.
+	// The factory still needs the finalizer and the spec provider, which do not
+	// exist yet, so supplying the reporter enables nothing.
+	d := sshRecordingDeps{Reporter: sshFinalizeReporter{write: write}}
+	if s != nil {
+		d.Scratch = s
+	}
+	return d
 }
 
 // installSSHRecording installs the ssh recording factory only when every

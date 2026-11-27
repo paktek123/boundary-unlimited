@@ -120,3 +120,31 @@ func TestInstallSSHRecording_AllDepsInstallsFactory(t *testing.T) {
 		})
 	}
 }
+
+func TestSSHRecordingDepsFor(t *testing.T) {
+	// No scratch store: the dependency stays absent (no typed nil).
+	d := sshRecordingDepsFor(nil, nil)
+	assert.True(t, isNilIface(d.Scratch))
+	// The reporter is always supplied (it only writes system events).
+	assert.False(t, isNilIface(d.Reporter))
+
+	// With a scratch store the scratch dependency is supplied too; the
+	// factory stays uninstalled and the startup event does not name
+	// recording_storage_path as missing.
+	s, err := newSSHScratch(t.TempDir())
+	require.NoError(t, err)
+	d = sshRecordingDepsFor(s, nil)
+	assert.False(t, isNilIface(d.Scratch))
+	var missing any
+	write := func(_ context.Context, _ event.Op, _ string, args ...any) {
+		for i := 0; i+1 < len(args); i += 2 {
+			if args[i] == "missing" {
+				missing = args[i+1]
+			}
+		}
+	}
+	ok, err := installSSHRecording(context.Background(), d, write)
+	require.NoError(t, err)
+	assert.False(t, ok)
+	assert.ElementsMatch(t, []string{"finalizer", "bsr_kms_wrapper"}, missing)
+}

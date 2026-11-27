@@ -41,9 +41,16 @@ Tracking: epic #89, issues #260 and #279. Design: [docs/rfc/runbooks.md](rfc/run
 
 ## Not yet available
 
-A gRPC adapter for get, list and delete exists
-(`internal/daemon/controller/handlers/runbooks/grpc.go`) but is not registered.
-It never returns script bodies. Create and update are Unimplemented until the
-script source is decided (#279). Still missing: the HTTP gateway, registration
+The gRPC adapter
+(`internal/daemon/controller/handlers/runbooks/grpc.go`) implements get, list
+and delete, which the controller registers (`runbook_wiring.go`), and pin-only
+`CreateRunbook` and `UpdateRunbook`. The controller wrapper deliberately does
+not serve create or update yet (they stay `Unimplemented` over the API). The
+adapter never returns script bodies. Create and update accept only the pin
+(`commit_sha`, a full 40 hex character commit, and `script_path`) plus
+metadata and parameter definitions; the stored definition is `unverified` (no
+`script_sha256`), changing the pin resets it to `unverified`, and
+`Service.Run` always returns "not yet supported", so an unverified definition
+can never be run. No production script fetcher exists (#279, #321). Still missing: the HTTP gateway, registration
 in the controller (caller and grant resolution, DB repository), the
 `boundary runbooks` CLI, worker execution and approval-gated runs.

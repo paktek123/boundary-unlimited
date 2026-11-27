@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -87,6 +88,46 @@ func TestBuildSessionInput(t *testing.T) {
 			require.Error(t, err)
 			assert.Nil(t, msg)
 			assert.NotContains(t, err.Error(), "CANARYKEYMATERIAL")
+		})
+	}
+}
+
+// TestSessionInputHasNoCredentialFields guards the "no credentials in the
+// worker handler argument" criterion of #347: neither the builder arguments
+// nor the SshSessionInput message may have a credential-like field.
+func TestSessionInputHasNoCredentialFields(t *testing.T) {
+	bad := []string{"password", "passphrase", "secret", "token", "private", "credential"}
+	var names []string
+	rt := reflect.TypeOf(SessionInputArgs{})
+	for i := 0; i < rt.NumField(); i++ {
+		names = append(names, rt.Field(i).Name)
+	}
+	md := (&services.SshSessionInput{}).ProtoReflect().Descriptor()
+	for i := 0; i < md.Fields().Len(); i++ {
+		names = append(names, string(md.Fields().Get(i).Name()))
+	}
+	require.NotEmpty(t, names)
+	for _, n := range names {
+		for _, b := range bad {
+			assert.NotContains(t, strings.ToLower(n), b, "field %s", n)
+		}
+	}
+}
+
+func TestBuildSessionInputRefusesOversizedField(t *testing.T) {
+	big := strings.Repeat("t", maxSessionInputFieldLength+1)
+	for name, mod := range map[string]func(*SessionInputArgs){
+		"session id":       func(a *SessionInputArgs) { a.SessionId = big },
+		"connection id":    func(a *SessionInputArgs) { a.ConnectionId = big },
+		"target id":        func(a *SessionInputArgs) { a.TargetId = big },
+		"upstream address": func(a *SessionInputArgs) { a.UpstreamAddress = big + ":22" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := validArgs(t)
+			mod(&a)
+			msg, err := BuildSessionInput(context.Background(), a)
+			require.Error(t, err)
+			assert.Nil(t, msg)
 		})
 	}
 }
