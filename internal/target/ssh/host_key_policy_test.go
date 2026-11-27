@@ -83,10 +83,10 @@ func TestVetForWriteRefusesUnvalidatedPolicy(t *testing.T) {
 	tgt := &Target{Target: &store.Target{}}
 	tgt.PublicId, tgt.ProjectId, tgt.Name = "tssh_1234567890", "p_1234567890", "n"
 	require.NoError(t, tgt.VetForWrite(ctx, nil, db.CreateOp))
-	tgt.Target.HostKeyPolicyKeys = "{\"ssh-ed25519 CANARYKEYMATERIAL\"}"
+	tgt.HostKeyPolicyKeys = "{\"ssh-ed25519 CANARYKEYMATERIAL\"}"
 	err := tgt.VetForWrite(ctx, nil, db.CreateOp)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "CANARYKEYMATERIAL")
-	tgt.Target.HostKeyPolicyKeys = "not an array"
+	tgt.HostKeyPolicyKeys = "not an array"
 	require.Error(t, tgt.VetForWrite(ctx, nil, db.CreateOp))
 }

@@ -44,7 +44,7 @@ func (t *Target) SetHostKeyPolicy(ctx context.Context, keys, cas []string) error
 	if err != nil {
 		return errors.Wrap(ctx, err, op)
 	}
-	t.Target.HostKeyPolicyKeys, t.Target.HostKeyPolicyCas = k, c
+	t.HostKeyPolicyKeys, t.HostKeyPolicyCas = k, c
 	return nil
 }
 
