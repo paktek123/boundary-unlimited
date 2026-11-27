@@ -109,6 +109,10 @@ func (t *Target) VetForWrite(ctx context.Context, _ db.Reader, opType db.OpType,
 			return errors.New(ctx, errors.InvalidParameter, op, "missing name")
 		}
 	}
+	// A policy that did not go through SetHostKeyPolicy is still refused.
+	if _, _, err := t.HostKeyPolicy(ctx); err != nil {
+		return errors.Wrap(ctx, err, op)
+	}
 	return nil
 }
 

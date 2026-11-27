@@ -108,7 +108,10 @@ func TestEstimatedCount(t *testing.T) {
 	repo, err := target.NewRepository(ctx, rw, rw, testKms)
 	require.NoError(t, err)
 
-	// Check total entries at start, expect 0
+	// Check total entries at start, expect 0. A table that has never been
+	// analyzed reports -1 rows, so analyze before reading the estimate.
+	_, err = sqlDb.ExecContext(ctx, "analyze")
+	require.NoError(t, err)
 	numItems := target.TestEstimatedCount(t, repo, ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 0, numItems)

@@ -79,6 +79,16 @@ message TargetView {
   // PublicId of the storage bucket associated with the target
   // @inject_tag: `gorm:"default:null"`
   string storage_bucket_id = 160;
+
+  // host_key_policy_keys are the pinned upstream host keys of an ssh target,
+  // one authorized_keys entry per line; empty for other target types.
+  // @inject_tag: `gorm:"default:null"`
+  string host_key_policy_keys = 170;
+
+  // host_key_policy_cas are the trusted upstream host CA keys of an ssh
+  // target, one authorized_keys entry per line; empty for other target types.
+  // @inject_tag: `gorm:"default:null"`
+  string host_key_policy_cas = 180;
 }
 
 message TargetHostSet {

@@ -385,6 +385,7 @@ fork, which is independent of HashiCorp.
 * worker: Supply the `sshFinalizeReporter` to the ssh recording install dependencies, so the startup event no longer names `reporter` as missing. The finalizer and the spec provider still do not exist, so the factory stays uninstalled and recording-required sessions are still refused. Refs #259.
 * docs: `docs/runbooks.md` now states that pin-only create/update exist in the gRPC adapter but are not served by the controller wrapper, that definitions are `unverified` and that run is always refused (Refs #321). Docs only.
 * access requests: Add `VerifiedActorResolver` (`internal/daemon/controller/handlers/accessrequests/verified_actor.go`), an `auth.Verify`-backed `ActorResolver`: the actor id comes from the verified result and `CanApprove` only from an explicit `approve` grant on the request scope (wildcards never qualify). Not registered in the controller yet (Refs #338).
+* targets: Add the ssh target host key policy storage fields (`host_key_policy_keys`, `host_key_policy_cas`) and the domain methods `HostKeyPolicy` / `SetHostKeyPolicy`. Migration 121 turns the migration 119 columns into one bounded, newline-joined text value per list and recreates `target_all_subtypes` so every target lookup reads the policy back. The policy is validated on write and again on read (no wildcards, at most 16 entries, no duplicates) and any inconsistent stored value is an error. No API accepts it yet.
 
 ## 0.21.3 (2026/04/28)
 

@@ -80,8 +80,16 @@ type TargetView struct {
 	// PublicId of the storage bucket associated with the target
 	// @inject_tag: `gorm:"default:null"`
 	StorageBucketId string `protobuf:"bytes,160,opt,name=storage_bucket_id,json=storageBucketId,proto3" json:"storage_bucket_id,omitempty" gorm:"default:null"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// host_key_policy_keys are the pinned upstream host keys of an ssh target,
+	// one authorized_keys entry per line; empty for other target types.
+	// @inject_tag: `gorm:"default:null"`
+	HostKeyPolicyKeys string `protobuf:"bytes,170,opt,name=host_key_policy_keys,json=hostKeyPolicyKeys,proto3" json:"host_key_policy_keys,omitempty" gorm:"default:null"`
+	// host_key_policy_cas are the trusted upstream host CA keys of an ssh
+	// target, one authorized_keys entry per line; empty for other target types.
+	// @inject_tag: `gorm:"default:null"`
+	HostKeyPolicyCas string `protobuf:"bytes,180,opt,name=host_key_policy_cas,json=hostKeyPolicyCas,proto3" json:"host_key_policy_cas,omitempty" gorm:"default:null"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TargetView) Reset() {
@@ -229,6 +237,20 @@ func (x *TargetView) GetEnableSessionRecording() bool {
 func (x *TargetView) GetStorageBucketId() string {
 	if x != nil {
 		return x.StorageBucketId
+	}
+	return ""
+}
+
+func (x *TargetView) GetHostKeyPolicyKeys() string {
+	if x != nil {
+		return x.HostKeyPolicyKeys
+	}
+	return ""
+}
+
+func (x *TargetView) GetHostKeyPolicyCas() string {
+	if x != nil {
+		return x.HostKeyPolicyCas
 	}
 	return ""
 }
@@ -955,7 +977,7 @@ var File_controller_storage_target_store_v1_target_proto protoreflect.FileDescri
 
 const file_controller_storage_target_store_v1_target_proto_rawDesc = "" +
 	"\n" +
-	"/controller/storage/target/store/v1/target.proto\x12\"controller.storage.target.store.v1\x1a*controller/custom_options/v1/options.proto\x1a/controller/storage/timestamp/v1/timestamp.proto\"\xf8\x05\n" +
+	"/controller/storage/target/store/v1/target.proto\x12\"controller.storage.target.store.v1\x1a*controller/custom_options/v1/options.proto\x1a/controller/storage/timestamp/v1/timestamp.proto\"\xda\x06\n" +
 	"\n" +
 	"TargetView\x12\x1b\n" +
 	"\tpublic_id\x18\n" +
@@ -978,7 +1000,9 @@ const file_controller_storage_target_store_v1_target_proto_rawDesc = "" +
 	"\x14egress_worker_filter\x18\x82\x01 \x01(\tR\x12egressWorkerFilter\x123\n" +
 	"\x15ingress_worker_filter\x18\x8c\x01 \x01(\tR\x13ingressWorkerFilter\x129\n" +
 	"\x18enable_session_recording\x18\x96\x01 \x01(\bR\x16enableSessionRecording\x12+\n" +
-	"\x11storage_bucket_id\x18\xa0\x01 \x01(\tR\x0fstorageBucketId\"\x99\x01\n" +
+	"\x11storage_bucket_id\x18\xa0\x01 \x01(\tR\x0fstorageBucketId\x120\n" +
+	"\x14host_key_policy_keys\x18\xaa\x01 \x01(\tR\x11hostKeyPolicyKeys\x12.\n" +
+	"\x13host_key_policy_cas\x18\xb4\x01 \x01(\tR\x10hostKeyPolicyCas\"\x99\x01\n" +
 	"\rTargetHostSet\x12\x1b\n" +
 	"\ttarget_id\x18\n" +
 	" \x01(\tR\btargetId\x12\x1e\n" +
